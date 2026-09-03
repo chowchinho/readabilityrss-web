@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      # Explicit: the test stage must never become the published image.
+      target: runtime
+    image: readabilityrss-web:local
+    restart: unless-stopped
+    # Loopback by default, deliberately: a fresh instance has no password set and
+    # every API route is open until you complete setup in the browser.
+    #
+    # To reach it from other machines on your LAN, set these in .env:
+    #   BIND_ADDR=0.0.0.0
+    #   HOST_PORT=8010
+    # and set the password immediately after first load. HOST_PORT also avoids a
+    # clash when something else already owns 8001 on the host.
+    #
+    # Do not expose this straight to the internet; put a reverse proxy with TLS
+    # in front of it.
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${HOST_PORT:-8001}:8001"
+    env_file:
+      - .env
+    volumes:
+      - readabilityrss-data:/app/backend/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Optional. Bypasses Cloudflare interstitials on sites that use them.
+  # Uncomment this service, then set FLARESOLVERR_URL=http://flaresolverr:8191/v1
+  # in your .env. The backend works fine without it.
+  #
+  # flaresolverr:
+  #   image: ghcr.io/flaresolverr/flaresolverr:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     - LOG_LEVEL=info
+
+volumes:
+  readabilityrss-data:

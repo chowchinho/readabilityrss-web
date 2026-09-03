@@ -1,0 +1,39 @@
+{
+  "approved_images": [
+    {
+      "alt": "First lazy-loaded image",
+      "height": null,
+      "src": "https://example.com/images/lazy-image-1.jpg",
+      "url": "https://example.com/images/lazy-image-1.jpg",
+      "width": null
+    },
+    {
+      "alt": "Second lazy-loaded image",
+      "height": null,
+      "src": "https://example.com/images/lazy-image-2.png",
+      "url": "https://example.com/images/lazy-image-2.png",
+      "width": null
+    }
+  ],
+  "content": "<html><body><div><body id=\"readabilityBody\">\n<article>\n<h1>Test Article: Lazy Loading Images</h1>\n<p>This is the first paragraph of the article with some introductory content about lazy loading images and modern web practices.</p>\n<img alt=\"First lazy-loaded image\" src=\"https://example.com/images/lazy-image-1.jpg\"/>\n<p>This is the second paragraph that discusses how lazy loading improves page performance and user experience.</p>\n<img alt=\"Second lazy-loaded image\" src=\"https://example.com/images/lazy-image-2.png\"/>\n<p>This is the third and final paragraph summarizing the importance of optimized image loading strategies.</p>\n</article>\n</body>\n</div></body></html>",
+  "images": [
+    {
+      "alt": "First lazy-loaded image",
+      "height": null,
+      "src": "https://example.com/images/lazy-image-1.jpg",
+      "url": "https://example.com/images/lazy-image-1.jpg",
+      "width": null
+    },
+    {
+      "alt": "Second lazy-loaded image",
+      "height": null,
+      "src": "https://example.com/images/lazy-image-2.png",
+      "url": "https://example.com/images/lazy-image-2.png",
+      "width": null
+    }
+  ],
+  "language": "en",
+  "main_image": "https://example.com/images/article-cover.jpg",
+  "publish_date": "2026-03-17",
+  "title": "Test Article: Lazy Loading Images"
+}

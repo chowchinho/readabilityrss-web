@@ -1,0 +1,775 @@
+.reader-container {
+  flex: 1;
+  background-color: var(--bg-page);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.reader-header {
+  padding: 32px 32px 24px;
+  max-width: 1000px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.reader-title {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+}
+
+.reader-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.reader-meta-dot {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+@keyframes typedjsBlink {
+  50% {
+    opacity: 0.0;
+  }
+}
+
+.typing-source {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-right: 4px;
+  text-decoration: none;
+}
+
+.typing-source:hover {
+  text-decoration: underline;
+}
+
+.typing-divider {
+  margin: 0 4px;
+  color: var(--text-muted);
+}
+
+.typing-title {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.typing-title:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.typing-link {
+  transition: color 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.typing-link * {
+  cursor: pointer;
+}
+
+.cache-badge {
+  font-size: 10px;
+  background-color: var(--border);
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.reader-meta .favicon-wrapper {
+  width: 16px;
+  height: 16px;
+}
+
+.reader-favicon {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+}
+
+@media (max-width: 767px) {
+  .reader-meta .favicon-wrapper {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.article-content {
+  font-family: var(--font-body);
+  font-size: var(--reader-font-size, 17px);
+  line-height: 1.7;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 32px 48px;
+  /* Adjusted bottom padding */
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  /* Defensive */
+}
+
+/* Force everything to stay within the lines */
+.article-content *,
+.article-content img,
+.article-content video,
+.article-content iframe,
+.article-content table {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+}
+
+.article-content table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.article-content * {
+  max-width: 100% !important;
+  width: auto !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word;
+}
+
+.article-content figure,
+.article-content figure a {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.article-content figure img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.article-content img {
+  border-radius: 6px;
+  margin: 32px auto;
+  display: block;
+  max-width: 100% !important;
+  width: auto !important;
+  /* Allow natural scaling */
+  height: auto !important;
+  /* Prevent stretching */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Fix Next.js/framework fill-mode images (position:absolute) that escape layout
+   when Readability strips the sized parent. e.g. The Verge, Next.js sites. */
+.article-content img[style*="position:absolute"],
+.article-content img[style*="position: absolute"] {
+  position: static !important;
+  top: unset !important;
+  right: unset !important;
+  bottom: unset !important;
+  left: unset !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Collapse orphaned fill-image wrapper divs that have a fixed height but no visible content */
+.article-content div:has(> img[style*="position:absolute"]),
+.article-content div:has(> img[style*="position: absolute"]) {
+  position: static !important;
+  height: auto !important;
+}
+
+.article-content table,
+.article-content div[style*="width"],
+.article-content dl[style*="width"] {
+  display: block;
+  width: 100% !important;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+
+@media (max-width: 767px) {
+  .reader-header {
+    padding: 24px 20px 16px;
+  }
+
+  .reader-title {
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  .article-content {
+    padding: 0 16px 48px;
+    /* Adjusted bottom padding */
+    font-size: 16px;
+    overflow-x: hidden;
+    /* Prevent body scroll */
+  }
+
+  .article-content img {
+    margin: 16px auto;
+    width: 100% !important;
+    /* Force full width within padding */
+    object-fit: contain;
+  }
+}
+
+/* ============================================================
+   ARTICLE TYPOGRAPHY — proposed
+   Replaces the heading / list / blockquote rules in reader.css.
+   Design premise: <blockquote> in this reader is not a quotation.
+   It carries the ORIGINAL-LANGUAGE text that pairs with the
+   translated block immediately after it. Style it as a gloss,
+   not as a card.
+   ============================================================ */
+
+.article-content {
+  --flow-gap: 1.5em;      /* between independent blocks */
+  --pair-gap: 0.3em;      /* original -> its translation */
+  --list-gutter: 1.6em;   /* marker column width */
+  --translation-indent: 0.6em; /* translated li, stepped in from its original */
+  --rule: 2px;            /* shared rule weight */
+  --gloss-pad: 0.6em;     /* breathing room inside the original-text gloss */
+
+  /* --accent itself is only 2.85:1 on --bg-page, too weak for the ol
+     numerals, which are text. --accent-strong is the same hue at 4.9:1
+     and resolves back to plain --accent in the dark theme. */
+  --marker: var(--accent-strong);
+  --marker-nested: var(--text-muted);
+
+  /* Tint marking original-language text. --bg-card is pure white in the
+     light theme, which is a strong panel; #fbf8f3 is the softer option. */
+  --gloss-bg: var(--bg-card);
+}
+
+/* Numerals need a wider gutter than ticks, and stay aligned into double digits. */
+.article-content ul { --list-gutter: 1.5em; }
+.article-content ol { --list-gutter: 2.2em; }
+
+/* ---------- Headings: one scale, asymmetric rhythm ---------- */
+/* A heading belongs to the text below it, so top space > bottom space. */
+
+.article-content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin: 2em 0 0.6em;
+  padding: 0;
+  text-wrap: balance;
+}
+
+.article-content h1 { font-size: 1.75em; }
+.article-content h2 { font-size: 1.4em; }
+.article-content h3 { font-size: 1.18em; }
+
+/* Lora gets mushy below ~18px — hand h4-h6 to the body/meta faces. */
+.article-content h4 {
+  font-family: var(--font-body);
+  font-size: 1.05em;
+}
+
+.article-content :is(h5, h6) {
+  font-family: var(--font-meta);
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.article-content > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+
+/* ---------- Original-language gloss (blockquote) ---------- */
+
+.article-content blockquote {
+  margin: var(--flow-gap) 0;
+  padding: var(--gloss-pad) 0.9em;
+  border-left: var(--rule) solid var(--border);
+  border-radius: 0 3px 3px 0;
+  background: var(--gloss-bg);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.92em;
+  line-height: 1.65;
+}
+
+.article-content blockquote > :first-child { margin-top: 0; }
+.article-content blockquote > :last-child { margin-bottom: 0; }
+
+/* Bind each pair: tight inside the pair, loose between pairs. */
+.article-content blockquote:has(+ p) { margin-bottom: 0; }
+.article-content blockquote + p { margin-top: var(--pair-gap); }
+
+/* Original-language heading: no box, no compounding font-size. */
+.article-content blockquote:has(> :is(h1, h2, h3, h4, h5, h6)) {
+  margin: 2em 0 0;
+}
+
+.article-content blockquote :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.article-content blockquote:has(> :is(h1, h2, h3, h4, h5, h6)) + :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: var(--pair-gap);
+}
+
+/* ---------- Lists ---------- */
+
+.article-content :is(ul, ol) {
+  margin: var(--flow-gap) 0;
+  padding-left: var(--list-gutter);
+  list-style: none;
+}
+
+.article-content :is(ul, ol) :is(ul, ol) {
+  margin: 0.25em 0 0.4em;
+}
+
+.article-content li {
+  position: relative;
+  margin: 0 0 0.5em;
+}
+
+.article-content li:last-child { margin-bottom: 0; }
+
+/* ul marker: a short tick, the gloss rule turned 90 degrees */
+.article-content ul > li::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--list-gutter) * -1);
+  top: 0.72em;
+  width: 0.7em;
+  height: var(--rule);
+  border-radius: 1px;
+  background: var(--marker);
+}
+
+/* Any nested ul, including one buried inside a blockquote-wrapped li. */
+.article-content :is(ul, ol) :is(ul, ol) > li::before {
+  width: 0.42em;
+  background: var(--marker-nested);
+}
+
+/* ol marker: numerals in the utility face, right-aligned in the gutter.
+   Only the real <li> children count, so a blockquote-wrapped original
+   never consumes a number. */
+.article-content ol { counter-reset: rr-ol; }
+.article-content ol > li { counter-increment: rr-ol; }
+
+.article-content ol > li::before {
+  content: counter(rr-ol);
+  position: absolute;
+  left: calc(var(--list-gutter) * -1);
+  top: 0.2em;
+  width: calc(var(--list-gutter) - 0.55em);
+  text-align: right;
+  font-family: var(--font-meta);
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--marker);
+}
+
+.article-content ol ol > li::before { content: counter(rr-ol, lower-alpha); }
+
+/* ---------- Translated list pairs ----------
+   Source markup interleaves an illegal <blockquote> inside the list:
+     <ul> <blockquote><li>original</li></blockquote> <li>translation</li> ...
+   The original keeps the same rule-and-inset as a paragraph gloss, so
+   "this is source text" looks identical everywhere. The marker stays on
+   the real <li> — the translation — which is the line being read.
+   Lists with no translation fall through to the plain li rules above. */
+
+/* The panel bleeds left across the marker gutter and takes the gutter as its
+   own left padding, so the original's text lands on the same column as the
+   translation's instead of 0.9em further in. */
+.article-content :is(ul, ol) > blockquote {
+  margin: 0 0 0 calc(var(--list-gutter) * -1);
+  padding: var(--gloss-pad) 0.9em var(--gloss-pad) calc(var(--list-gutter) - var(--rule));
+  font-size: 0.92em;
+  /* Beats the global `.article-content * { max-width: 100% !important }`,
+     which would otherwise clamp the widened panel short of the right edge. */
+  max-width: none !important;
+}
+
+.article-content :is(ul, ol) > blockquote > li { margin: 0; }
+.article-content :is(ul, ol) > blockquote > li::before { content: none; }
+
+/* Step the translation in from its original. margin (not padding) so the
+   marker, positioned against the li's padding box, travels with the text. */
+.article-content :is(ul, ol) > blockquote + li {
+  margin-bottom: 1.5em;
+  margin-left: var(--translation-indent);
+}
+.article-content :is(ul, ol) > blockquote + li:last-child { margin-bottom: 0; }
+
+/* ---------- Description lists (spec tables) ---------- */
+
+.article-content dl { margin: var(--flow-gap) 0; }
+
+.article-content dt {
+  margin-top: 0.6em;
+  padding-left: 0.9em;
+  border-left: var(--rule) solid var(--marker);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.article-content dt:first-child { margin-top: 0; }
+
+.article-content dd {
+  margin: 0.15em 0 0 0.9em;
+  color: var(--text-secondary);
+}
+
+.article-content dd:empty { display: none; }
+
+.article-content pre,
+.article-content code {
+  font-family: var(--font-mono);
+  background: var(--read-bg);
+  border-radius: 4px;
+}
+
+.article-content pre {
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.article-content a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+
+.article-content a:hover {
+  color: var(--accent-hover);
+  text-decoration-color: var(--accent-hover);
+}
+
+/* Action bar */
+.reader-actions-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg-page);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.reader-actions {
+  position: relative;
+  max-width: 1000px;
+  width: 100%;
+  padding: 16px 32px;
+  display: flex;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+/* Centred against the bar itself, not against the flex run: the two sides carry
+   different amounts of content, so an in-flow group would sit off centre. */
+.reader-feedback-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1;
+}
+
+.reader-feedback-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.reader-feedback-btn.thumb-up:hover,
+.reader-feedback-btn.thumb-up.active {
+  color: #6aaa6a;
+  border-color: #6aaa6a;
+}
+
+.reader-feedback-btn.thumb-down:hover,
+.reader-feedback-btn.thumb-down.active {
+  color: #c07060;
+  border-color: #c07060;
+}
+
+/* A fixed square with the glyph gridded into it, then nudged up a pixel: geometric
+   centring reads low against Latin text, whose visual mass sits above the line
+   box's middle because of the descender space beneath it. */
+.reader-meta-info-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  position: relative;
+  top: -1px;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+  border-radius: 3px;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.reader-meta-info-btn .material-symbols-outlined {
+  display: block;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.reader-meta-info-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.reader-meta-info-btn.active {
+  color: var(--accent);
+}
+
+.reader-info-panel {
+  margin-top: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+.action-btn:hover {
+  background: var(--read-bg);
+  color: var(--text-primary);
+}
+
+@media (max-width: 767px) {
+  .reader-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50;
+  }
+
+  .reader-actions-wrapper {
+    top: 0;
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+  }
+
+  .reader-actions {
+    padding: 8px 12px;
+    gap: 0;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .back-btn {
+    padding: 6px 0;
+    min-width: 32px;
+  }
+
+  .read-toggle-btn {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 10px;
+  }
+
+  /* The read toggle owns the centre on mobile, so the votes drop back into flow
+     beside the other right-hand icons. */
+  .reader-feedback-center {
+    position: static;
+    transform: none;
+    gap: 2px;
+  }
+
+  .right-actions {
+    display: flex;
+    gap: 2px;
+  }
+
+  .action-btn {
+    font-size: 12px;
+    /* Slightly reduced for better fit */
+    padding: 6px 8px;
+    /* Adjusted padding */
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .btn-label {
+    display: none;
+  }
+
+  .btn-label-unread {
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .reader-header {
+    padding: 20px 16px 12px;
+  }
+
+  .reader-title {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+
+  .article-content {
+    padding: 0 16px 48px;
+    font-size: 16px;
+  }
+}
+
+.article-content::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 2px;
+  margin: 80px auto 0;
+  background-color: var(--text-muted);
+  opacity: 0.3;
+  border-radius: 1px;
+  box-shadow: 0 6px 0 0 currentColor;
+}
+
+.reader-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.reader-container.empty-state {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Ensure container itself doesn't scroll twice */
+@media (max-width: 767px) {
+  .reader-container {
+    overflow: hidden !important;
+  }
+}
+
+/* Slide-out animation when tapping the in-app back button */
+@media (max-width: 767px) {
+  .reader-container.reader-leaving {
+    transform: translateX(50px);
+    opacity: 0;
+    transition: transform 0.16s ease, opacity 0.16s ease;
+    pointer-events: none;
+  }
+}
+
+/* End-of-list swipe toast */
+.swipe-toast {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 20, 10, 0.82);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 200;
+  white-space: nowrap;
+  animation: swipe-toast-in 0.2s ease;
+}
+
+@keyframes swipe-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+
+/* ---------- Narrow screens ----------
+   Must stay AFTER the rules above. In the shipped file the mobile
+   blockquote override sits *before* the desktop blockquote rule, so
+   its border-left-width never applies. */
+
+@media (max-width: 767px) {
+  .article-content {
+    --flow-gap: 1.25em;
+    --list-gutter: 1.35em;
+    --translation-indent: 0.4em;
+    --gloss-pad: 0.5em;
+  }
+
+  .article-content ul { --list-gutter: 1.25em; }
+  .article-content ol { --list-gutter: 1.9em; }
+
+  .article-content h1 { font-size: 1.55em; }
+  .article-content h2 { font-size: 1.3em; }
+  .article-content h3 { font-size: 1.12em; }
+
+  .article-content :is(h1, h2, h3, h4, h5, h6) { margin-top: 1.6em; }
+  .article-content blockquote:has(> :is(h1, h2, h3, h4, h5, h6)) { margin-top: 1.6em; }
+
+  .article-content blockquote { padding-left: 0.7em; }
+}
+
+/* Space is reserved at all times: the marker fading in five seconds into an
+   article must not nudge the thumbs sideways mid-read. */
+.read-recorded {
+  display: inline-flex;
+  align-items: center;
+  width: 1.25rem;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.read-recorded.is-on {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+.read-recorded .material-symbols-outlined { font-size: 1.1rem; }

@@ -1,0 +1,70 @@
+node_modules/
+dist/
+build/
+
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.venv/
+backend/*.pyc
+
+frontend/node_modules/
+frontend/.cache/
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env files at any depth. Broad glob so ad-hoc backups (.env.bak-*, .env.old)
+# cannot be staged by `git add -A`; the two committed templates are re-included.
+.env*
+!.env.example
+!.env.production
+
+.worktrees/
+
+# SQLite files
+*.db
+*.db-shm
+*.db-wal
+
+# Auto-generated caches
+backend/data/favicon_cache/
+backend/data/image_cache/
+
+# Python bytecode (root level)
+__pycache__/
+*.pyc
+
+# Agentic AI local config
+.agents/
+.claude/
+.superpowers/
+tmp/
+
+*storybook.log
+storybook-static
+
+# Local dev tooling / Pi monitoring scripts (kept on disk, not versioned)
+*.bak
+fast-watch.sh.*
+watch.sh.*
+pi-reachability-watch.ps1
+backend/scripts/translation_comparison.html
+docs/pi-freeze-investigation.md
+
+# Build/run logs and generated analysis output
+*.log
+graphify-out/
+
+# Test fixture images: 62 third-party news photos, ~4.8MB.
+# Re-fetch with: python backend/scripts/fetch_focal_fixtures.py
+backend/tests/fixtures/focal_images/
+
+# Parity corpus HTML fixtures: ~20 real article pages.
+# Re-fetch with: python backend/scripts/fetch_parity_corpus.py
+backend/tests/fixtures/parity_corpus/
+backend/tests/fixtures/benchmark_pages/
+
+# Review analysis files and scrapbooks
+analysis/

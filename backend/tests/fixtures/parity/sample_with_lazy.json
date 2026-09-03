@@ -1,0 +1,40 @@
+{
+  "approved_images": [],
+  "content": "<p>Content with lazy images.</p>\n<img alt=\"Lazy image 1\" class=\"lazy-image\" src=\"https://example.com/lazy1.jpg\"/>\n<img alt=\"Lazy image 2\" src=\"https://example.com/lazy2.jpg\"/>\n<img alt=\"Normal image\" src=\"https://example.com/normal.jpg\"/>",
+  "images": [
+    {
+      "alt": "Lazy image 1",
+      "anchor_text_next": "",
+      "anchor_text_prev": "Content with lazy images.",
+      "index": 0,
+      "src": "",
+      "srcset": "",
+      "title": "",
+      "url": "https://example.com/lazy1.jpg"
+    },
+    {
+      "alt": "Lazy image 2",
+      "anchor_text_next": "",
+      "anchor_text_prev": "Content with lazy images.",
+      "index": 1,
+      "src": "",
+      "srcset": "",
+      "title": "",
+      "url": "https://example.com/lazy2.jpg"
+    },
+    {
+      "alt": "Normal image",
+      "anchor_text_next": "",
+      "anchor_text_prev": "Content with lazy images.",
+      "index": 2,
+      "src": "https://example.com/normal.jpg",
+      "srcset": "",
+      "title": "",
+      "url": "https://example.com/normal.jpg"
+    }
+  ],
+  "language": "en",
+  "main_image": "https://example.com/lazy1.jpg",
+  "publish_date": "",
+  "title": "Article with Lazy Images"
+}

@@ -1,0 +1,624 @@
+.feed-container {
+  width: var(--feed-width);
+  background-color: var(--bg-page);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+
+/* Utilitarian Scrollbar for Pane 2 */
+.feed-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.feed-container::-webkit-scrollbar-track {
+  background: var(--bg-page);
+  border-left: 1px solid var(--border);
+}
+
+.feed-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0;
+}
+
+.feed-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+@media (max-width: 767px) {
+  .feed-container {
+    width: 100%;
+    height: calc(100vh - 56px);
+    /* subtract mobile top bar */
+    touch-action: pan-y;
+  }
+}
+
+.feed-header {
+  height: 56px;
+  padding: 0 16px;
+  border-bottom: 2px solid var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.feed-header h2 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-meta);
+  flex-grow: 1;
+  /* PUSH BADGE TO RIGHT */
+}
+
+.header-unread-badge {
+  background-color: var(--bg-page);
+  color: var(--accent);
+  padding: 4px 8px;
+  font-family: var(--font-meta);
+  font-size: 11px;
+  height: 28px;
+  line-height: 18px;
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.feed-header-favicon {
+  width: 18px;
+  height: 18px;
+}
+
+.article-card {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: max(96px, 30%) 1fr;
+  align-items: stretch;
+  gap: 12px;
+  background-color: var(--bg-card);
+  transition: background-color 0.1s;
+  min-height: 143px;
+  box-sizing: border-box;
+  overflow-anchor: none;
+}
+
+.article-card.no-image {
+  grid-template-columns: 1fr;
+}
+
+.article-card:hover {
+  background-color: var(--read-bg);
+}
+
+.article-card.active {
+  background-color: var(--bg-page);
+  border-left: 4px solid var(--accent);
+  padding-left: 8px;
+  /* Offset for border */
+}
+
+.article-card.is-read {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.article-card.is-read .card-title,
+.article-card.is-read .card-snippet {
+  color: var(--text-muted) !important;
+}
+
+.card-image-container {
+  width: 100%;
+  height: 114px;
+  border-radius: 2px;
+  border: 2px solid #ccc;
+  overflow: hidden;
+  flex-shrink: 0;
+  overflow-anchor: none;
+}
+
+.card-image-square {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Fallback only — SmartCropImage sets object-position inline from the
+     server-computed focal point. Not transitioned: see the note on
+     .monocle-featured-media img in sources_index.css. */
+  object-position: center;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.card-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card-title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.card-snippet {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  /* EXACTLY 3 LINES */
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.card-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  gap: 8px;
+  font-family: var(--font-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: auto;
+  /* PIN TO BOTTOM */
+  border-top: 1px dotted var(--border);
+  padding-top: 4px;
+}
+
+.card-meta-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 1;
+  transition: opacity 0.18s ease;
+}
+
+.favicon-wrapper {
+  width: 14px;
+  height: 14px;
+}
+
+.card-favicon {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 767px) {
+  .feed-container {
+    width: 100%;
+    height: calc(100vh - 56px);
+    /* subtract mobile top bar */
+  }
+
+  .feed-header {
+    display: none;
+  }
+
+  .favicon-wrapper {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.card-timestamp {
+  margin-left: auto;
+  /* PUSH TO RIGHT */
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: opacity 0.18s ease;
+}
+
+/* Appearance lives in ranking_controls.css so the index cards get the same mark.
+   Only the placement is local: the mark takes over the timestamp's auto margin so
+   the pair travels to the right edge together — left on .card-timestamp it would
+   strand the glyph next to the source name. The negative margin claws back most of
+   the footer's 8px gap, which is tuned for separate items, not a glyph and label. */
+.card-footer .card-vote-mark {
+  margin-left: auto;
+  margin-right: -4px;
+}
+
+.card-vote-mark + .card-timestamp {
+  margin-left: 0;
+}
+
+.card-source-name {
+  flex-shrink: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feed-loader {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.loader-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-meta);
+  text-transform: uppercase;
+}
+
+.view-mode-btn {
+  background-color: var(--bg-page);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  height: 28px;
+  width: 28px;
+  border-radius: 4px;
+}
+
+
+.view-mode-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+}
+
+.view-mode-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Full Image View Mode */
+.article-card.full-image {
+  display: block;
+  /* Bypass grid logic for hero cards */
+  position: relative;
+  height: 172px;
+  padding: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.article-card.full-image .card-image-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0px;
+  border: none;
+  opacity: 0.7;
+  transition: opacity 500ms ease;
+}
+
+.article-card.full-image:hover .card-image-container {
+  opacity: 0.9;
+}
+
+.article-card.full-image .card-image-square {
+  border: none;
+}
+
+.article-card.full-image .card-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.article-card.full-image .card-title {
+  color: white;
+  font-size: 14px;
+  /* Slightly smaller for 172px height */
+  line-height: 1.25;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
+  -webkit-line-clamp: 2;
+  /* 2 lines max in 172px hero */
+  line-clamp: 2;
+  margin: 0;
+}
+
+.article-card.full-image .card-snippet {
+  display: none;
+}
+
+.article-card.full-image .card-footer {
+  border-top: none;
+  padding-top: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.article-card.full-image .card-source-name,
+.article-card.full-image .card-timestamp {
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: 0;
+}
+
+/* This footer runs left-aligned over the artwork, so the mark drops the auto margin
+   with the timestamp. The shadow is what the rank buttons use to stay legible on an
+   unpredictable photo. */
+.article-card.full-image .card-vote-mark {
+  margin-left: 0;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
+}
+
+.article-card.full-image.active {
+  border-left: 6px solid var(--accent);
+  padding-left: 0;
+}
+
+.article-card.full-image.is-read {
+  opacity: 0.65;
+}
+
+@keyframes monocleOverlayFade {
+  0% { opacity: 0; }
+  12.5% { opacity: 1; }
+  33.3% { opacity: 1; }
+  45.8% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ========================================================= */
+/* HOVER-REVEALED RANKING SLOTS                              */
+/* ========================================================= */
+
+/* Stretched with the footer's own padding inherited rather than centred on 50%:
+   absolute insets resolve against the padding box, but the source name and the
+   timestamp centre in the content box, which the 4px padding-top offsets. */
+.card-info-slot,
+.card-feedback-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: inherit;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 3;
+}
+
+.card-info-slot { left: 0; }
+.card-feedback-slot { right: 0; }
+
+.article-card:hover .card-meta-identity,
+.article-card:hover .card-vote-mark,
+.article-card:hover .card-timestamp {
+  opacity: 0;
+}
+
+.article-card:hover .card-info-slot,
+.article-card:hover .card-feedback-slot {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.card-rank-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: color 0.15s, background-color 0.15s, transform 0.15s;
+}
+
+.card-rank-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.card-rank-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.card-rank-btn.info-btn.active {
+  color: var(--accent);
+}
+
+/* Dashboard traffic-light palette. */
+.card-rank-btn.thumb-up:hover,
+.card-rank-btn.thumb-up.active {
+  color: #6aaa6a;
+}
+
+.card-rank-btn.thumb-down:hover,
+.card-rank-btn.thumb-down.active {
+  color: #c07060;
+}
+
+/* Full image view: the slots leave the footer for the artwork's top corners.
+   .card-title sits 12px in from the card edge (.card-content's padding), so the
+   glyph boxes are placed at that same inset, less the button's own padding. */
+.article-card.full-image .card-info-slot,
+.article-card.full-image .card-feedback-slot {
+  top: 10px;
+  bottom: auto;
+  padding: 0;
+  z-index: 4;
+}
+
+.article-card.full-image .card-info-slot { left: 8px; }
+.article-card.full-image .card-feedback-slot { right: 8px; }
+
+/* Nothing takes over the footer here — the slots are on the artwork — so the
+   source and timestamp have no reason to step aside. */
+.article-card.full-image:hover .card-meta-identity,
+.article-card.full-image:hover .card-vote-mark,
+.article-card.full-image:hover .card-timestamp {
+  opacity: 1;
+}
+
+.article-card.full-image .card-rank-btn {
+  color: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
+  margin: 0;
+}
+
+.article-card.full-image .card-rank-btn:hover {
+  background-color: transparent;
+  transform: scale(1.15);
+}
+
+/* Restated at this specificity because the white-on-artwork rule above matches
+   just as tightly as the palette rules and comes later in the file. */
+.article-card.full-image .card-rank-btn.thumb-up:hover,
+.article-card.full-image .card-rank-btn.thumb-up.active {
+  color: #6aaa6a;
+}
+
+.article-card.full-image .card-rank-btn.thumb-down:hover,
+.article-card.full-image .card-rank-btn.thumb-down.active {
+  color: #c07060;
+}
+
+.article-card.full-image .card-rank-btn.info-btn.active {
+  color: var(--accent);
+}
+
+/* Card Ranking Actions & Info Popover */
+.card-ranking-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.ranking-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.ranking-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.ranking-btn.active {
+  color: var(--accent);
+}
+
+.ranking-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.ranking-info-popover {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background-color: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-primary);
+  line-height: 1.35;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ranking-info-popover .info-reason {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.ranking-info-popover .info-tags {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.ranking-info-popover .info-summary {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* The hero card is a fixed 172px with overflow:hidden, so an unbounded panel is
+   clipped rather than scrolled. */
+.article-card.full-image .ranking-info-popover {
+  max-height: 88px;
+  overflow-y: auto;
+}
+
+/* Standard view: the panel covers .card-content instead of being appended below
+   it. In flow it grew the card past its own bottom border and shoved the rest of
+   the list; laid over the content it changes nothing about the card's height.
+   The top padding is the gutter the corner buttons sit in. */
+.article-card:not(.full-image) .ranking-info-popover {
+  position: absolute;
+  inset: 0;
+  margin-top: 0;
+  padding: 26px 10px 8px 10px;
+  overflow-y: auto;
+  z-index: 6;
+  box-sizing: border-box;
+}
+
+.ranking-info-popover .card-info-slot,
+.ranking-info-popover .card-feedback-slot {
+  top: 4px;
+  bottom: auto;
+  padding: 0;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.ranking-info-popover .card-info-slot { left: 6px; }
+.ranking-info-popover .card-feedback-slot { right: 6px; }

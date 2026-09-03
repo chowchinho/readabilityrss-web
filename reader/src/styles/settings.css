@@ -1,0 +1,299 @@
+.settings-container {
+  padding: 20px;
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  height: 100vh;
+  overflow-y: auto;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  z-index: 1000;
+}
+
+@media (min-width: 768px) {
+  .settings-container {
+    width: 400px;
+    height: 100vh;
+    left: auto;
+    right: 0;
+    box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+  }
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.settings-section {
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.settings-manage-section {
+  background: var(--bg-hover, rgba(201, 125, 46, 0.12));
+  border: 1.5px solid var(--accent, #c97d2e);
+  border-radius: 8px;
+  padding: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.settings-manage-section:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 125, 46, 0.22);
+}
+
+.settings-manage-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  color: var(--accent, #c97d2e);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.settings-manage-link .material-symbols-outlined {
+  font-size: 22px;
+  color: var(--accent, #c97d2e);
+  transition: color 0.15s ease;
+}
+
+.settings-manage-section:hover .settings-manage-link {
+  background: var(--accent, #c97d2e);
+  color: #ffffff;
+}
+
+.settings-manage-section:hover .settings-manage-link .material-symbols-outlined {
+  color: #ffffff;
+}
+
+.settings-section h3 {
+  margin-top: 0;
+  font-size: 16px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.settings-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* One row shape for every option in the panel, whatever the control and however
+   many lines the help text runs to: the control sits on the label's own line,
+   not at the vertical middle of the whole block. */
+.settings-section label.settings-option {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.settings-option input {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.settings-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+/* Two pixels larger than the checkbox on purpose: a circle inscribed in the same
+   box reads visibly smaller than a square filling it. */
+.settings-option input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin-top: -1px;
+}
+
+.settings-option-help {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.settings-option.is-disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.settings-option.is-disabled input {
+  cursor: default;
+}
+
+.settings-section select {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.usage-meter {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.settings-subgroup {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.settings-subheading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+/* ── Buttons ── */
+
+.btn-danger {
+  background: #d9534f;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c9302c;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-success {
+  background: #3a7d44;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  width: 100%;
+  border: none;
+}
+
+/* ── Inline clear confirmation ── */
+
+.clear-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.clear-confirm-warning {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.clear-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-danger-sm {
+  flex: 1;
+  background: #d9534f;
+  color: white;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger-sm:hover {
+  background: #c9302c;
+}
+
+.btn-cancel-sm {
+  flex: 1;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.btn-cancel-sm:hover {
+  background: var(--bg-page);
+}
+
+/* ── Save status message ── */
+
+.save-status-msg {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Footer — matches .settings-section style ── */
+
+.settings-footer {
+  margin-bottom: 0;
+  background: var(--bg-card);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+}

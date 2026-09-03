@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReadabilityRSS — Warm Newsprint Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --col-url-width:  190px;
+      --bg-page:        #f5efe6;
+      --bg-nav:         #1c1510;
+      --bg-card:        #faf7f2;
+      --bg-hover:       #fff3e0;
+      --bg-drawer:      #2a2018;
+
+      --text-primary:   #1c1208;
+      --text-secondary: #6b5a4e;
+      --text-muted:     #a0897c;
+      --text-nav:       #e8ddd0;
+
+      --accent:         #c97d2e;
+      --accent-hover:   #a8641e;
+      --border:         #d4c4b0;
+      --border-hover:   #b8a490;
+
+      --status-active:  #5a8a5a;
+      --status-error:   #b85c38;
+      --status-pending: #a0897c;
+
+      --font-serif: 'Lora', Georgia, serif;
+      --font-sans:  'Source Sans 3', system-ui, sans-serif;
+      --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--bg-nav);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-top: 3px solid var(--accent);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      height: 36px;
+      padding: 0 16px;
+      gap: 16px;
+    }
+
+    .nav-brand {
+      font-family: var(--font-serif);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2px;
+    }
+
+    .nav-links button {
+      background: transparent;
+      border: none;
+      color: var(--text-nav);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      border-radius: 2px;
+      opacity: 0.7;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .nav-links button:hover,
+    .nav-links button.active {
+      opacity: 1;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .nav-links button.active {
+      color: var(--accent);
+    }
+
+    .nav-spacer { flex: 1; }
+
+    .nav-log-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-nav);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      opacity: 0.7;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+
+    .nav-log-btn:hover {
+      opacity: 1;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .nav-version {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: rgba(232,221,208,0.35);
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .page {
+      width: 100%;
+      padding: 20px 24px;
+    }
+
+    /* ── SECTION TABS ── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── DASHBOARD ── */
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .dashboard-title {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+    }
+
+    .dashboard-header-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    /* ── OUTLINED BUTTONS ── */
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      padding: 3px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: rgba(201,125,46,0.08);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-danger:hover {
+      border-color: var(--status-error);
+      color: var(--status-error);
+      background: rgba(184,92,56,0.06);
+    }
+
+    /* ── CATEGORY GROUP ── */
+    .category-group {
+      margin-bottom: 4px;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 0 3px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-chevron {
+      font-size: 9px;
+      color: var(--text-muted);
+      width: 10px;
+      text-align: center;
+    }
+
+    .category-name {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .category-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ── SOURCE ROWS ── */
+    .sources-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .source-row {
+      border-bottom: 1px solid rgba(212,196,176,0.4);
+    }
+
+    .source-row:nth-child(even) {
+      background: rgba(212,196,176,0.15);
+    }
+
+    .source-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .source-row td {
+      padding: 5px 8px;
+      vertical-align: middle;
+    }
+
+    .source-row td:first-child { padding-left: 20px; }
+
+    /* Status dot */
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot.active  { background: var(--status-active); }
+    .status-dot.error   { background: var(--status-error); }
+    .status-dot.pending { background: var(--status-pending); }
+
+    .td-status {
+      width: 24px;
+    }
+
+    .td-url {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      width: var(--col-url-width);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .td-url a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .td-url a:hover {
+      color: var(--accent);
+    }
+
+    .td-divider {
+      width: 12px;
+      padding: 0 !important;
+      position: relative;
+    }
+
+    .td-divider-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 12px;
+      cursor: col-resize;
+      user-select: none;
+    }
+
+    .td-divider-handle::after {
+      content: '';
+      display: block;
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+      transition: background 0.12s, width 0.12s;
+    }
+
+    .td-divider-handle:hover::after,
+    .td-divider-handle.dragging::after {
+      background: var(--accent);
+      width: 2px;
+    }
+
+    .td-latest {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .td-latest a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .td-latest a:hover {
+      color: var(--accent);
+    }
+
+    .td-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 60px;
+      white-space: nowrap;
+    }
+
+    .td-actions {
+      width: 1px;
+      white-space: nowrap;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.12s;
+    }
+
+    .source-row:hover .row-actions {
+      opacity: 1;
+    }
+
+    .row-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.1s;
+    }
+
+    .row-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+    }
+
+    .row-btn.danger:hover {
+      border-color: var(--status-error);
+      color: var(--status-error);
+    }
+
+    /* ── DRAWER ── */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 200;
+      display: none;
+    }
+
+    .drawer-overlay.open {
+      display: block;
+    }
+
+    .drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 300px;
+      background: var(--bg-drawer);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .drawer-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #c8b9a8;
+    }
+
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: #7a6a5a;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 6px;
+      transition: color 0.12s;
+    }
+
+    .drawer-close:hover { color: #c8b9a8; }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    /* Log entries in drawer */
+    .log-entry {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 3px 6px;
+      padding: 4px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .log-entry:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    .log-ts {
+      color: #6a5a4a;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .log-icon-ok  { color: #6aaa6a; flex-shrink: 0; }
+    .log-icon-err { color: #c07060; flex-shrink: 0; }
+    .log-icon-inf { color: #8aa0b8; flex-shrink: 0; }
+
+    .log-source {
+      color: #c8a06a;
+      font-size: 10px;
+      flex-shrink: 0;
+      max-width: 12ch;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-msg {
+      color: #b0a090;
+      flex-basis: 100%;
+      padding-left: 1.4rem;
+      word-break: break-word;
+      font-size: 10px;
+    }
+
+    .log-entry.log-ok .log-msg  { color: #8ab888; }
+    .log-entry.log-err .log-msg { color: #c8906a; }
+
+    /* ── ADD WEBSITE WIZARD ── */
+    .wizard-container {
+      max-width: 600px;
+    }
+
+    .wizard-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 24px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      background: transparent;
+      transition: all 0.15s;
+    }
+
+    .step.active .step-num {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(201,125,46,0.1);
+      font-weight: 600;
+    }
+
+    .step.complete .step-num {
+      border-color: var(--status-active);
+      color: var(--status-active);
+      background: rgba(90,138,90,0.1);
+    }
+
+    .step-label {
+      font-size: 11px;
+    }
+
+    .step.active .step-label {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .step-connector {
+      width: 32px;
+      height: 1px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 7px 10px;
+      border-radius: 2px;
+      transition: border-color 0.12s;
+      outline: none;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    /* Link list in step 2 */
+    .links-list {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      max-height: 660px;
+      overflow-y: auto;
+    }
+
+    .link-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(212,196,176,0.4);
+      font-size: 12px;
+    }
+
+    .link-item:last-child { border-bottom: none; }
+
+    .link-item input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+
+    .link-title {
+      font-size: 12px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .link-url-text {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── TRANSLATION TOGGLE ── */
+    .translate-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      margin-bottom: 14px;
+    }
+
+    .translate-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .translate-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .translate-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .lang-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: rgba(201,125,46,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(201,125,46,0.3);
+      padding: 0 5px;
+      border-radius: 2px;
+      margin-left: 4px;
+    }
+
+    .toggle {
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--border);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      padding: 0;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+
+    .toggle.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle.on::after {
+      transform: translateX(16px);
+    }
+
+    /* ── CATEGORIES TABLE ── */
+    .categories-container {
+      max-width: 600px;
+    }
+
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .add-row input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 2px;
+      outline: none;
+      transition: border-color 0.12s;
+    }
+
+    .add-row input:focus { border-color: var(--accent); }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(212,196,176,0.5);
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    .data-table .actions-cell {
+      display: flex;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+
+    /* ── PARSER VIEW ── */
+    .parser-container {
+      max-width: 100%;
+    }
+
+    .url-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .url-input-row input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .url-input-row input:focus { border-color: var(--accent); }
+
+    .parser-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .parser-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 7px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: rgba(212,196,176,0.2);
+    }
+
+    .panel-body {
+      padding: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-height: 200px;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV BAR -->
+<header class="nav">
+  <div class="nav-inner">
+    <span class="nav-brand" onclick="showSection('dashboard')">ReadabilityRSS</span>
+    <nav class="nav-links">
+      <button id="nav-dashboard" class="active" onclick="showSection('dashboard')">dashboard</button>
+      <button id="nav-parser" onclick="showSection('parser')">parser</button>
+      <button id="nav-categories" onclick="showSection('categories')">categories</button>
+      <button id="nav-wizard" onclick="showSection('wizard')">+ add site (wizard)</button>
+    </nav>
+    <span class="nav-spacer"></span>
+    <span class="nav-version">2026-03-20 18:00 UTC</span>
+    <button class="nav-log-btn" onclick="toggleDrawer()">[log]</button>
+  </div>
+</header>
+
+<!-- MAIN PAGE -->
+<main class="page">
+
+  <!-- ── DASHBOARD ── -->
+  <section class="section active" id="section-dashboard">
+    <div class="dashboard-header">
+      <span class="dashboard-title">Feed Sources</span>
+      <div class="dashboard-header-actions">
+        <button class="btn">Refresh All</button>
+        <button class="btn">Copy OPML</button>
+        <button class="btn btn-primary">+ Add Website</button>
+      </div>
+    </div>
+
+    <!-- Category: TECH -->
+    <div class="category-group">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="category-chevron">▼</span>
+        <span class="category-name">Tech</span>
+        <span class="category-count">(3)</span>
+      </div>
+      <table class="sources-table">
+        <tbody>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot active" title="OK"></span></td>
+            <td class="td-url"><a href="#">techcrunch.com</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest"><a href="#">OpenAI releases o3 reasoning model to all ChatGPT users starting today</a></td>
+            <td class="td-time">2h</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot active"></span></td>
+            <td class="td-url"><a href="#">arstechnica.com</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest"><a href="#">How the new Raspberry Pi 5 handles thermals under sustained load</a></td>
+            <td class="td-time">14h</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot error"></span></td>
+            <td class="td-url"><a href="#">wired.com</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest" style="color: var(--text-muted); font-style: italic;">HTTP 429 — rate limited</td>
+            <td class="td-time">1d</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Category: SCIENCE -->
+    <div class="category-group">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="category-chevron">▼</span>
+        <span class="category-name">Science</span>
+        <span class="category-count">(2)</span>
+      </div>
+      <table class="sources-table">
+        <tbody>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot active"></span></td>
+            <td class="td-url"><a href="#">nature.com</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest"><a href="#">CRISPR gene editing reaches a new milestone in treating hereditary blindness</a></td>
+            <td class="td-time">3h</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot pending"></span></td>
+            <td class="td-url"><a href="#">scientificamerican.com</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest" style="color: var(--text-muted); font-style: italic;">Never fetched</td>
+            <td class="td-time">—</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Uncategorized -->
+    <div class="category-group">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="category-chevron">▼</span>
+        <span class="category-name">Uncategorized</span>
+        <span class="category-count">(1)</span>
+      </div>
+      <table class="sources-table">
+        <tbody>
+          <tr class="source-row">
+            <td class="td-status"><span class="status-dot active"></span></td>
+            <td class="td-url"><a href="#">paulgraham.com/articles.html</a></td>
+            <td class="td-divider"><div class="td-divider-handle" onmousedown="startResize(event)"></div></td>
+            <td class="td-latest"><a href="#">Founder Mode</a></td>
+            <td class="td-time">5d</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn">Copy RSS</button>
+                <button class="row-btn">Generate</button>
+                <button class="row-btn">Check</button>
+                <button class="row-btn">Edit</button>
+                <button class="row-btn danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── PARSER ── -->
+  <section class="section" id="section-parser">
+    <div class="parser-container">
+      <div class="url-input-row">
+        <input type="url" placeholder="https://example.com/article" value="https://techcrunch.com/2024/01/01/example" />
+        <button class="btn btn-primary">Parse</button>
+      </div>
+      <div class="parser-layout">
+        <div class="parser-panel">
+          <div class="panel-header">Original HTML</div>
+          <div class="panel-body" style="color: var(--text-muted); font-style: italic; font-size: 12px;">
+            Parsed HTML will render here as an iframe preview.
+          </div>
+        </div>
+        <div class="parser-panel">
+          <div class="panel-header">Extracted Fields</div>
+          <div class="panel-body">
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px;">Title</div>
+              <div style="font-family: var(--font-sans); font-size: 13px; color: var(--text-primary);">Example Article Title Goes Here</div>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px;">Content Selector</div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <input style="flex: 1; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 2px; outline: none;" placeholder=".article-body" />
+                <button class="btn" style="font-size: 11px;">Pick</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px;">Main Image</div>
+              <div style="width: 100%; height: 80px; background: rgba(212,196,176,0.3); border: 1px solid var(--border); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;">image preview</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CATEGORIES ── -->
+  <section class="section" id="section-categories">
+    <div class="categories-container">
+      <h2 class="section-title">Categories</h2>
+
+      <div class="add-row">
+        <input type="text" placeholder="New category name" />
+        <button class="btn btn-primary">Add Category</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Sources</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tech</td>
+            <td>3</td>
+            <td><div class="actions-cell"><button class="btn">edit</button><button class="btn btn-danger">delete</button></div></td>
+          </tr>
+          <tr>
+            <td>Science</td>
+            <td>2</td>
+            <td><div class="actions-cell"><button class="btn">edit</button><button class="btn btn-danger">delete</button></div></td>
+          </tr>
+          <tr>
+            <td style="padding-top: 4px; padding-bottom: 4px;">
+              <input type="text" value="Finance" style="background: var(--bg-card); border: 1px solid var(--accent); color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; padding: 3px 8px; border-radius: 2px; outline: none; width: 100%;" />
+            </td>
+            <td>0</td>
+            <td><div class="actions-cell"><button class="btn btn-primary">save</button><button class="btn">cancel</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── ADD WEBSITE WIZARD ── -->
+  <section class="section" id="section-wizard">
+    <div class="wizard-container">
+      <h2 class="wizard-title">Add New Website</h2>
+
+      <!-- Step indicator — click to switch steps -->
+      <div class="step-indicator">
+        <div class="step active" id="step-btn-1" onclick="showWizardStep(1)" style="cursor:pointer;">
+          <div class="step-num">1</div>
+          <span class="step-label">Discover</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-btn-2" onclick="showWizardStep(2)" style="cursor:pointer;">
+          <div class="step-num">2</div>
+          <span class="step-label">Configure</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-btn-3" onclick="showWizardStep(3)" style="cursor:pointer;">
+          <div class="step-num">3</div>
+          <span class="step-label">Preview</span>
+        </div>
+      </div>
+
+      <!-- ── STEP 1: Discover ── -->
+      <div id="wizard-step-1">
+        <div class="form-group">
+          <label>Index / Archive URL</label>
+          <input type="url" placeholder="https://example.com/news" value="" />
+          <div style="margin-top: 5px; font-size: 11px; color: var(--text-muted);">
+            Paste the page that lists articles — e.g. a blog index, news archive, or section front.
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" onclick="showSection('dashboard')">Cancel</button>
+          <button class="btn btn-primary" onclick="showWizardStep(2)">Discover Links →</button>
+        </div>
+      </div>
+
+      <!-- ── STEP 2: Configure ── -->
+      <div id="wizard-step-2" style="display:none;">
+        <div class="form-group">
+          <label>URL</label>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">https://techcrunch.com</div>
+        </div>
+
+        <div class="form-group">
+          <label>Category</label>
+          <select>
+            <option>Tech</option>
+            <option>Science</option>
+            <option>+ Add new category</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Website Name</label>
+          <input type="text" value="TechCrunch" />
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--font-mono);">Found 24 links · selector: <code style="background: rgba(212,196,176,0.3); padding: 1px 4px; border-radius: 2px;">.post-block</code></div>
+          <div class="links-list">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid rgba(212,196,176,0.4); font-size: 11px; color: var(--text-muted); background: rgba(212,196,176,0.15);">
+              <input type="checkbox" checked /> <span>Select All · 24 selected</span>
+            </div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">AI startup raises $50M in Series B round led by Sequoia</div><div class="link-url-text">techcrunch.com/2024/01/15/ai-startup-raises-50m</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Apple announces new iPad lineup with OLED displays</div><div class="link-url-text">techcrunch.com/2024/01/14/apple-new-ipad-lineup</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Google DeepMind releases Gemini 2.0 with multimodal reasoning</div><div class="link-url-text">techcrunch.com/2024/01/13/google-deepmind-gemini-2</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Stripe valuation hits $70B after secondary share sale</div><div class="link-url-text">techcrunch.com/2024/01/12/stripe-valuation-70b</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Meta open-sources its latest LLaMA 3 model weights</div><div class="link-url-text">techcrunch.com/2024/01/11/meta-llama-3-open-source</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">SpaceX Starship completes first fully successful flight test</div><div class="link-url-text">techcrunch.com/2024/01/10/spacex-starship-flight-test</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Anthropic raises $750M in new funding round</div><div class="link-url-text">techcrunch.com/2024/01/09/anthropic-750m-funding</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">OpenAI launches new voice mode for ChatGPT on iOS</div><div class="link-url-text">techcrunch.com/2024/01/08/openai-voice-mode-ios</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Microsoft Copilot gets real-time web search integration</div><div class="link-url-text">techcrunch.com/2024/01/07/microsoft-copilot-web-search</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Nvidia unveils Blackwell B200 GPU for AI training workloads</div><div class="link-url-text">techcrunch.com/2024/01/06/nvidia-blackwell-b200</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Waymo expands robotaxi service to Austin and Atlanta</div><div class="link-url-text">techcrunch.com/2024/01/05/waymo-austin-atlanta-expansion</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Amazon acquires AI voice startup for $500M</div><div class="link-url-text">techcrunch.com/2024/01/04/amazon-acquires-ai-voice-startup</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">Tesla FSD v12 rolls out to all North American owners</div><div class="link-url-text">techcrunch.com/2024/01/03/tesla-fsd-v12-rollout</div></div></div>
+            <div class="link-item"><input type="checkbox" checked /><div style="min-width:0;"><div class="link-title">EU AI Act enforcement begins — what companies need to know</div><div class="link-url-text">techcrunch.com/2024/01/02/eu-ai-act-enforcement</div></div></div>
+            <div class="link-item" style="opacity:0.5;"><input type="checkbox" /><div style="min-width:0;"><div class="link-title">About TechCrunch</div><div class="link-url-text">techcrunch.com/about</div></div></div>
+            <div class="link-item" style="opacity:0.5;"><input type="checkbox" /><div style="min-width:0;"><div class="link-title">Advertise with Us</div><div class="link-url-text">techcrunch.com/advertise</div></div></div>
+            <div class="link-item" style="opacity:0.5;"><input type="checkbox" /><div style="min-width:0;"><div class="link-title">Privacy Policy</div><div class="link-url-text">techcrunch.com/privacy-policy</div></div></div>
+          </div>
+        </div>
+
+        <div class="translate-row">
+          <div class="translate-info">
+            <div class="translate-label">Translate to Traditional Chinese</div>
+            <div class="translate-hint">Articles will be translated before embedding into the RSS feed. <span class="lang-badge">ja detected</span></div>
+          </div>
+          <button class="toggle on" onclick="this.classList.toggle('on')" aria-label="Toggle translation"></button>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" onclick="showWizardStep(1)">← Back</button>
+          <button class="btn btn-primary" onclick="showWizardStep(3)">Preview Article →</button>
+        </div>
+      </div>
+
+      <!-- ── STEP 3: Preview ── -->
+      <div id="wizard-step-3" style="display:none;">
+        <div class="form-group">
+          <label>Preview Article</label>
+          <select>
+            <option>AI startup raises $50M in Series B</option>
+            <option>Apple announces new iPad lineup</option>
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div class="parser-panel">
+            <div class="panel-header">Original HTML</div>
+            <div class="panel-body" style="color: var(--text-muted); font-style: italic; font-size: 12px; min-height: 160px;">Rendered article iframe</div>
+          </div>
+          <div class="parser-panel">
+            <div class="panel-header">Extracted Fields</div>
+            <div class="panel-body" style="min-height: 160px;">
+              <div style="margin-bottom: 10px;">
+                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 3px;">Title</div>
+                <div style="font-size: 13px;">AI startup raises $50M in Series B</div>
+              </div>
+              <div>
+                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 3px;">Content Selector</div>
+                <div style="display: flex; gap: 6px;">
+                  <input style="flex:1; background: var(--bg-card); border: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; padding: 3px 7px; border-radius: 2px; outline: none; color: var(--text-primary);" placeholder=".article-body" />
+                  <button class="btn" style="font-size: 11px;">Pick</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" onclick="showWizardStep(2)">← Back</button>
+          <button class="btn btn-primary">Save Source</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ACTIVITY LOG DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer(event)">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <span class="drawer-title">ACTIVITY LOG</span>
+      <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="log-entry log-ok">
+        <span class="log-ts">12:04</span>
+        <span class="log-icon-ok">✓</span>
+        <span class="log-source">techcrunch</span>
+        <span class="log-msg">Generated 12 articles — feed updated</span>
+      </div>
+      <div class="log-entry log-ok">
+        <span class="log-ts">12:03</span>
+        <span class="log-icon-ok">✓</span>
+        <span class="log-source">nature.com</span>
+        <span class="log-msg">Fetched 8 new links</span>
+      </div>
+      <div class="log-entry log-err">
+        <span class="log-ts">11:58</span>
+        <span class="log-icon-err">✗</span>
+        <span class="log-source">wired.com</span>
+        <span class="log-msg">HTTP 429 — rate limited. Retry in 30s.</span>
+      </div>
+      <div class="log-entry">
+        <span class="log-ts">11:45</span>
+        <span class="log-icon-inf">›</span>
+        <span class="log-source">scheduler</span>
+        <span class="log-msg">Starting refresh cycle for 6 sources</span>
+      </div>
+      <div class="log-entry log-ok">
+        <span class="log-ts">11:44</span>
+        <span class="log-icon-ok">✓</span>
+        <span class="log-source">arstechnica</span>
+        <span class="log-msg">Generated 5 articles</span>
+      </div>
+      <div class="log-entry log-ok">
+        <span class="log-ts">11:43</span>
+        <span class="log-icon-ok">✓</span>
+        <span class="log-source">nature.com</span>
+        <span class="log-msg">Generated 3 articles</span>
+      </div>
+      <div class="log-entry">
+        <span class="log-ts">11:30</span>
+        <span class="log-icon-inf">›</span>
+        <span class="log-source">scheduler</span>
+        <span class="log-msg">Starting refresh cycle for 6 sources</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showSection(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + name).classList.add('active');
+    document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
+    document.getElementById('nav-' + name).classList.add('active');
+  }
+
+  function toggleDrawer() {
+    document.getElementById('drawerOverlay').classList.toggle('open');
+  }
+
+  function closeDrawer(e) {
+    if (e.target === document.getElementById('drawerOverlay')) {
+      document.getElementById('drawerOverlay').classList.remove('open');
+    }
+  }
+
+  function showWizardStep(n) {
+    [1, 2, 3].forEach(i => {
+      document.getElementById('wizard-step-' + i).style.display = i === n ? '' : 'none';
+      const btn = document.getElementById('step-btn-' + i);
+      btn.classList.remove('active', 'complete');
+      if (i === n) btn.classList.add('active');
+      else if (i < n) {
+        btn.classList.add('complete');
+        btn.querySelector('.step-num').textContent = '✓';
+      } else {
+        btn.querySelector('.step-num').textContent = String(i);
+      }
+    });
+  }
+
+  function startResize(e) {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.classList.add('dragging');
+
+    const startX = e.clientX;
+    const startWidth = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--col-url-width'), 10);
+
+    function onMove(e) {
+      const newWidth = Math.max(80, Math.min(400, startWidth + e.clientX - startX));
+      document.documentElement.style.setProperty('--col-url-width', newWidth + 'px');
+    }
+
+    function onUp() {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function toggleCategory(header) {
+    const group = header.parentElement;
+    const table = group.querySelector('.sources-table');
+    const chevron = header.querySelector('.category-chevron');
+    if (table.style.display === 'none') {
+      table.style.display = '';
+      chevron.textContent = '▼';
+    } else {
+      table.style.display = 'none';
+      chevron.textContent = '▶';
+    }
+  }
+</script>
+</body>
+</html>

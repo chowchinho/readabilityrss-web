@@ -1,0 +1,381 @@
+{
+ "source": "reader.example.com console export, client pipeline (face-api tinyFaceDetector + smartcrop), captured 2026-08-06",
+ "entries": [
+  {
+   "hash": "33bb3d859edd7b01474817a77d4b6a05",
+   "mode": "saliency",
+   "x": 33,
+   "y": 45
+  },
+  {
+   "hash": "1494846337ad48379e765d13d1042faa",
+   "mode": "face",
+   "x": 44,
+   "y": 27
+  },
+  {
+   "hash": "7295915cbdd4add3c0018f261ec998d0",
+   "mode": "face",
+   "x": 58,
+   "y": 29,
+   "baseline_false_positive": true,
+   "note": "Old pipeline detected a face on a salmon fillet in a lunchbox photo. Verified by visual inspection 2026-08-06. Excluded from face-group scoring."
+  },
+  {
+   "hash": "4ffcc575a7b4d011f07ae12353ebb98c",
+   "mode": "saliency",
+   "x": 69,
+   "y": 40
+  },
+  {
+   "hash": "55e2b098ec33c60d9f15a1e39a5d34fb",
+   "mode": "saliency",
+   "x": 43,
+   "y": 57
+  },
+  {
+   "hash": "c3fad840d3b53ac86edbf648948c37fc",
+   "mode": "saliency",
+   "x": 54,
+   "y": 50
+  },
+  {
+   "hash": "e3b8ac99fd5f4afa462021d19502eed9",
+   "mode": "saliency",
+   "x": 42,
+   "y": 33
+  },
+  {
+   "hash": "31d285f2a41bf5213258c68cdff1a36d",
+   "mode": "saliency",
+   "x": 68,
+   "y": 43
+  },
+  {
+   "hash": "1eac54b747befd203702ec49416b21b2",
+   "mode": "saliency",
+   "x": 32,
+   "y": 59
+  },
+  {
+   "hash": "bff45136903723ca70f1376bbb2a9cb8",
+   "mode": "saliency",
+   "x": 43,
+   "y": 20
+  },
+  {
+   "hash": "f2bd187cf10728a1e76f7ca74b275dc0",
+   "mode": "saliency",
+   "x": 43,
+   "y": 48
+  },
+  {
+   "hash": "366fc6c3e7ca75b7f35c7a38f59542cc",
+   "mode": "face",
+   "x": 92,
+   "y": 28
+  },
+  {
+   "hash": "e8f31d9952949a6faeca79aaa18cc08f",
+   "mode": "saliency",
+   "x": 52,
+   "y": 45
+  },
+  {
+   "hash": "24a0bf65d75385d77bf1a1779159c113",
+   "mode": "saliency",
+   "x": 50,
+   "y": 49
+  },
+  {
+   "hash": "8862ceb0acb356685d79041b90d11fb9",
+   "mode": "face",
+   "x": 27,
+   "y": 33
+  },
+  {
+   "hash": "bdb29cc7f2f8dc0ad324c1749d8e756a",
+   "mode": "face",
+   "x": 36,
+   "y": 15
+  },
+  {
+   "hash": "a5d84404fa8912aa1309469797924e97",
+   "mode": "face",
+   "x": 34,
+   "y": 56
+  },
+  {
+   "hash": "16f618f67033327038b2d0cd66127329",
+   "mode": "saliency",
+   "x": 52,
+   "y": 50
+  },
+  {
+   "hash": "a987e02baacf5d5d3857578761cd9b9a",
+   "mode": "saliency",
+   "x": 46,
+   "y": 50
+  },
+  {
+   "hash": "48c86a85748fb10cdc318c32047adf0b",
+   "mode": "saliency",
+   "x": 64,
+   "y": 54
+  },
+  {
+   "hash": "af924b21423e3fb95c892c181178c5ca",
+   "mode": "saliency",
+   "x": 61,
+   "y": 56
+  },
+  {
+   "hash": "ae939ee68f33198f28fb2690a3630b0b",
+   "mode": "saliency",
+   "x": 62,
+   "y": 50
+  },
+  {
+   "hash": "14c90058d1522aa01cdc4004dd1585ca",
+   "mode": "saliency",
+   "x": 57,
+   "y": 40
+  },
+  {
+   "hash": "94d2165dbd52f4f2b5f6f65e272c148c",
+   "mode": "face",
+   "x": 74,
+   "y": 56
+  },
+  {
+   "hash": "6f20d413ab111356193ede047a616621",
+   "mode": "saliency",
+   "x": 53,
+   "y": 54
+  },
+  {
+   "hash": "ca34f6894286beca6ce9c0cf98836dbe",
+   "mode": "saliency",
+   "x": 32,
+   "y": 43
+  },
+  {
+   "hash": "6f3bdf0966dd1fe9fb4617e82f59987b",
+   "mode": "face",
+   "x": 61,
+   "y": 44
+  },
+  {
+   "hash": "28619b5b3119bcc0c13537cfd44a1f2d",
+   "mode": "saliency",
+   "x": 36,
+   "y": 48
+  },
+  {
+   "hash": "8d6e2c23ebc3a0b9b183a61ca79ec463",
+   "mode": "saliency",
+   "x": 38,
+   "y": 56
+  },
+  {
+   "hash": "3c82d9697ac52b5b448a48942e6ac64c",
+   "mode": "saliency",
+   "x": 30,
+   "y": 59
+  },
+  {
+   "hash": "598f7acaeef5fe87e14c7fbca66a0c8a",
+   "mode": "saliency",
+   "x": 52,
+   "y": 51
+  },
+  {
+   "hash": "7d2c446447524cc411c42269ce72a1bf",
+   "mode": "saliency",
+   "x": 59,
+   "y": 42
+  },
+  {
+   "hash": "02b52f26ea75b7d93786b725672bdf39",
+   "mode": "face",
+   "x": 17,
+   "y": 59
+  },
+  {
+   "hash": "2d887dcf4b0ceffd74bc1a8ce7e88a27",
+   "mode": "saliency",
+   "x": 50,
+   "y": 33
+  },
+  {
+   "hash": "84d69819a91077cf2c2064c88b7d1106",
+   "mode": "saliency",
+   "x": 43,
+   "y": 51
+  },
+  {
+   "hash": "8fb3086fd9dd68a2eb272408678575cc",
+   "mode": "saliency",
+   "x": 45,
+   "y": 50
+  },
+  {
+   "hash": "88bb0edc1566f3cb522d93f5e21468b9",
+   "mode": "saliency",
+   "x": 48,
+   "y": 48
+  },
+  {
+   "hash": "7bcd88e935606c0fae9002cf6ed1e68d",
+   "mode": "saliency",
+   "x": 67,
+   "y": 63
+  },
+  {
+   "hash": "66a9ced26d8384a9cf208cefda985c61",
+   "mode": "saliency",
+   "x": 49,
+   "y": 50
+  },
+  {
+   "hash": "cee00ad2a3d45e24f0e2fbdc51014e81",
+   "mode": "saliency",
+   "x": 54,
+   "y": 50
+  },
+  {
+   "hash": "36f94216d9e672b28525395befb47620",
+   "mode": "face",
+   "x": 53,
+   "y": 40
+  },
+  {
+   "hash": "9d1b4a0d4a30d68a3643f65486932f20",
+   "mode": "saliency",
+   "x": 59,
+   "y": 49
+  },
+  {
+   "hash": "bcbd9372c2b941d959e034dcd27cc294",
+   "mode": "saliency",
+   "x": 49,
+   "y": 50
+  },
+  {
+   "hash": "11ee4a8ef57487663683373571e12fb4",
+   "mode": "saliency",
+   "x": 65,
+   "y": 38
+  },
+  {
+   "hash": "158d86eaf65fd68f2c9351e9a9826490",
+   "mode": "saliency",
+   "x": 69,
+   "y": 40
+  },
+  {
+   "hash": "097bbdf3cc262b81d8ac1ca7d9097c93",
+   "mode": "face",
+   "x": 51,
+   "y": 44
+  },
+  {
+   "hash": "48d9aff6ac2c77f1542ee80adafb1701",
+   "mode": "saliency",
+   "x": 34,
+   "y": 54
+  },
+  {
+   "hash": "4a997db63c24101e87743680f3ba3576",
+   "mode": "saliency",
+   "x": 36,
+   "y": 51
+  },
+  {
+   "hash": "a1920d63002ffcc5cffbd5031e1a605d",
+   "mode": "saliency",
+   "x": 61,
+   "y": 51
+  },
+  {
+   "hash": "bfcad5fbb513770951e30dd763fc7416",
+   "mode": "face",
+   "x": 46,
+   "y": 38
+  },
+  {
+   "hash": "e08bf43f0a50bffa2baa3f28860bc7d4",
+   "mode": "saliency",
+   "x": 61,
+   "y": 50
+  },
+  {
+   "hash": "d435a4226f0f6c7f4b9cd7580ce7aaf6",
+   "mode": "saliency",
+   "x": 53,
+   "y": 48
+  },
+  {
+   "hash": "5793741c3a5ffccde94892a5bd3e1ab8",
+   "mode": "face",
+   "x": 48,
+   "y": 46
+  },
+  {
+   "hash": "c0ed8120d56a0684b161783811d65b51",
+   "mode": "saliency",
+   "x": 51,
+   "y": 43
+  },
+  {
+   "hash": "359119df42be43b8d892ccedb6be4f10",
+   "mode": "face",
+   "x": 52,
+   "y": 34
+  },
+  {
+   "hash": "f6e5591d45c476b53c1fbe12f10e08da",
+   "mode": "saliency",
+   "x": 44,
+   "y": 38
+  },
+  {
+   "hash": "e46d8c45aa142303d5f06e6c9151b398",
+   "mode": "face",
+   "x": 49,
+   "y": 32
+  },
+  {
+   "hash": "85360b53386ea5e5d706a911a525624b",
+   "mode": "saliency",
+   "x": 50,
+   "y": 43
+  },
+  {
+   "hash": "d2db33012a5a4d98a49e0839698d07b3",
+   "mode": "saliency",
+   "x": 48,
+   "y": 60
+  },
+  {
+    "hash": "d7ddfdad4f8dc56a25650094d4eef353",
+    "mode": "face",
+    "x": 26,
+    "y": 31,
+    "baseline_false_positive": true,
+    "note": "Old pipeline detected a face on a purple robot head in a Gundam model kit photo. Verified by visual inspection 2026-08-06. Excluded from face-group scoring."
+  },
+  {
+   "hash": "9b97c4fed67207432126a203239699fd",
+   "mode": "face",
+   "x": 43,
+   "y": 65
+  },
+  {
+   "hash": "13f1941fde8ed163b2fcc68f83ef8a07",
+   "mode": "saliency",
+   "x": 50,
+   "y": 48
+  }
+ ]
+}

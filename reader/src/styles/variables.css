@@ -1,0 +1,42 @@
+:root {
+  --bg-page: #f5efe6;
+  --bg-card: #ffffff;
+  --bg-sidebar: #1c1510;
+  --text-primary: #2c2016;
+  --text-secondary: #6b5d4f;
+  --text-muted: #9b8b7a;
+  --accent: #c97d2e;
+  --accent-hover: #b06a1f;
+  /* Same hue as --accent, dark enough to pass AA as text on --bg-page
+     (4.9:1 vs 2.9:1). Use wherever the accent carries meaning, not decoration. */
+  --accent-strong: #985812;
+  --border: #e0d5c5;
+  --unread-badge: #c97d2e;
+  --read-bg: #f0e8dc;
+  --status-error: #b85c38;
+  
+  --font-heading: 'Lora', serif;
+  --font-body: 'Source Sans 3', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  
+  --sidebar-width: 256px;
+  --feed-width: 500px;
+  --font-meta: 'IBM Plex Mono', monospace;
+}
+
+[data-theme="dark"] {
+  --bg-page: #1a1612;
+  --bg-card: #252019;
+  --bg-sidebar: #0f0d0a;
+  --text-primary: #e8ddd0;
+  --text-secondary: #a89882;
+  --text-muted: #7a6e60;
+  --accent: #d4943e;
+  --accent-hover: #e5a54f;
+  /* On the dark page the plain accent already clears AA (6.9:1). */
+  --accent-strong: #d4943e;
+  --border: #3a3228;
+  --unread-badge: #d4943e;
+  --read-bg: #1f1b15;
+  --status-error: #d45f3e;
+}

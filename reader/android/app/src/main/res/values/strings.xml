@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ReadabilityReader</string>
+    <string name="title_activity_main">ReadabilityReader</string>
+    <string name="package_name">com.readabilityrss.reader</string>
+    <string name="custom_url_scheme">com.readabilityrss.reader</string>
+    <!-- Base URL of your ReadabilityRSS server. Change this before building. -->
+    <string name="server_url">http://10.0.2.2:8001/</string>
+</resources>

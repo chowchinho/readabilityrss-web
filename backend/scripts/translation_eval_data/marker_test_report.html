@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DeepSeek Marker Preservation Validation Report</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #cbd5e1;
+            background: #0f172a;
+            line-height: 1.5;
+        }
+        h1 {
+            color: #f8fafc;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 12px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+        .summary-box {
+            background: #1e293b;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .summary-title {
+            font-size: 1.5rem;
+            color: #f8fafc;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+        .summary-card .label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+        .summary-card.strict { border-color: #10b981; }
+        .summary-card.strict .value { color: #10b981; }
+        .summary-card.loose { border-color: #f59e0b; }
+        .summary-card.loose .value { color: #f59e0b; }
+        .summary-card.failed { border-color: #ef4444; }
+        .summary-card.failed .value { color: #ef4444; }
+        
+        .usage-list {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+        }
+        .usage-list li {
+            margin-bottom: 8px;
+        }
+        
+        .article-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .article-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 16px;
+            margin-bottom: 16px;
+        }
+        .article-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f8fafc;
+            margin: 0 0 8px 0;
+        }
+        .article-url {
+            font-size: 0.875rem;
+            color: #3b82f6;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .article-url:hover {
+            text-decoration: underline;
+        }
+        .badge {
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge.strict-pass { background: #065f46; color: #34d399; }
+        .badge.loose-pass { background: #78350f; color: #fbbf24; }
+        .badge.fail { background: #991b1b; color: #fca5a5; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-item {
+            background: #0f172a;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            border: 1px solid #334155;
+        }
+        .stat-item .label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
+        .stat-item .val { font-weight: bold; color: #f8fafc; margin-top: 4px; font-size: 1rem; }
+        
+        .anomalies {
+            background: #7f1d1d;
+            border: 1px solid #f87171;
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+        .anomalies ul { margin: 4px 0 0 0; padding-left: 20px; }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 12px;
+            border: 1px solid #334155;
+            text-align: left;
+            vertical-align: top;
+        }
+        .comparison-table th {
+            background: #0f172a;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .comparison-table td.code-idx {
+            font-family: monospace;
+            font-weight: bold;
+            width: 60px;
+            text-align: center;
+            background: #0f172a;
+        }
+        
+        details {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            margin-top: 16px;
+        }
+        details summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: #3b82f6;
+            outline: none;
+            user-select: none;
+        }
+        details pre {
+            margin-top: 10px;
+            font-family: 'Fira Code', monospace;
+            white-space: pre-wrap;
+            background: #020617;
+            padding: 16px;
+            border-radius: 4px;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            border: 1px solid #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <h1>DeepSeek Marker Preservation Report</h1>
+    
+    <div class="summary-box">
+        <div class="summary-title">Run Summary</div>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="label">Total Tested</div>
+                <div class="value">
+8
+</div>
+            </div>
+            <div class="summary-card strict">
+                <div class="label">Strict Pass</div>
+                <div class="value">
+8
+</div>
+            </div>
+            <div class="summary-card loose">
+                <div class="label">Loose Pass</div>
+                <div class="value">
+0
+</div>
+            </div>
+            <div class="summary-card failed">
+                <div class="label">Failed Both</div>
+                <div class="value">
+0
+</div>
+            </div>
+        </div>
+        
+        <div class="summary-title" style="font-size: 1.15rem; margin-bottom: 12px;">Token & Cost Details</div>
+        <ul class="usage-list">
+            <li><strong>Total Prompt Tokens:</strong> 29,821 (Hit: 14,336 | Miss: 15,485)</li>
+            <li><strong>Total Completion Tokens:</strong> 12,691</li>
+            <li><strong>Total Cost:</strong> <code style="color: #10b981; font-size: 1.1em; font-family: monospace;">$0.00576 USD</code></li>
+            <li><strong>Average Cost / Article:</strong> <code style="color: #10b981; font-family: monospace;">$0.00072 USD</code></li>
+        </ul>
+    </div>
+    
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">FUNQ - OUTDOOR</h2>
+                    <a class="article-url" href="https://www.funq.jp/randonnee/article/1068247/" target="_blank">https://www.funq.jp/randonnee/article/1068247/</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">38</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">38</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">38</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">38</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00094</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>夏山シーズン前に体慣らしために歩く方も多い、南高尾のセブンサミッツ。行ったことがない、そもそも知らない、という方にもぜひ歩いてほしいコースで、踏破すると歩いた軌跡がハートの形になることから、ハートルートとも呼ばれています。</td>
+                        <td>夏季登山季前，唔少人都會行南高尾七峰嚟熱吓身。如果你未去過，甚至未聽過，都絕對值得行一趟。呢條路線行完之後，喺地圖上嘅軌跡會呈現心形，所以又被稱為「心形路線」。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>全長約16kmありますが、一度に踏破しなくてもいくつもエスケープルートがあるため、コースをアレンジして一部だけ歩くという楽しみ方もでき、巻道もたくさんあります。それでは、高尾山口駅からスタートしましょう！</td>
+                        <td>全長約16公里，但就算唔一次過行晒，沿途都有好多撤退路線，可以自己編排行程淨係行一部分，仲有好多繞道可以揀。咁我哋就由高尾山口站出發啦！</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>高尾山口駅から登山口へ</td>
+                        <td>由高尾山口站到登山口</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+夏季登山季前必行！路程雖長但樂趣無窮，仲可以繞路行！南高尾七峰 | ランドネ
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt;夏季登山季前，唔少人都會行南高尾七峰嚟熱吓身。如果你未去過，甚至未聽過，都絕對值得行一趟。呢條路線行完之後，喺地圖上嘅軌跡會呈現心形，所以又被稱為「心形路線」。&lt;/p&gt;
+&lt;p data-i=&quot;1&quot;&gt;全長約16公里，但就算唔一次過行晒，沿途都有好多撤退路線，可以自己編排行程淨係行一部分，仲有好多繞道可以揀。咁我哋就由高尾山口站出發啦！&lt;/p&gt;
+&lt;h2 data-i=&quot;2&quot;&gt;由高尾山口站到登山口&lt;/h2&gt;
+&lt;p data-i=&quot;3&quot;&gt;離開高尾山口站前嘅喧囂，過咗國道20號線，轉入橫丁就會見到登山口。由車站行大約5分鐘，就會見到上面張相嘅路標。望住「四辻・草戶峠・高尾站」箭嘴嘅方向……。&lt;/p&gt;
+&lt;p data-i=&quot;4&quot;&gt;明顯係人哋屋企嘅後面。雖然會令人懷疑呢度係咪真係登山口，但跟住路標行就冇錯。&lt;/p&gt;
+&lt;p data-i=&quot;5&quot;&gt;一入去，就會見到一條好穩陣嘅登山道，行一陣再回頭望，就會發現原來斜度都幾大。好快就到四辻。呢度有棵樹紋理好特別，好似俾人削過咁。如果影相角度攞得好，仲可以影到好似遺跡咁嘅效果。&lt;/p&gt;
+&lt;p data-i=&quot;6&quot;&gt;離開四辻之後，向草戶峠同草戶山進發，由呢度開始就會係一段接一段嘅上上落落，可能會令你後悔點解要嚟。喺呢啲上上落落嘅途中，我感覺到有一道視線。&lt;/p&gt;
+&lt;h3 data-i=&quot;7&quot;&gt;鬼怪？&lt;/h3&gt;
+&lt;p data-i=&quot;8&quot;&gt;點解呢度會有呢啲圖畫？係塗鴉？&lt;/p&gt;
+&lt;p data-i=&quot;9&quot;&gt;不過佢哋好友善咁笑住望住你。即使上網搜尋呢啲鬼怪圖畫嘅資料，雖然有人見過，但真相仍然係一個謎。我寧願正面啲咁諗，佢哋係想我哋笑多過板起塊面，然後繼續向前行。&lt;/p&gt;
+&lt;h2 data-i=&quot;10&quot;&gt;第一個山頂：草戶山&lt;/h2&gt;
+&lt;p data-i=&quot;11&quot;&gt;海拔364米，據說亦叫做「一年山」。雖然係低山，但行到呢度都幾有挑戰性。至於風景，就係咁樣。&lt;/p&gt;
+&lt;p data-i=&quot;12&quot;&gt;小休一陣之後，繼續前進。上上落落依然冇變，仲會遇到呢啲樓梯。&lt;/p&gt;
+&lt;p data-i=&quot;13&quot;&gt;天氣熱嘅時候真係會令人好沮喪。好快就到第二個山頂——榎窪山，一個好容易就會錯過嘅地方。&lt;/p&gt;
+&lt;p data-i=&quot;14&quot;&gt;佢比草戶山更高，海拔420米，但係冇風景睇。繼續行，就會到一個好似廣場嘅地方，就係三澤峠。呢度有分岔路，可以喺呢度落山去梅之木平或者峯之藥師，轉做短程行山。&lt;/p&gt;
+&lt;p data-i=&quot;15&quot;&gt;唔落山，繼續向前。第三個山頂係泰光寺山，但見到面前嘅陡峭樓梯就有啲怯，所以今次揀咗繞道。不過呢條繞道喺某啲季節有機會見到銀龍草，仲可能遇到其他罕見嘅花草。由呢一帶開始，路會變得易行好多。好快，就會見到呢位朋友嚟迎接我哋。&lt;/p&gt;
+&lt;h3 data-i=&quot;16&quot;&gt;藝術感十足嘅山脊路&lt;/h3&gt;
+&lt;p data-i=&quot;17&quot;&gt;呢隻貓頭鷹係義工用鏈鋸雕刻出嚟嘅藝術品，可以話係南高尾嘅吉祥物。現場仲準備咗手機架俾你影相。&lt;/p&gt;
+&lt;p data-i=&quot;18&quot;&gt;欣賞一陣，心情放鬆咗之後，繼續前進，好快就到西山峠。&lt;/p&gt;
+&lt;p data-i=&quot;19&quot;&gt;呢度都可以落山去梅之木平，條路仲以二輪草嘅群生地而聞名。想知更多，可以睇返我之前寫嘅呢篇文章。&lt;/p&gt;
+&lt;p data-i=&quot;20&quot;&gt;春天嘅南高尾唔止有二輪草！喺東京都內竟然遇到嘅花草
+&lt;a href=&quot;https://www.funq.jp/randonnee/article/1051249/&quot;&gt;https://www.funq.jp/randonnee/article/1051249/&lt;/a&gt;&lt;/p&gt;
+&lt;p data-i=&quot;21&quot;&gt;再行前啲，又會見到另一件藝術品！&lt;/p&gt;
+&lt;p data-i=&quot;22&quot;&gt;雕工真係一流，氣勢十足。唔同角度睇，有時覺得恐怖，有時又覺得好笑。差唔多係時候食午餐啦。可以一路睇住條龍食，但不如去第四個山頂先。&lt;/p&gt;
+&lt;h2 data-i=&quot;23&quot;&gt;雖然冇餐廳，但係天空餐廳&lt;/h2&gt;
+&lt;p data-i=&quot;24&quot;&gt;喺西山條龍再行前少少，有個唔係好顯眼嘅入口去入澤山。由嗰度行一段比較斜嘅路，就會到入澤山山頂。可愛嘅牌上面寫住「天空餐廳」，但當然冇餐廳啦。呢度有枱有凳，可以喺景觀開揚嘅位置，用自己帶嚟嘅美食，享受一頓屬於自己嘅餐廳體驗。&lt;/p&gt;
+&lt;p data-i=&quot;25&quot;&gt;為咗可以望住呢個景色食飯，真係會令人想再嚟多次。食完飯之後，沿路折返，返去七峰嘅山脊路。好快又會到另一個景觀開揚嘅地方。&lt;/p&gt;
+&lt;h3 data-i=&quot;26&quot;&gt;湖之道觀景台&lt;/h3&gt;
+&lt;p data-i=&quot;27&quot;&gt;呢度都有凳，仲有南高尾常見嘅掛背囊架。一路望住風景食飯係好，但因為條路唔係好闊，可能會有啲唔自在。不過，呢度嘅景色絕對會令你覺得「嚟對咗地方」。&lt;/p&gt;
+&lt;p data-i=&quot;28&quot;&gt;繼續向前行。可能因為睇到靚景，路又易行，心情太好，唔小心skip咗第五個山頂中澤山。山頂有觀音菩薩像，下次要小心唔好行過龍。好快就到中澤峠，呢度都可以落山去梅之木平。仲淨低兩個山頂。&lt;/p&gt;
+&lt;h2 data-i=&quot;29&quot;&gt;第六個山頂：金比羅山。第七個山頂：大洞山&lt;/h2&gt;
+&lt;p data-i=&quot;30&quot;&gt;之前一直都係樹林帶，由中山峠到金比羅山之間都係樹林，由呢一帶開始，會有閒情逸致去影吓花草。&lt;/p&gt;
+&lt;p data-i=&quot;31&quot;&gt;金比羅山都有掛背囊架，好適合休息。路好易行，所以可以行得快啲。&lt;/p&gt;
+&lt;p data-i=&quot;32&quot;&gt;第七個山頂係大洞山，係七峰之中最高嘅。&lt;/p&gt;
+&lt;p data-i=&quot;33&quot;&gt;唔休息，繼續行。呢條路真係行得好舒服。之後就落山去大垂水峠。因為係急降路段，落山時要小心。&lt;/p&gt;
+&lt;p data-i=&quot;34&quot;&gt;落到最底就會見到一條大垂水峠橋，過橋之後就去高尾山。橋底係國道20號線。以前可以搭巴士返高尾山口站或高尾站，但可惜條線喺2026年3月已經停駛，而家只能夠行路。要再爬返上高尾山係有啲攰，但諗住最後可以搭纜車，所以就經一丁平向高尾山進發。果然呢度好多人。我決定行一條易行嘅路落山。&lt;/p&gt;
+&lt;p data-i=&quot;35&quot;&gt;雖然skip咗兩個山頂，但行完七峰依然好有滿足感。雖然唔易行，但喺覺得辛苦嘅時候，會有鬼怪圖畫同木雕貓頭鷹令你心情放鬆，我真係好鍾意南高尾七峰。&lt;/p&gt;
+&lt;p data-i=&quot;36&quot;&gt;【今次嘅路線】
+高尾山口站→草戶山登山口→四辻→草戶山→三澤峠→榎窪山→西山峠→入澤山→觀景台→中澤峠→金比羅山→大洞山→大垂水峠→一丁平→高尾山→4號路→纜車&lt;/p&gt;
+&lt;p data-i=&quot;37&quot;&gt;攝影＆文字◎Miwako Taguchi（宇宙HIKE）
+&lt;a href=&quot;https://www.instagram.com/mocoblancmiwako?igsh=MWd2c2xhbjk1eDI2aQ%3D%3D&amp;amp;utm_source=qr&quot;&gt;https://www.instagram.com/mocoblancmiwako?igsh=MWd2c2xhbjk1eDI2aQ%3D%3D&amp;amp;utm_source=qr&lt;/a&gt;&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 4208,
+  "completion_tokens": 2149,
+  "total_tokens": 6357,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 2416
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">HOBBY Watch</h2>
+                    <a class="article-url" href="https://hobby.watch.impress.co.jp/docs/news/2112227.html" target="_blank">https://hobby.watch.impress.co.jp/docs/news/2112227.html</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">6</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">6</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">6</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">6</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00020</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>BANDAI SPIRITSは、キャラクターくじ「一番くじ Fate/Grand Order（仮）」を10月31日より順次発売する。価格は1回850円。</td>
+                        <td>BANDAI SPIRITS宣佈，角色抽獎「一番賞 Fate/Grand Order（暫定）」將於10月31日起陸續發售。每次抽獎價格為850日圓。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>本商品はスマートフォン向けFateRPG「Fate/Grand Order」をモチーフとしたキャラクターくじ。ラインナップには一番くじのフィギュアブランド「Gracemaster」でマシュ・キリエライト、オルガマリー・アニムスフィアが立体化する。</td>
+                        <td>本商品是以手機FateRPG《Fate/Grand Order》為主題的角色抽獎。獎品陣容包括一番賞的Figure品牌「Gracemaster」所推出的瑪修·基利艾拉特及奧爾嘉瑪麗·亞寧姆斯菲亞立體化Figure。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>その他、ぬいぐるみブランド「ぬいジェニック」がラインナップを予定している。</td>
+                        <td>此外，毛公仔品牌「ぬいジェニック」亦預計會加入獎品陣容。</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+「一番賞 Fate/Grand Order（暫定）」10月31日起陸續發售。瑪修、奧爾嘉瑪麗以Figure登場
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt;　BANDAI SPIRITS宣佈，角色抽獎「一番賞 Fate/Grand Order（暫定）」將於10月31日起陸續發售。每次抽獎價格為850日圓。&lt;/p&gt;
+&lt;p data-i=&quot;1&quot;&gt;　本商品是以手機FateRPG《Fate/Grand Order》為主題的角色抽獎。獎品陣容包括一番賞的Figure品牌「Gracemaster」所推出的瑪修·基利艾拉特及奧爾嘉瑪麗·亞寧姆斯菲亞立體化Figure。&lt;/p&gt;
+&lt;p data-i=&quot;2&quot;&gt;　此外，毛公仔品牌「ぬいジェニック」亦預計會加入獎品陣容。&lt;/p&gt;
+&lt;h3 data-i=&quot;3&quot;&gt;&lt;span&gt;「一番賞 Fate/Grand Order（暫定）」獎品陣容&lt;/span&gt;&lt;/h3&gt;
+&lt;p data-i=&quot;4&quot;&gt;・A獎 瑪修·基利艾拉特 Figure 1/7 Gracemaster（暫定）  ・B獎 奧爾嘉瑪麗·亞寧姆斯菲亞 Figure 1/7 Gracemaster（暫定）  ・C獎 ？？？  ・D獎 ？？？ ぬいジェニック（暫定）  ・E獎 ？？？ ぬいジェニック（暫定）  ・F獎 ？？？  ・G獎 ？？？  ・H獎 ？？？  ・I獎 ？？？  ・Last One獎 ？？？  ・Double Chance Campaign ？？？&lt;/p&gt;
+&lt;p data-i=&quot;5&quot;&gt;(C)TYPE-MOON / FGO PROJECT&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 2362,
+  "completion_tokens": 399,
+  "total_tokens": 2761,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 570
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">INTERNET Watch</h2>
+                    <a class="article-url" href="https://internet.watch.impress.co.jp/docs/ranking/mousepro/2111089.html" target="_blank">https://internet.watch.impress.co.jp/docs/ranking/mousepro/2111089.html</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00016</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>集計期間：2026年4月15日～5月15日</td>
+                        <td>統計期間：2026年4月15日～5月15日</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>本記事では、マウスコンピューターの法人向けブランド「MousePro」の売れ筋PCを紹介しています。なお、順位、価格、構成は随時変動しており、最新情報はリンク先にてご確認ください。</td>
+                        <td>本文介紹咗Mouse Computer旗下商用品牌「MousePro」嘅熱賣電腦。請注意，排名、價格同配置會隨時變動，最新資訊請參考連結。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>マウスコンピューターの担当者からひとこと！</td>
+                        <td>Mouse Computer負責人嘅一句話！</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+MousePro 15周年型號大受歡迎！而家最暢銷嘅商用桌面電腦就係呢啲
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt;統計期間：2026年4月15日～5月15日&lt;/p&gt;
+&lt;p data-i=&quot;1&quot;&gt; 本文介紹咗Mouse Computer旗下商用品牌&lt;a href=&quot;https://www.mouse-jp.co.jp/business/&quot;&gt;「MousePro」&lt;/a&gt;嘅熱賣電腦。請注意，排名、價格同配置會隨時變動，最新資訊請參考連結。 &lt;/p&gt;
+&lt;h3 data-i=&quot;2&quot;&gt;&lt;span&gt;Mouse Computer負責人嘅一句話！&lt;/span&gt;&lt;/h3&gt;
+&lt;p data-i=&quot;3&quot;&gt; 　排第1、第3、第4同第5位嘅桌面電腦，可以透過自訂記憶體嚟提升更流暢嘅效能，而且機身闊度只有99mm，慳位得嚟可以善用桌面空間，係佢哋嘅一大特色。 &lt;/p&gt;
+&lt;p data-i=&quot;4&quot;&gt; 　排第2位嘅迷你桌面電腦，雖然機身細細，但已經內置Wi-Fi 6同擴充接口。跟機附送VESA支架，可以安裝喺顯示器嘅背面（*部分顯示器因機身結構問題，可能無法安裝VESA支架，或者安裝方式會有分別）。 &lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 2287,
+  "completion_tokens": 305,
+  "total_tokens": 2592,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 495
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">LOVE WALKER</h2>
+                    <a class="article-url" href="https://lovewalker.jp/elem/000/004/385/4385643/" target="_blank">https://lovewalker.jp/elem/000/004/385/4385643/</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">5</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00016</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>4月22日まで、「千代田のさくらまつり」が開催中だ。4月上旬にかけては「皇居千鳥ヶ淵 夜桜ライトアップ」も行われ、夜のお花見が楽しめる。</td>
+                        <td>直至4月22日，「千代田櫻花祭」正在舉行。直至4月上旬，「皇居千鳥淵夜櫻亮燈」亦會同步進行，讓大家盡情享受夜間賞櫻的樂趣。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>桜の名所・千鳥ヶ淵を中心に、区内各所で行われる「千代田のさくらまつり」。注目は「皇居千鳥ヶ淵 夜桜ライトアップ」で、全長約700mのさくら並木をLED電球でライトアップ。千代田区が推進する地方連携による再生可能エネルギー供給の仕組み「Eサイクルちよだ」を活用し、ライトアップに使用した電力のCO2排出をゼロにする。</td>
+                        <td>以賞櫻名所千鳥淵為中心，區內多處舉行的「千代田櫻花祭」。焦點落在「皇居千鳥淵夜櫻亮燈」，全長約700米的櫻花並木以LED燈泡照亮。活動採用千代田區推動、結合地方合作的再生能源供應機制「E Cycle千代田」，令亮燈所用電力的二氧化碳排放量歸零。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>千鳥ヶ淵ではボート乗船も人気。事前に乗船を確約できる「スマートチケット」を今年も販売し、並ばずに乗ることができる。夜桜ライトアップ期間中実施しているので、ボート上から花見を楽しめるところもうれしい。</td>
+                        <td>千鳥淵的划船體驗亦相當受歡迎。今年繼續發售可預先確保乘船的「Smart Ticket」，讓大家無需排隊即可上船。由於夜櫻亮燈期間亦有提供服務，所以能在船上賞花這點亦令人欣喜。</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+皇居千鳥淵700米夜櫻亮燈！漫步賞櫻定划船賞櫻好難揀～ - 夜景LOVE WALKER
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt;　直至4月22日，「千代田櫻花祭」正在舉行。直至4月上旬，「皇居千鳥淵夜櫻亮燈」亦會同步進行，讓大家盡情享受夜間賞櫻的樂趣。&lt;/p&gt;
+&lt;p data-i=&quot;1&quot;&gt;　以賞櫻名所千鳥淵為中心，區內多處舉行的「千代田櫻花祭」。焦點落在「皇居千鳥淵夜櫻亮燈」，全長約700米的櫻花並木以LED燈泡照亮。活動採用千代田區推動、結合地方合作的再生能源供應機制「E Cycle千代田」，令亮燈所用電力的二氧化碳排放量歸零。&lt;/p&gt;
+&lt;p data-i=&quot;2&quot;&gt;　千鳥淵的划船體驗亦相當受歡迎。今年繼續發售可預先確保乘船的「Smart Ticket」，讓大家無需排隊即可上船。由於夜櫻亮燈期間亦有提供服務，所以能在船上賞花這點亦令人欣喜。&lt;/p&gt;
+&lt;p data-i=&quot;3&quot;&gt;■相關網站&lt;/p&gt;
+&lt;p data-i=&quot;4&quot;&gt;　※活動最新資訊請參閱官方網站等&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 2276,
+  "completion_tokens": 301,
+  "total_tokens": 2577,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 484
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">カエライフ ～ クルマとカスタムで暮らしをカエるーCUSTOM ENJOY LIFE</h2>
+                    <a class="article-url" href="https://kaelife.hondaaccess.jp/entry/20260526_01" target="_blank">https://kaelife.hondaaccess.jp/entry/20260526_01</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">87</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">87</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">87</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">87</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00198</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>手軽でカスタマイズも自由！ 軽キャンピングカーは魅力がたっぷり</td>
+                        <td>輕鬆入手，改裝自由度高！輕型露營車魅力滿載</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>週末、気の向くままにアウトドアへ出かけたい。でも、大型キャンピングカーは高くて手が出ないし、テントを張るのも準備が大変……。そんな悩みを解決してくれるのが「軽キャンピングカー」です。軽自動車ならではのコンパクトさで、山道も住宅街も苦労なく走れる。キャンプ場への早朝アクセスも、道の駅での一泊も、思い立ったその日に実行できる身軽さが最大の魅力です。</td>
+                        <td>週末想隨心所欲去戶外走走，但大型露營車價格高昂負擔不起，搭帳篷又準備功夫多多……這些煩惱，一部「輕型露營車」就能解決。輕型車特有的小巧車身，無論山路還是住宅區都能輕鬆穿梭。無論是清晨直奔營地，還是在公路休息站過一夜，想到就能馬上出發，這份瀟灑正是它最大的魅力。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>さらに、軽キャンピングカーの醍醐味はカスタマイズの自由度の高さ。ベッドのレイアウト、テーブルの形、収納の配置……すべてを自分好みに設計できるため、まるで動く秘密基地のような空間を作り上げられるのです。</td>
+                        <td>而且，輕型露營車最過癮的地方，在於改裝自由度極高。床鋪的佈局、桌子的形狀、儲物空間的配置……全部可以按自己喜好設計，打造出一個猶如會移動的秘密基地般的空間。</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+カエライフ ～ 改寫車與改裝生活——CUSTOM ENJOY LIFE
+[/TITLE]
+[CONTENT]
+&lt;h3 data-i=&quot;0&quot;&gt;輕鬆入手，改裝自由度高！輕型露營車魅力滿載&lt;/h3&gt;
+&lt;p data-i=&quot;1&quot;&gt;週末想隨心所欲去戶外走走，但大型露營車價格高昂負擔不起，搭帳篷又準備功夫多多……這些煩惱，一部「輕型露營車」就能解決。輕型車特有的小巧車身，無論山路還是住宅區都能輕鬆穿梭。無論是清晨直奔營地，還是在公路休息站過一夜，想到就能馬上出發，這份瀟灑正是它最大的魅力。&lt;/p&gt;
+&lt;p data-i=&quot;2&quot;&gt;而且，輕型露營車最過癮的地方，在於&lt;span&gt;改裝自由度極高&lt;/span&gt;。床鋪的佈局、桌子的形狀、儲物空間的配置……全部可以按自己喜好設計，打造出一個猶如會移動的秘密基地般的空間。&lt;/p&gt;
+&lt;p data-i=&quot;3&quot;&gt;這篇文章會由淺入深，為你介紹輕型露營車的基本知識、適合改裝的車款特點，以及「カエライフ」採訪過的車主們的真實DIY實例，內容豐富，不容錯過。&lt;/p&gt;
+&lt;h3 data-i=&quot;4&quot;&gt;甚麼是輕型露營車？跟一般露營車有甚麼分別？&lt;/h3&gt;
+&lt;p data-i=&quot;5&quot;&gt;輕型露營車（簡稱「輕露營」），是以輕型汽車為基礎改裝而成的小型露營車。一般露營車新車價格動輒500萬至1,000萬日圓，並非人人負擔得起。相比之下，輕型露營車的基礎車價較低，汽車稅、保險等維持費用也按輕型車級別計算，整體開支能大幅降低。&lt;/p&gt;
+&lt;p data-i=&quot;6&quot;&gt;普通汽車的露營車，有些會配備廁所、洗手盆等水電設備，但輕型露營車因車內空間有限，這些設備大多會被省略，即使有也是簡易版本。取而代之，車主會優先確保載物空間和睡眠空間，形成一種&lt;span&gt;專注於「簡單享受車中泊」的配置&lt;/span&gt;。&lt;/p&gt;
+&lt;p data-i=&quot;7&quot;&gt;車內最多只能容納兩人過夜，最適合獨自旅行或情侶出遊。換句話說，正因為它小巧，才能在狹窄的林道或營地小路中毫無壓力地行駛，機動性極高。由於是輕型車，日常使用也很方便，&lt;span&gt;「平日用來通勤買餸，週末就去露營」這種雙重用途&lt;/span&gt;，是它的一大優點。&lt;/p&gt;
+&lt;p data-i=&quot;8&quot;&gt;順帶一提，「輕型露營車」只是俗稱，要正式登記為露營車，必須符合國土交通省訂立的結構要求（例如睡眠設備等）。不過，近年法例修訂後，條件已放寬，輕型車要登記為露營車比以前容易得多。&lt;/p&gt;
+&lt;h3 data-i=&quot;9&quot;&gt;哪些輕型車適合改裝成輕型露營車？&lt;/h3&gt;
+&lt;p data-i=&quot;10&quot;&gt;最適合改裝成輕型露營車的基礎車款，是載貨空間寬敞、車頂較高的「廂型車」。後座摺疊後能完全平躺的車款，尤其適合車中泊，DIY改裝的自由度也更高。以下介紹三款代表性車型。&lt;/p&gt;
+&lt;h4 data-i=&quot;11&quot;&gt;Honda N-VAN&lt;/h4&gt;
+&lt;p data-i=&quot;12&quot;&gt;N-VAN的特色是副駕駛座一側沒有車身支柱（B柱），副駕駛座和後座可以收納到地板下，大型行李也能輕鬆裝載。這種&lt;span&gt;寬闊的開口，直接令露營裝備的裝卸和車內改裝變得更容易&lt;/span&gt;。雖然輕型露營車的基礎車款有很多選擇，但N-VAN的副駕駛座和後座能完全放平，鋪上睡袋和軟墊就能直接過夜，非常方便。&lt;/p&gt;
+&lt;p data-i=&quot;13&quot;&gt;Honda Access與露營車改裝廠「White House」共同開發的「N-VAN COMPO」等成品露營車亦有發售，為不擅長DIY的人提供了另一種選擇。&lt;/p&gt;
+&lt;h4 data-i=&quot;14&quot;&gt;Honda 巴莫斯（2018年停產）&lt;/h4&gt;
+&lt;p data-i=&quot;15&quot;&gt;巴莫斯雖然已經停產，但憑藉小巧的車身和寬敞的載貨空間，至今仍是車中泊和輕型露營車改裝的熱門基礎車款。巴莫斯的後座摺疊後會出現少許落差，無法完全平躺。不過，只要買來OSB板（用作地台的木板）和角材，花一天時間自製床架，就能解決問題，打造出全平躺的空間。&lt;/p&gt;
+&lt;h4 data-i=&quot;16&quot;&gt;鈴木 Every&lt;/h4&gt;
+&lt;p data-i=&quot;17&quot;&gt;憑藉寬敞的車廂空間，鈴木「Every」是極受歡迎的車中泊輕型單廂車。如果選擇&lt;span&gt;高頂版本，車內天花板更高，坐着也不會有壓迫感&lt;/span&gt;，這是它的一大特點。&lt;/p&gt;
+&lt;h3 data-i=&quot;18&quot;&gt;輕型露營車DIY實例&lt;/h3&gt;
+&lt;p data-i=&quot;19&quot;&gt;市面上雖然有現成的輕型露營車成品出售，但價格偏高，而且日後要按自己喜好改裝佈局也比較困難。因此，越來越多車主選擇從零開始DIY，打造心目中的理想輕露營車。以下將「カエライフ」採訪過的車主實例，分成「床鋪」、「桌子」、「收納」、「廚房」、「居住空間」五個類別介紹。&lt;/p&gt;
+&lt;h4 data-i=&quot;20&quot;&gt;左右車中泊舒適度的「床鋪」&lt;/h4&gt;
+&lt;p data-i=&quot;21&quot;&gt;床鋪是決定車中泊舒適與否的最重要裝備。選擇全平躺、L形，還是善用副駕駛座，會直接影響睡眠空間和行李空間的平衡。&lt;/p&gt;
+&lt;p data-i=&quot;22&quot;&gt;&lt;strong&gt;全平躺式床鋪（N-VAN / ちぎすけさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;23&quot;&gt;ちぎすけさん最初着手改裝的就是床架，他早在決定購買N-VAN時就已計劃好要改裝。他用木材和包裹了地毯的軟墊製成簡易床墊，放在以鋁管搭建的骨架上，&lt;span&gt;實現了全平躺的睡眠空間&lt;/span&gt;。&lt;/p&gt;
+&lt;p data-i=&quot;24&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;25&quot;&gt;&lt;strong&gt;鋪上榻榻米的L形床鋪（N-VAN / 野外のもりこさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;26&quot;&gt;野外のもりこさん在N-VAN中採用了鋪上榻榻米的L形床鋪佈局。這種融合了和風氣息的獨特風格，有效運用了有限的空間。&lt;span&gt;之所以設計成L形，是因為想保留一個可以穿着鞋子上落的玄關區域&lt;/span&gt;。這種將居住空間與玄關空間分開的設計，很值得參考。&lt;/p&gt;
+&lt;p data-i=&quot;27&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;28&quot;&gt;&lt;strong&gt;活用副駕駛座的床鋪（N-VAN / 小川元貴さん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;29&quot;&gt;每年有超過200天在車上過夜的攝影師小川元貴さん，他的N-VAN&lt;span&gt;將副駕駛座長期保持平躺狀態並鋪上床具&lt;/span&gt;，以騰出空間。這種充分利用駕駛座與載貨空間的佈局，讓攝影器材和睡眠空間能夠並存，毫不浪費。&lt;/p&gt;
+&lt;p data-i=&quot;30&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;h4 data-i=&quot;31&quot;&gt;吃飯工作必備的改裝「桌子」&lt;/h4&gt;
+&lt;p data-i=&quot;32&quot;&gt;在車內吃飯或工作用的桌子，尺寸和安裝方法都需要花點心思。摺疊式、抽屜式、活用儀表板等，有各種各樣的做法。&lt;/p&gt;
+&lt;p data-i=&quot;33&quot;&gt;&lt;strong&gt;抽屜式桌子（巴莫斯 ホビオPro / まりりんさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;34&quot;&gt;抽屜式桌子的好處是不用時可以整齊收納，需要時又能迅速拉出來使用。まりりんさん在巴莫斯上安裝的&lt;span&gt;抽屜式桌子不會壓迫載貨空間&lt;/span&gt;，巧妙地運用了有限的車內空間。&lt;/p&gt;
+&lt;p data-i=&quot;35&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;36&quot;&gt;&lt;strong&gt;摺疊式桌子（N-VAN / さるこさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;37&quot;&gt;さるこさん從大型電單車轉騎Monkey 125，享受着用N-VAN載着電單車去旅行的車中泊樂趣。她採用摺疊式桌子，&lt;span&gt;需要時打開就能舒服地吃飯或工作，不用時則可以沿着牆壁收納&lt;/span&gt;，非常實用。&lt;/p&gt;
+&lt;p data-i=&quot;38&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;39&quot;&gt;&lt;strong&gt;儀表板桌子（N-VAN / ちぎすけさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;40&quot;&gt;ちぎすけさん將N-VAN的儀表板改裝成桌子，&lt;span&gt;在駕駛座一側也能輕鬆飲食或進行簡單工作&lt;/span&gt;。他善用原有的杯架和小物收納空間，並進一步增加功能，將輕型露營車的空間運用得淋漓盡致。&lt;/p&gt;
+&lt;p data-i=&quot;41&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;h4 data-i=&quot;42&quot;&gt;活用有限空間的「收納」&lt;/h4&gt;
+&lt;p data-i=&quot;43&quot;&gt;如何在有限的車內空間有效率地收納物品，是輕型露營車DIY的永恆課題。車頂的閒置空間、床架下方、牆壁上的架子等，只要發揮創意，收納空間隨處可見。&lt;/p&gt;
+&lt;p data-i=&quot;44&quot;&gt;&lt;strong&gt;車頂空間（N-VAN / 野外のもりこさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;45&quot;&gt;利用車頂空間來收納，是許多車主都會實踐的點子。野外のもりこさん善用了車頂的死角，將其打造成&lt;span&gt;收納輕量行李和寢具的空間&lt;/span&gt;。這種盡量保留地板面積作為生活空間的巧思，很值得參考。&lt;/p&gt;
+&lt;p data-i=&quot;46&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;47&quot;&gt;&lt;strong&gt;床架下方（N-VAN / KARINさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;48&quot;&gt;床架下方是收納空間的寶庫。KARINさん安裝了以鋁管自製的床架，並在下方整齊收納了便攜電源和露營裝備。由於床架高度設定為30cm，&lt;span&gt;即使是大型便攜電源或2公升膠樽飲料也能放得下&lt;/span&gt;。這個大容量空間的設計，不會壓迫到居住空間。&lt;/p&gt;
+&lt;p data-i=&quot;49&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;50&quot;&gt;&lt;strong&gt;收納架（N-VAN / ななたびさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;51&quot;&gt;在牆壁或載貨空間角落安裝收納架，可以整齊地整理各種露營小物和衣物。&lt;span&gt;在車中泊時，行李等物品的收納位置經常令人頭痛，與其佔用地板空間，不如活用車頂或牆壁空間，這樣才能更好地確保居住空間&lt;/span&gt;。ななたびさん使用的「nuts vanlife products」收納架，只需一把螺絲批就能安裝。據說即使是DIY新手的ななたびさん，也能輕鬆完成改裝。&lt;/p&gt;
+&lt;p data-i=&quot;52&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;h4 data-i=&quot;53&quot;&gt;輕型露營車也能裝設的「廚房（煮食工具、洗手盆）」&lt;/h4&gt;
+&lt;p data-i=&quot;54&quot;&gt;能否好好享受美食，大大影響車中泊的滿足感。從煮食工具的收納空間到簡易洗手盆的設置，每個人的迷你廚房都各有特色。&lt;/p&gt;
+&lt;p data-i=&quot;55&quot;&gt;&lt;strong&gt;煮食收納空間（N-VAN / ちぎすけさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;56&quot;&gt;ちぎすけさんN-VAN的煮食空間雖然只是一個小型架子，卻收納了微波爐、IH電磁爐和餐具，廚房功能一應俱全。由於使用了耗電量較高的電器，他長期攜帶兩個便攜電源。&lt;span&gt;只要選擇小巧的廚具並整合好廚房空間&lt;/span&gt;，就能讓居住空間變得更寬敞舒適。&lt;/p&gt;
+&lt;p data-i=&quot;57&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;58&quot;&gt;&lt;strong&gt;洗手盆（N-VAN / 休憩時間さん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;59&quot;&gt;這是車中泊改裝零件品牌「nuts vanlife products」的主理人休憩時間さん，在輕型廂型車上安裝洗手盆的實例。洗手盆下方設有2公升的供水及排水水箱，簡單的用水工作完全足夠應付。&lt;span&gt;能否在車內用水，對生活質素的影響非常大。&lt;/span&gt;DIY安裝洗手盆的難度稍高，但一旦完成，輕型露營車的舒適度便會大大提升。&lt;/p&gt;
+&lt;p data-i=&quot;60&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;61&quot;&gt;&lt;strong&gt;二人用桌子兼廚房（Every / うんまほふうふさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;62&quot;&gt;享受輕型露營車二人世界的うんまほふうふさん，採用了能讓兩人面對面吃飯的桌子佈局。這個將煮食和用餐空間合二為一的廚房兼飯廳設計，是二人輕型露營車之旅獨有的創意。他們使用小巧的IH電暖爐煮食，&lt;span&gt;收拾乾淨後就能變成工作桌，鋪上軟墊更可變身成床鋪&lt;/span&gt;，是一張萬用桌子。&lt;/p&gt;
+&lt;p data-i=&quot;63&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;h4 data-i=&quot;64&quot;&gt;追求舒適的「居住空間（通風、窗簾、隔熱）」&lt;/h4&gt;
+&lt;p data-i=&quot;65&quot;&gt;即使床鋪和桌子都準備妥當，如果沒有解決酷熱、寒冷、結露和外面視線等問題，也無法實現舒適的車中泊。做好通風、窗簾和隔熱這三點，是確保居住空間舒適的基本條件。&lt;/p&gt;
+&lt;p data-i=&quot;66&quot;&gt;&lt;strong&gt;通風（N-VAN / 休憩時間さん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;67&quot;&gt;夏天要排出車內的熱氣，通風對策必不可少。休憩時間さん在輕型廂型車上安裝了通風系統，實現了引入新鮮空氣並循環車內空氣的機制。相關套件在他經營的「nuts vanlife products」有售。&lt;span&gt;良好的通風對防止結露也很有幫助&lt;/span&gt;，冬天車中泊時車窗也不易起霧。&lt;/p&gt;
+&lt;p data-i=&quot;68&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;69&quot;&gt;&lt;strong&gt;隔熱（N-VAN / 鮎澤純一さん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;70&quot;&gt;&lt;span&gt;在牆壁和車頂鋪設隔熱材料，能大幅減輕夏天的酷熱和冬天的嚴寒&lt;/span&gt;。在牆壁和車頂鋪好隔熱材料後，再在內飾板上覆蓋木板，這項工程需要在安裝桌子或架子之前進行。鮎澤さん的隔熱DIY，在選擇有效材料和施工步驟方面，很值得參考。&lt;/p&gt;
+&lt;p data-i=&quot;71&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;p data-i=&quot;72&quot;&gt;&lt;strong&gt;窗簾（N-VAN / 野外のもりこさん）&lt;/strong&gt;&lt;/p&gt;
+&lt;p data-i=&quot;73&quot;&gt;裝上窗簾後，車內與外界完全隔絕，一個人旅行時的安全感會大大提升。晚上在車內開燈的話，車內情況會一覽無遺，所以窗簾是必需的；冬天車外冷空氣會令車內溫度急降，因此&lt;span&gt;安裝窗簾也有保暖的作用。&lt;/span&gt;野外のもりこさん利用N-VAN原有的安裝孔和可直接黏貼魔術貼的車頂，簡單地安裝了窗簾。&lt;/p&gt;
+&lt;p data-i=&quot;74&quot;&gt;＜詳情請看這裏＞&lt;/p&gt;
+&lt;h3 data-i=&quot;75&quot;&gt;DIY輕型露營車的注意事項&lt;/h3&gt;
+&lt;p data-i=&quot;76&quot;&gt;自己動手改裝輕型露營車固然吸引，但也有一些地方需要留意。&lt;/p&gt;
+&lt;h4 data-i=&quot;77&quot;&gt;① 不要增加過多重量&lt;/h4&gt;
+&lt;p data-i=&quot;78&quot;&gt;隨着木材、電器和收納物品越積越多，不知不覺間就可能超出車輛的載重限制。輕型車的最大載重量一般約為350kg（4字頭車牌的情況）。超重不僅會令油耗惡化，還會影響行車性能和安全性，因此&lt;span&gt;從選材階段就要有輕量化的意識&lt;/span&gt;，這點非常重要。&lt;/p&gt;
+&lt;h4 data-i=&quot;79&quot;&gt;② 注意影響車檢的改裝&lt;/h4&gt;
+&lt;p data-i=&quot;80&quot;&gt;即使是車內改裝，如果屬於涉及結構變更的大型工程，也可能影響車檢。&lt;span&gt;特別是拆除或固定座椅、改動電氣系統、干預燃油系統等，建議事先向代理商或維修廠確認&lt;/span&gt;。請注意，這可能導致需要更改乘客人數或更換車牌。&lt;/p&gt;
+&lt;h4 data-i=&quot;81&quot;&gt;③ 家具可拆卸的話，日常使用更方便&lt;/h4&gt;
+&lt;p data-i=&quot;82&quot;&gt;如果將床架或架子固定死，可能會影響日常裝卸行李或乘客移動。&lt;span&gt;採用可拆卸的結構，就能在露營時變身「車中泊模式」，平日則作為「普通輕型廂型車」&lt;/span&gt;使用。就像ちぎすけさん那樣，即使不斷進行DIY改裝，為了維持「全家人都能使用的空間」，從一開始就考慮到易於拆卸和改變佈局，才是保持舒適的秘訣。&lt;/p&gt;
+&lt;h3 data-i=&quot;83&quot;&gt;用輕型露營車DIY，打造屬於自己的「移動秘密基地」&lt;/h3&gt;
+&lt;p data-i=&quot;84&quot;&gt;輕型露營車雖然沒有大型露營車的豪華感，但它兼具了「輕鬆入手」、「經濟實惠」和「改裝自由度高」三大優點。雖然也可以直接購買市面上的成品，但正如本文所介紹，也有不少車主選擇從零開始DIY，打造專屬自己的空間。&lt;/p&gt;
+&lt;p data-i=&quot;85&quot;&gt;床鋪的佈局、桌子的巧思、收納的點子、隔熱通風的對策……透過一步步累積每一個改裝細節，充滿個人情感的「移動秘密基地」便會逐漸成形。即使最初只是踏出一小步也沒關係。不妨先參考一下這些有趣的實例，開始你的輕型露營車生活吧。&lt;/p&gt;
+&lt;p data-i=&quot;86&quot;&gt;文/矢澤拓 攝影/佐山順丸、やまひらく、宮越孝政、ただ、鈴木純平、烏頭尾拓磨 編輯/矢澤拓、TAC企劃&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 7145,
+  "completion_tokens": 4391,
+  "total_tokens": 11536,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 5353
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">トランジット TRANSIT</h2>
+                    <a class="article-url" href="https://transit.jp/sponsored/newzealandairline_christchurch/" target="_blank">https://transit.jp/sponsored/newzealandairline_christchurch/</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00011</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>ニュージーランド最高峰3,724mにして世界自然遺産にも登録されている、アオラキ / マウント・クック。マオリ語で「雲の峰」という意味をもつ山だ。氷河があったり、天候が変わりやすいことなどから、登頂を目指すとかなり難易度が高い山。その一方で初心者向けのハイキングコースが充実していて、登山経験が豊富でなくとも比較的歩きやすい道もある。とくに「フッカー・バレー・トラック」が景色が美しくて人気が高い。ニュージーランドの広大な大地を体感できる場所だ。</td>
+                        <td>紐西蘭最高峰3,724米、同時被列為世界自然遺產的奧拉基／庫克山。在毛利語中，這座山有着「雲之峰」的意思。由於有冰川，加上天氣變化無常，要挑戰登頂難度相當高。不過，另一方面，這裏亦設有不少適合初學者的遠足路線，即使行山經驗不算豐富，也有相對易走的步道。其中以景色優美而大受歡迎的「胡克山谷步道」最為熱門。這是一個能夠親身感受紐西蘭廣闊大地的絕佳地點。</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+紐西蘭航空成田至基督城航線正式開通！仲有平機票優惠！？探索庫克山、蒂卡普湖…盡情感受南島的自然風光！ | TRANSIT.jp｜トランジット
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt;紐西蘭最高峰3,724米、同時被列為世界自然遺產的奧拉基／庫克山。在毛利語中，這座山有着「雲之峰」的意思。由於有冰川，加上天氣變化無常，要挑戰登頂難度相當高。不過，另一方面，這裏亦設有不少適合初學者的遠足路線，即使行山經驗不算豐富，也有相對易走的步道。其中以景色優美而大受歡迎的「胡克山谷步道」最為熱門。這是一個能夠親身感受紐西蘭廣闊大地的絕佳地點。&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 2165,
+  "completion_tokens": 206,
+  "total_tokens": 2371,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 373
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">家電 Watch</h2>
+                    <a class="article-url" href="https://kaden.watch.impress.co.jp/docs/news/2112195.html" target="_blank">https://kaden.watch.impress.co.jp/docs/news/2112195.html</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">8</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">8</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">8</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">8</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00031</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>アンカー・ジャパンは、Anker史上最高水準の安全性を追求したモバイルバッテリー「Anker Nano Power Bank (MagGo, Plus)」を、5月27日より数量限定で予約販売開始する。価格は11,990円。容量は10,000mAhで、iPhoneなどスマホの背面に装着して給電できる。一般販売は2026年夏より開始予定。</td>
+                        <td>Anker Japan宣佈，追求Anker史上最高安全標準嘅流動充電器「Anker Nano Power Bank (MagGo, Plus)」，將於5月27日起限量預售。價格為11,990日元。容量為10,000mAh，可以貼喺iPhone等智能手機背面進行充電。預計2026年夏季正式公開發售。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>釘刺し試験を100%通過するという独自バッテリーセル「Neo Lithium-ion Battery」を独自に開発。このセルを搭載したのが新しいモバイルバッテリー。難燃性素材の筐体と、進化したバッテリーマネジメントシステム(BMS)で構成し、ハードとソフト両面を掛け合わせることでAnker史上最高水準の安全性を実現したという。</td>
+                        <td>Anker自行研發咗一種聲稱能100%通過釘刺測試嘅獨家電池電芯「Neo Lithium-ion Battery」。呢款新嘅流動充電器就係搭載咗呢種電芯。據講，透過採用阻燃物料嘅外殼，加上進化咗嘅電池管理系統（BMS），從硬件同軟件雙管齊下，實現咗Anker史上最高嘅安全水平。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>他社では、モバイルバッテリーの安全対策として、固体電池やナトリウムイオン電池などの代替素材を採用するケースも増えているが、Ankerは、こうした代替素材にはまだ実証実験の蓄積が少なく、使用環境と廃棄のルール、サイズと重さに課題があると指摘している。</td>
+                        <td>雖然其他公司喺流動充電器嘅安全措施上，越來越多採用固態電池或鈉離子電池等替代物料，但Anker指出，呢類替代物料嘅實證測試經驗仍然不足，喺使用環境、棄置規則、尺寸同重量方面都存在問題。</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+Anker史上最安全嘅流動充電器 釘刺測試100%通過
+[/TITLE]
+[CONTENT]
+&lt;p data-i=&quot;0&quot;&gt; Anker Japan宣佈，追求Anker史上最高安全標準嘅流動充電器「Anker Nano Power Bank (MagGo, Plus)」，將於5月27日起限量預售。價格為11,990日元。容量為10,000mAh，可以貼喺iPhone等智能手機背面進行充電。預計2026年夏季正式公開發售。&lt;/p&gt;
+&lt;p data-i=&quot;1&quot;&gt; Anker自行研發咗一種聲稱能100%通過釘刺測試嘅獨家電池電芯「Neo Lithium-ion Battery」。呢款新嘅流動充電器就係搭載咗呢種電芯。據講，透過採用阻燃物料嘅外殼，加上進化咗嘅電池管理系統（BMS），從硬件同軟件雙管齊下，實現咗Anker史上最高嘅安全水平。&lt;/p&gt;
+&lt;p data-i=&quot;2&quot;&gt; 雖然其他公司喺流動充電器嘅安全措施上，越來越多採用固態電池或鈉離子電池等替代物料，但Anker指出，呢類替代物料嘅實證測試經驗仍然不足，喺使用環境、棄置規則、尺寸同重量方面都存在問題。&lt;/p&gt;
+&lt;p data-i=&quot;3&quot;&gt; Anker所採用嘅新款鋰離子電池電芯嘅特點有三個：徹底排除雜質、防止長期使用時嘅老化，以及通過嚴格測試。喺影響安全性嘅「電極」同「電解質」兩方面，都排除了可能導致起火嘅細微雜質；同時，透過對負極進行獨家表面處理，抑制咗長期使用時產生嘅鋰金屬沉積。電解質嘅配方亦經過優化，從而抑制咗氧氣產生等電池內部嘅副反應。&lt;/p&gt;
+&lt;p data-i=&quot;4&quot;&gt; 喺測試方面，呢款電池電芯通過咗直接將釘子刺入電池電芯造成短路嘅測試，以及確認受壓時唔會爆炸嘅耐壓測試等。&lt;/p&gt;
+&lt;p data-i=&quot;5&quot;&gt; BMS嘅性能亦提升咗一個層次，能夠以秒為單位獨立監控每一粒電芯。進化後嘅系統可以檢測到更細微嘅異常。隨住長期使用令充電循環次數增加，系統會自動調整充電限制電壓，用戶可以透過專用應用程式進行監控。&lt;/p&gt;
+&lt;p data-i=&quot;6&quot;&gt; 本體尺寸約為104×71×15mm（長×闊×厚），重量約為215g。顏色有黑色同白色兩種，其中白色預計要到2026年秋季先會發售。&lt;/p&gt;
+&lt;p data-i=&quot;7&quot;&gt; 磁吸式無線充電支援最高15W。亦配備USB Type-C輸入/輸出（最高30W）。&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 2667,
+  "completion_tokens": 644,
+  "total_tokens": 3311,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 875
+}</pre>
+            </details>
+        </div>
+        
+
+        <div class="article-card">
+            <div class="article-header">
+                <div>
+                    <h2 class="article-title">旅色LIKES</h2>
+                    <a class="article-url" href="https://tabiiro.jp/likes/articles/view/2409/" target="_blank">https://tabiiro.jp/likes/articles/view/2409/</a>
+                </div>
+                <span class="badge strict-pass">Strict Pass</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="label">Sent Blocks</div>
+                    <div class="val">52</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned Blocks</div>
+                    <div class="val">52</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Returned with data-i</div>
+                    <div class="val">52</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Matched data-i</div>
+                    <div class="val">52</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Cost</div>
+                    <div class="val">$0.00190</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Finish Reason</div>
+                    <div class="val">stop</div>
+                </div>
+            </div>
+        
+
+            <h3 style="color: #f8fafc; font-size: 1rem; margin-top: 20px; margin-bottom: 8px;">Sample Content Check (First 3 Blocks)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Index</th>
+                        <th>Original Text</th>
+                        <th>Translated Text (zh-HK)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+
+                    <tr>
+                        <td class="code-idx">0</td>
+                        <td>意外と知られていない、東京競馬場のこと</td>
+                        <td>你可能唔知嘅東京競馬場</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">1</td>
+                        <td>府中競馬正門前駅名物、アハルテケ像。ここから望む競馬場はまるで壁のようです。</td>
+                        <td>府中競馬正門前站嘅名物——阿哈爾特克馬像。從呢度望過去，競馬場就好似一道牆咁。</td>
+                    </tr>
+            
+
+                    <tr>
+                        <td class="code-idx">2</td>
+                        <td>大抵の方々が考える競馬場のイメージは、紫煙で霞む天井が低めの馬券売り場に、ひしめく殺気立ったおじさんたち。そして左手に赤く染まった競馬新聞、右耳に挟まったボールペンか右手に赤ペンで一心不乱に書きなぐるあの風景……。幼いころから通っていた者から申し上げると、あの風景が見られるのは馬券場前のみであり、実際の競馬場は風が気持ちいい、だだっ広い野原に馬が走っているイメージです。昔は競馬場の真ん中にある遊具広場に行き、母と地平線の見える野原で遊び倒し父は馬券場へ消えていくのが定番でした。
+
+◆東京競馬場...</td>
+                        <td>大部分人對競馬場嘅印象，可能係煙霧瀰漫、天花好低嘅馬券售票處，擠滿晒殺氣騰騰嘅阿叔。左手揸住染紅咗嘅競馬報紙，右耳夾住支原子筆，或者右手揸住紅筆，忘我咁寫寫畫畫……作為一個由細到大都去嘅人，我可以話俾你知，呢啲景象只係喺馬券場外面先見到，真正嘅競馬場其實係風吹得好舒服、一望無際嘅草原，仲有馬喺度跑。以前嘅經典節目就係去競馬場中間嘅遊樂場，同阿媽喺一望無際嘅草原玩到癲，而阿爸就消失喺馬券場嗰邊。
+
+◆東京競馬場
+地址：府中市日吉町1-1
+電話：042-363-3141</td>
+                    </tr>
+            
+
+                </tbody>
+            </table>
+        
+
+            <details>
+                <summary>View Raw Response and Metadata</summary>
+                <pre><strong>Raw Output Text:</strong>
+[TITLE]
+曾經成日去嘅「府中競馬場」，等我介紹吓啦！｜旅色LIKES
+[/TITLE]
+[CONTENT]
+&lt;h2 data-i=&quot;0&quot;&gt;你可能唔知嘅東京競馬場&lt;/h2&gt;
+&lt;p data-i=&quot;1&quot;&gt;府中競馬正門前站嘅名物——阿哈爾特克馬像。從呢度望過去，競馬場就好似一道牆咁。&lt;/p&gt;
+&lt;p data-i=&quot;2&quot;&gt;大部分人對競馬場嘅印象，可能係煙霧瀰漫、天花好低嘅馬券售票處，擠滿晒殺氣騰騰嘅阿叔。左手揸住染紅咗嘅競馬報紙，右耳夾住支原子筆，或者右手揸住紅筆，忘我咁寫寫畫畫……作為一個由細到大都去嘅人，我可以話俾你知，呢啲景象只係喺馬券場外面先見到，真正嘅競馬場其實係風吹得好舒服、一望無際嘅草原，仲有馬喺度跑。以前嘅經典節目就係去競馬場中間嘅遊樂場，同阿媽喺一望無際嘅草原玩到癲，而阿爸就消失喺馬券場嗰邊。
+&lt;br&gt;
+◆東京競馬場&lt;br&gt;
+地址：府中市日吉町1-1&lt;br&gt;
+電話：042-363-3141&lt;/p&gt;
+&lt;h2 data-i=&quot;3&quot;&gt;試吓順便散步去行吓&lt;/h2&gt;
+&lt;p data-i=&quot;4&quot;&gt;呢隻馬嘅毛色係尾花栗毛（即係有金色鬃毛嘅栗色馬）。&lt;/p&gt;
+&lt;p data-i=&quot;5&quot;&gt;之前去博物館時見到嘅展品——巴黎奧運馬術團體賽銅牌得主嘅紀念相。&lt;/p&gt;
+&lt;p data-i=&quot;6&quot;&gt;喺凡爾賽宮範圍內嘅巴黎奧運馬術比賽場地，啲相都好靚。&lt;/p&gt;
+&lt;p data-i=&quot;7&quot;&gt;場內嘅日本庭園。&lt;/p&gt;
+&lt;p data-i=&quot;8&quot;&gt;「府中競馬場」即係東京競馬場。最近嘅車站係京王線嘅府中競馬正門前站，或者JR南武線嘅府中本町站。其實，冇賽事嘅日子都可以入場，所以第一次去嘅話，建議揀冇賽事嘅日子，隨心咁去行吓。例如，場內嘅JRA競馬博物館可以參觀過去嘅優勝盃、平時見唔到嘅展品，仲有競賽馬嘅影片檔案。隨季節唔同，仲可以睇到櫻花或者玫瑰園，係散步嘅好地方。畢竟係競馬場，草地保養得好好，非常靚。如果想平日去，最好去JRA競馬博物館嘅官網睇清楚開館日期。
+&lt;br&gt;
+◆JRA競馬博物館&lt;br&gt;
+地址：府中市日吉町1-1 JRA東京競馬場內&lt;br&gt;
+電話：042-314-5800&lt;br&gt;
+營業時間：東京競馬舉辦日及公園勝馬投票券發售日 10:00～17:00，其他日子 10:00～16:00 ※只開放東門&lt;br&gt;
+休息日：3月～11月 星期一、二（如遇公眾假期則開放，隨後嘅平日休息），12月、1月、2月 星期一、二、五（如遇公眾假期則開放）&lt;br&gt;
+※年終年初及其他臨時休息日&lt;br&gt;
+入場費：免費&lt;/p&gt;
+&lt;h2 data-i=&quot;9&quot;&gt;一邊回憶細個嘅家庭溫馨，一邊去競馬場&lt;/h2&gt;
+&lt;p data-i=&quot;10&quot;&gt;G1賽事嘅日子就會有呢啲牌。大家都喺度影相，所以我都一齊影咗張。&lt;/p&gt;
+&lt;p data-i=&quot;11&quot;&gt;平時落車會覺得好冷清，但係競馬舉辦日嘅京王線府中競馬正門前站就好熱鬧。&lt;/p&gt;
+&lt;p data-i=&quot;12&quot;&gt;出站之後可以經天橋直接入競馬場。呢個出入口由以前到而家都冇變過。&lt;/p&gt;
+&lt;p data-i=&quot;13&quot;&gt;翻新咗嘅天橋。&lt;/p&gt;
+&lt;p data-i=&quot;14&quot;&gt;雖然去咗「府中競馬場」好多年，但發現有啲好想試嘅競馬場美食淨係喺G1賽事（※1）嗰日先開，所以啱啱舉行嘅NHK一哩盃（※2）嗰日就去咗。平時通常係自衛隊音樂隊負責吹奏嘅號角，聽講今次會由NHK交響樂團嘅銅管樂器組負責，作為前吹奏樂部成員，真係好期待。不過，臨時有消息話，呢日喺北海道贏咗日本打吡（※3）同秋季天皇賞（※4），仲喺人氣作品《賽馬娘Pretty Derby》（※5）入面都好受歡迎嘅競賽馬「榮進閃耀」會嚟，心諗實會好多人，有啲唔安。嗰日早啲到啦。
+&lt;br&gt;
+※1 G1賽事：喺賽馬同單車競賽等公營競技入面，級別最高，用嚟決定當年冠軍嘅最高級別賽事（Grade One）。只有通過重重難關嘅頂級選手或競賽馬先可以出賽，係最高權威嘅舞台。
+&lt;br&gt;
+※2 NHK一哩盃：日本中央競馬會（JRA）每年5月喺東京競馬場舉辦，限3歲馬參加嘅G1賽事。距離係草地1600米（一哩），被定位為「春季3歲一哩王決定戰」。
+&lt;br&gt;
+※3 日本打吡：正式名稱係東京優駿。JRA每年5月底至6月初舉辦，限3歲馬參加嘅最高級別G1賽事。係世代限定「經典三冠」嘅第二戰，被譽為「賽馬祭典」，係最有地位、所有馬圈人士都憧憬嘅最高榮譽。
+&lt;br&gt;
+※4 秋季天皇賞：JRA每年秋季喺東京競馬場舉辦，由3歲以上純種馬角逐嘅G1賽事。喺草地2000米舉行，係爭奪中距離王者寶座「秋季之盾」嘅傳統一戰。
+&lt;br&gt;
+※5 《賽馬娘Pretty Derby》：以真實存在過嘅競賽馬為藍本，將佢哋擬人化成「賽馬娘」，然後培育佢哋出賽嘅育成模擬遊戲。海外版都已經推出，最近掀起咗全球性嘅賽馬熱潮。&lt;/p&gt;
+&lt;h2 data-i=&quot;15&quot;&gt;你比玫瑰更美？同名馬「榮進閃耀」見面&lt;/h2&gt;
+&lt;p data-i=&quot;16&quot;&gt;毛色光澤亮麗，配上玫瑰真係好襯。就算係人，都好少人襯得起呢個組合。&lt;/p&gt;
+&lt;p data-i=&quot;17&quot;&gt;被好多粉絲同玫瑰包圍住，睇落好放鬆嘅「榮進閃耀」。&lt;/p&gt;
+&lt;p data-i=&quot;18&quot;&gt;啱啱玫瑰園都開得好燦爛。唔同品種嘅玫瑰爭妍鬥麗，差啲唔記得咗睇賽馬。&lt;/p&gt;
+&lt;p data-i=&quot;19&quot;&gt;「榮進閃耀」所在嘅馬房附近，有歷代日本打吡優勝馬嘅石碑。有玫瑰點綴，更加華麗。&lt;/p&gt;
+&lt;p data-i=&quot;20&quot;&gt;一過正門就見到一堆人。原來「榮進閃耀」喺通往比賽場地嘅天橋下面、玫瑰園附近嘅馬房，所以橋上面企滿晒人（隔籬嗰位，喺呢個位拎住支超遠攝鏡頭！）。講起「榮進閃耀」，主要勝仗包括2010年日本打吡、2012年秋季天皇賞。由現役時代開始，就因為光澤亮麗嘅黑鹿毛同端正嘅樣貌而好受歡迎。特別係2012年嘅秋季天皇賞係天皇觀賽嘅賽事，贏咗之後騎師喺天皇皇后兩座位前落馬，行咗個騎士式嘅最敬禮，呢個故事令人印象深刻。我自己都落到馬房附近等，佢行近咗，所以就影咗相。毛色光澤到好似隨時可以出賽咁，同正值盛放嘅玫瑰好襯。&lt;/p&gt;
+&lt;p data-i=&quot;21&quot;&gt;經過地下通道去中間嘅廣場。遊樂設施多咗好多，進化到好似玩一日都玩唔晒咁。&lt;/p&gt;
+&lt;p data-i=&quot;22&quot;&gt;以前雖然位置唔同，但都有迷你蒸汽火車行嘅地方。而家仲有，令人好懷念。&lt;/p&gt;
+&lt;p data-i=&quot;23&quot;&gt;喺中間嘅廣場好難睇到終點，但起點就好易睇到。盡力影吓先。&lt;/p&gt;
+&lt;p data-i=&quot;24&quot;&gt;終於影到一張冇手震嘅奇蹟相片。&lt;/p&gt;
+&lt;p data-i=&quot;25&quot;&gt;同「榮進閃耀」道別之後，就去咗細個成日玩嘅賽道中間。由以前到而家，入口都係喺看台前面。以前成塊地都係草地嘅地方，而家起咗好多遊樂設施，令到最後彎位附近嘅大櫸樹（※6）後面睇得冇咁清楚。不過，我諗返起喺中間嘅草地可以睇到起點，而唔係終點。既然嚟到，就影吓起步後嘅情況。
+&lt;br&gt;
+※6 大櫸樹：喺東京競馬場第3彎位到第4彎位之間嘅一棵大樹。樹下有一個叫「是政塚」嘅東京都指定史跡。呢棵樹係標記，賽馬發動攻勢時，賽事旁述成日都會提到。但係因為好多馬喺呢度受傷，所以俗稱「魔鬼第3彎位」。雖然叫櫸樹，但其實係朴樹。&lt;/p&gt;
+&lt;h2 data-i=&quot;26&quot;&gt;加深對賽馬嘅認識之後，就食返個期待已久嘅「G1燒」&lt;/h2&gt;
+&lt;p data-i=&quot;27&quot;&gt;好早就開始嘅初學者講座。可能因為我喺會場好努力咁抄筆記，覺得個講師成日望住我……。&lt;/p&gt;
+&lt;p data-i=&quot;28&quot;&gt;今日嘅目標——淨係G1賽事日先食到嘅「G1燒」。我特登冇去查究竟係咩嘢食。正想即刻去買嘅時候，就俾人叫住咗，唔知點解就參加咗個初學者講座……。呢度會教人買馬券嘅種類、點樣喺專用嘅馬券紙上填寫，同埋點樣買法。話有課程講解，諗住可能對玩《賽馬娘》有用，所以就揀咗賽馬報紙閱讀方法嘅課程。上完堂之後，終於明白點解賽馬報紙冇網絡化。啲資訊好濃縮，識得睇嘅話好有趣，但如果唔自己寫低，都係好難運用。今次主要賽事嘅預測，佢哋用報紙嚟做清楚嘅講解，不如就用學到嘅知識嚟估吓，買張馬券試吓啦。&lt;/p&gt;
+&lt;p data-i=&quot;29&quot;&gt;之前嚟賽馬博物館時見到嘅G1燒，終於食到啦。&lt;/p&gt;
+&lt;p data-i=&quot;30&quot;&gt;呢個大小同甜度，我覺得可以再食多一個，味道清甜，口感清爽。&lt;/p&gt;
+&lt;p data-i=&quot;31&quot;&gt;「耕一路」嘅摩卡軟雪糕&lt;/p&gt;
+&lt;p data-i=&quot;32&quot;&gt;講起競馬場，就一定要食燉煮。呢個係我第一次自己嚟競馬場時叫嘅組合。啤酒冇泡，斟到好滿，紙杯竟然咁重，真係嚇親。&lt;/p&gt;
+&lt;p data-i=&quot;33&quot;&gt;講座完咗，終於買到「G1燒」。原來佢就係類似今川燒嘅嘢，有紅豆餡、忌廉餡，仲有會跟G1賽事而變味嘅「 premium」三種。今次係咖啡拿鐵忌廉味，味道清甜，口感清爽。另外仲想試嘅係「耕一路」嘅摩卡軟雪糕。競馬場有好多唔同嘅美食，鹹食通常都好大份，可以幾個人一齊分享，但係甜食就多數係清甜，好似食幾多都得，呢個係今次嘅發現。
+&lt;br&gt;
+◆G1燒&lt;br&gt;
+地址：府中市日吉町1-1（喺沙圈嘅日本庭園側邊，電子顯示板隔籬）&lt;br&gt;
+營業時間：9:00～16:30&lt;br&gt;
+休息日：跟東京競馬場
+&lt;br&gt;
+◆耕一路&lt;br&gt;
+地址：府中市日吉町1-1（富士景觀看台 2樓 32號柱）&lt;br&gt;
+營業時間：9:00～16:00&lt;br&gt;
+休息日：星期一至五&lt;/p&gt;
+&lt;h2 data-i=&quot;34&quot;&gt;同賽馬劇集一樣嘅情景！？從唔同角度睇住競賽馬&lt;/h2&gt;
+&lt;p data-i=&quot;35&quot;&gt;可以睇到競馬場背後嘅「馬匹觀察區」。&lt;/p&gt;
+&lt;p data-i=&quot;36&quot;&gt;可以睇到賽事前後嘅情況，好有趣。睇到背後嘅嘢，覺得好似賺咗咁。&lt;/p&gt;
+&lt;p data-i=&quot;37&quot;&gt;啊，喺暗夜祭表演過嘅馬仔開工啦。而家準備帶佢去跑道。&lt;/p&gt;
+&lt;p data-i=&quot;38&quot;&gt;頭先講座嘅時候，佢哋話有個叫「馬匹觀察區」嘅角落，可以睇到賽事前後嘅競賽馬同騎師嘅情況，所以就去睇吓。原來由過磅室（※7）到引導馬嘅等候區都睇到晒，好有趣。呢個唔係《皇家家族》（※8）嘅場景咩……。喺引導馬（※9）入面，發現咗今年大國魂神社暗夜祭嘅「賽馬式（駒競）」（※10）有參加過嘅馬仔，好開心。
+&lt;br&gt;
+※7 過磅室：用數碼磅秤，為每匹出賽馬秤指定嘅負重（騎師、馬鞍等嘅總重量）嘅地方。同時，騎師會將馬鞍、馬鞭等騎乘所需嘅工具放喺度，係為賽事做準備嘅地方。
+&lt;br&gt;
+※8 《皇家家族》：2025年10月至12月喺TBS系「日曜劇場」時段（共10集）播出，改編自早見和真同名小說嘅電視劇。以一隻競賽馬為中心，描寫馬主家族同一位稅務師之間，跨越20年、奉獻夢想同人生嘅羈絆，係一部宏大嘅人性劇。
+&lt;br&gt;
+※9 引導馬：喺競馬場，賽事前從沙圈引導競賽馬到賽道嘅馬。
+&lt;br&gt;
+※10 暗夜祭嘅「賽馬式（駒競）」：暗夜祭係喺競馬場附近嘅大國魂神社舉行嘅大祭（每年4月30日至5月6日）。祭典名稱嘅由來係因為喺傍晚舉行。賽馬式係為咗傳承府中自古盛產駿馬嘅歷史，喺神社前嘅舊甲州街道200米路段，由身穿烏帽子同直垂嘅騎手策馬奔馳嘅活動。&lt;/p&gt;
+&lt;p data-i=&quot;39&quot;&gt;擁有白色毛髮同藍眼睛嘅美麗「Fantastico」同佢嘅哥哥。&lt;/p&gt;
+&lt;p data-i=&quot;40&quot;&gt;冇上馬鞍就騎馬，仲表演雜技嘅一馬一人。&lt;/p&gt;
+&lt;p data-i=&quot;41&quot;&gt;喺表演場地附近打情罵俏嘅兩隻馬。好可愛。&lt;/p&gt;
+&lt;p data-i=&quot;42&quot;&gt;而家喺度修行做引導馬嘅「Danon Beluga」。唔通佢就係同「Do Deuce」同「Equinox」一齊跑過日本打吡嗰隻馬？好犀利。好似隱藏角色咁。&lt;/p&gt;
+&lt;p data-i=&quot;43&quot;&gt;除咗賽事之外，仲有一個可以睇到馬嘅地方就係「騎馬中心」。呢度有馬術表演，我欣賞咗一陣擁有白色毛髮同藍眼睛、充滿奇幻感嘅馬（據講叫「鮫毛」，馬嘅毛色變化真係多到嚇親人）嘅表演。就係咁，主要賽事嘅時間就嚟到啦。&lt;/p&gt;
+&lt;h2 data-i=&quot;44&quot;&gt;用啱啱學到嘅知識，終於要開始賽事啦！&lt;/h2&gt;
+&lt;p data-i=&quot;45&quot;&gt;最期待嘅號角聲，聽到耳仔都覺得幸福。&lt;/p&gt;
+&lt;p data-i=&quot;46&quot;&gt;順帶一提，我買嘅馬券入面最睇好嘅係17號。&lt;/p&gt;
+&lt;p data-i=&quot;47&quot;&gt;唔通！？&lt;/p&gt;
+&lt;p data-i=&quot;48&quot;&gt;竟然要影相判定。諗返起呢個係我第一次親眼見到。真係好難得。&lt;/p&gt;
+&lt;p data-i=&quot;49&quot;&gt;主要賽事嘅時候，雖然離終點好遠，但我就揀咗個景觀好嘅最後直路開頭位等。肉眼睇唔到嘅地方，有巨大嘅大屏幕幫手。既然嚟到，就用講座學到嘅知識，買咗三隻馬。順帶一提，我買嘅係位置（※11），所以賠率好低，中咗當係好彩。影相期間，我發現咗一件事。咦？我面前嗰隻我最睇好嘅馬，係咪好犀利咁追咗上嚟（※12）？最後好混亂咁衝線，竟然要影相判定。望住大屏幕等咗一陣。點知，我買嘅馬券竟然跑第一，中咗！多謝講座嘅老師。
+&lt;br&gt;
+※11 位置：馬券嘅一種。同獨贏（估邊隻馬跑第一）相對，位置係估邊隻馬跑入前三名。第一次玩嘅人，建議買獨贏同位置嘅組合，比較簡單。
+&lt;br&gt;
+※12 追：賽馬術語。指從後方追上嚟，超越前面嘅馬嘅情況。&lt;/p&gt;
+&lt;h2 data-i=&quot;50&quot;&gt;最後&lt;/h2&gt;
+&lt;p data-i=&quot;51&quot;&gt;今日試咗買主要賽事嘅馬券，但其實競馬場有好多唔使買馬券都可以享受嘅活動，淨係呢啲已經可以消磨好多時間。我身邊都有其他人係鍾意睇純種馬奔馳嘅姿態多過買馬券。好似日本打吡呢類受歡迎嘅賽事日，人潮會好犀利，但喺好似祭典咁熱鬧嘅氣氛入面，同馬互動吓、放鬆吓，同時享受吓現場嘅氣氛，都係唔錯嘅選擇。&lt;/p&gt;
+[/CONTENT]
+
+<strong>Tokens Usage:</strong>
+{
+  "prompt_tokens": 6711,
+  "completion_tokens": 4296,
+  "total_tokens": 11007,
+  "prompt_tokens_details": {
+    "cached_tokens": 1792
+  },
+  "prompt_cache_hit_tokens": 1792,
+  "prompt_cache_miss_tokens": 4919
+}</pre>
+            </details>
+        </div>
+        
+
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReadabilityRSS — Brand Font Prototype</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=newsmode" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@400;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Merriweather:wght@400;700&family=Crimson+Pro:wght@400;600;700&family=Spectral:wght@400;600;700&family=Bitter:wght@400;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@400;600;700&family=Instrument+Serif&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-nav:       #1c1510;
+      --accent:       #c97d2e;
+      --text-nav:     #e8ddd0;
+      --text-muted:   #a0897c;
+      --border:       #d4c4b0;
+      --bg-page:      #f5efe6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-page);
+      font-family: 'Source Sans 3', sans-serif;
+      color: #1c1208;
+    }
+
+    h1 {
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin: 32px 24px 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 16px;
+      padding: 0 24px 40px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .card-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      background: rgba(212,196,176,0.2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .card-label .meta {
+      color: #b8a490;
+    }
+
+    /* ── NAV BAR REPLICA ── */
+    .nav {
+      background: var(--bg-nav);
+      border-top: 3px solid var(--accent);
+      display: flex;
+      align-items: center;
+      height: 38px;
+      padding: 0 14px;
+      gap: 16px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: default;
+    }
+
+    .nav-brand .material-symbols-outlined {
+      font-size: 18px;
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-links span {
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 12px;
+      color: var(--text-nav);
+      opacity: 0.5;
+      padding: 2px 6px;
+    }
+
+    .nav-links span.active {
+      opacity: 1;
+      border-bottom: 1px solid var(--accent);
+    }
+
+    .nav-spacer { flex: 1; }
+
+    .nav-version {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .nav-log {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-nav);
+      opacity: 0.5;
+    }
+
+    /* ── CURRENT (baseline) ── */
+    .current .card-label { background: rgba(201,125,46,0.12); }
+  </style>
+</head>
+<body>
+
+  <h1>Brand Font Prototype — "ReadabilityRSS"</h1>
+
+  <div class="grid">
+
+    <!-- CURRENT -->
+    <div class="card current">
+      <div class="card-label">
+        <span>A. Lora 600 — current</span>
+        <span class="meta">serif · editorial</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Lora', serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- B: Playfair Display -->
+    <div class="card">
+      <div class="card-label">
+        <span>B. Playfair Display 600</span>
+        <span class="meta">serif · high contrast</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.01em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- C: Cormorant Garamond -->
+    <div class="card">
+      <div class="card-label">
+        <span>C. Cormorant Garamond 600</span>
+        <span class="meta">serif · elegant</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- D: DM Serif Display -->
+    <div class="card">
+      <div class="card-label">
+        <span>D. DM Serif Display 400</span>
+        <span class="meta">serif · newspaper masthead</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'DM Serif Display', serif; font-size: 14px; font-weight: 400; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- E: Instrument Serif -->
+    <div class="card">
+      <div class="card-label">
+        <span>E. Instrument Serif 400</span>
+        <span class="meta">serif · refined italic-friendly</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Instrument Serif', serif; font-size: 15px; font-weight: 400; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- F: Libre Baskerville -->
+    <div class="card">
+      <div class="card-label">
+        <span>F. Libre Baskerville 700</span>
+        <span class="meta">serif · classic book</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Libre Baskerville', serif; font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- G: Newsreader -->
+    <div class="card">
+      <div class="card-label">
+        <span>G. Newsreader 600</span>
+        <span class="meta">serif · editorial/news</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Newsreader', serif; font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.01em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- H: Fraunces -->
+    <div class="card">
+      <div class="card-label">
+        <span>H. Fraunces 600</span>
+        <span class="meta">serif · quirky old-style</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Fraunces', serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.01em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- I: Crimson Pro -->
+    <div class="card">
+      <div class="card-label">
+        <span>I. Crimson Pro 600</span>
+        <span class="meta">serif · warm readable</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Crimson Pro', serif; font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- J: Spectral -->
+    <div class="card">
+      <div class="card-label">
+        <span>J. Spectral 600</span>
+        <span class="meta">serif · sharp editorial</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Spectral', serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- K: IBM Plex Mono -->
+    <div class="card">
+      <div class="card-label">
+        <span>K. IBM Plex Mono 500</span>
+        <span class="meta">mono · technical/hacker</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: 0.04em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- L: Space Grotesk -->
+    <div class="card">
+      <div class="card-label">
+        <span>L. Space Grotesk 600</span>
+        <span class="meta">sans · geometric modern</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- M: Syne -->
+    <div class="card">
+      <div class="card-label">
+        <span>M. Syne 700</span>
+        <span class="meta">sans · bold expressive</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 0.01em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- N: Bitter -->
+    <div class="card">
+      <div class="card-label">
+        <span>N. Bitter 600</span>
+        <span class="meta">slab-serif · sturdy</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Bitter', serif; font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+    <!-- O: Merriweather -->
+    <div class="card">
+      <div class="card-label">
+        <span>O. Merriweather 700</span>
+        <span class="meta">serif · robust readable</span>
+      </div>
+      <div class="nav">
+        <div class="nav-brand">
+          <span class="material-symbols-outlined">newsmode</span>
+          <span style="font-family: 'Merriweather', serif; font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em;">ReadabilityRSS</span>
+        </div>
+        <div class="nav-links">
+          <span class="active">dashboard</span>
+          <span>parser</span>
+          <span>categories</span>
+        </div>
+        <span class="nav-spacer"></span>
+        <span class="nav-version">2026-03-21</span>
+        <span class="nav-log">[log]</span>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
