@@ -63,7 +63,7 @@ function Login({ mode, onAuth }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <span className="material-symbols-outlined login-logo">newsmode</span>
+          <img className="login-logo" src={`${process.env.PUBLIC_URL}/favicon-192.png`} alt="" />
           ReadabilityRSS
         </div>
 

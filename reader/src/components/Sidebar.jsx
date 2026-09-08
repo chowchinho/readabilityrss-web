@@ -91,7 +91,7 @@ export default function Sidebar({
         {!effectivelyCollapsed && (
           <div className="sidebar-top-row">
             <Link to="/" className="nav-brand">
-              <span className="material-symbols-outlined nav-logo">newsmode</span>
+              <img className="nav-logo" src="/favicon-192.png" alt="" />
               ReadabilityRSS
               {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
             </Link>

@@ -80,7 +80,9 @@ body {
 }
 
 .nav-logo {
-  font-size: 18px;
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .nav-links {

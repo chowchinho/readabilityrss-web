@@ -29,7 +29,9 @@
 }
 
 .login-logo {
-  font-size: 20px;
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .login-title {

@@ -41,8 +41,9 @@
 }
 
 .nav-logo {
-  font-size: 18px;
-  color: var(--accent);
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .sidebar-header {

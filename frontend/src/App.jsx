@@ -31,7 +31,7 @@ function hashFromView(view) {
 }
 
 function App() {
-  const SYSTEM_VERSION = "2026-09-08 13:08 UTC";
+  const SYSTEM_VERSION = "2026-09-08 15:33 UTC";
   // Auth state
   const [authState, setAuthState] = useState('loading'); // 'loading' | 'setup' | 'login' | 'authenticated'
 
@@ -171,7 +171,7 @@ function App() {
       <header className="nav">
         <div className="nav-inner">
           <button className="nav-brand" onClick={() => navTo('dashboard')}>
-            <span className="material-symbols-outlined nav-logo">newsmode</span>
+            <img className="nav-logo" src={`${process.env.PUBLIC_URL}/favicon-192.png`} alt="" />
             ReadabilityRSS
             {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
           </button>
