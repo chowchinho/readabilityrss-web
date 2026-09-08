@@ -1414,6 +1414,7 @@ function App() {
             onToggleRead={(id, isRead) => toggleReadManual(id, isRead)}
             onVoted={handleVoted}
             hasMore={!isOffline && hasRemoteMore}
+            isOffline={isOffline}
             onLoadMore={handleIndexLoadMore}
             showOnlyUnread={showOnlyUnread}
             setShowOnlyUnread={setShowOnlyUnread}

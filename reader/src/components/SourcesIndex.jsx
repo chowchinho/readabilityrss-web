@@ -117,6 +117,7 @@ export default function SourcesIndex({
   showOnlyUnread: externalShowOnlyUnread,
   setShowOnlyUnread: externalSetShowOnlyUnread,
   onVoted,
+  isOffline = false,
 }) {
   const [internalCategory, setInternalCategory] = useState('all');
   const selectedCategory = externalSelectedCategory !== undefined ? externalSelectedCategory : internalCategory;
@@ -133,6 +134,8 @@ export default function SourcesIndex({
   const [internalShowOnlyUnread, setInternalShowOnlyUnread] = useState(false);
   const showOnlyUnread = externalShowOnlyUnread !== undefined ? externalShowOnlyUnread : internalShowOnlyUnread;
   const setShowOnlyUnread = externalSetShowOnlyUnread || setInternalShowOnlyUnread;
+  const [readAllHovered, setReadAllHovered] = useState(false);
+  const [readAllConfirming, setReadAllConfirming] = useState(false);
   const [featuredFullTextMap, setFeaturedFullTextMap] = useState({});
   const [visibleCount, setVisibleCount] = useState(9);
   const [animatingOutIds, setAnimatingOutIds] = useState(new Set());
@@ -378,11 +381,6 @@ export default function SourcesIndex({
     };
   }, [canLoadMore, visibleCount, targetArticles.length, hasMore, onLoadMore]);
 
-  const handleBackToAllSources = () => {
-    if (onClearActiveFeed) onClearActiveFeed();
-    else if (onSelectFeed) onSelectFeed(null);
-  };
-
   // Helper to extract image URL for articles
   const getArticleImage = (art) => {
     if (!art) return null;
@@ -489,20 +487,6 @@ export default function SourcesIndex({
       <div className="sources-index-container is-feed-index">
         {/* Sticky Header */}
         <div className="sources-index-header">
-          <div className="feed-nav-bar">
-            <button className="back-to-sources-btn" onClick={handleBackToAllSources}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
-              Back to All Sources
-            </button>
-            <button
-              className="sources-toggle-btn"
-              onClick={() => onBulkMarkRead && onBulkMarkRead(activeFeedObj.id)}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>done_all</span>
-              Mark Feed Read
-            </button>
-          </div>
-
           <div className="feed-hero-banner">
             {heroBannerImage && (
               <img
@@ -542,9 +526,31 @@ export default function SourcesIndex({
               </div>
             </div>
             {(activeFeedObj.unread_count || 0) > 0 && (
-              <span className="category-pill-btn active" style={{ fontSize: '0.85rem', padding: '6px 14px' }}>
-                {activeFeedObj.unread_count} Unread
-              </span>
+              isOffline ? (
+                <span className="category-pill-btn active feed-banner-readall">
+                  {activeFeedObj.unread_count} Unread
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className={`category-pill-btn active feed-banner-readall ${readAllConfirming ? 'is-confirming' : ''}`}
+                  onMouseEnter={() => setReadAllHovered(true)}
+                  onMouseLeave={() => { setReadAllHovered(false); setReadAllConfirming(false); }}
+                  onClick={() => {
+                    if (readAllConfirming) {
+                      setReadAllConfirming(false);
+                      onBulkMarkRead && onBulkMarkRead(activeFeedObj.id);
+                    } else {
+                      setReadAllConfirming(true);
+                    }
+                  }}
+                  title={readAllConfirming ? 'Click again to confirm' : 'Mark all as read'}
+                >
+                  {readAllConfirming
+                    ? 'Confirm'
+                    : (readAllHovered ? 'Read All' : `${activeFeedObj.unread_count} Unread`)}
+                </button>
+              )
             )}
           </div>
         </div>

@@ -655,39 +655,11 @@
 }
 
 /* Single Feed Header Banner */
-.feed-nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 20px 28px 0 28px;
-}
-
-.back-to-sources-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 7px 16px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.back-to-sources-btn:hover {
-  border-color: var(--accent);
-  background: rgba(201, 125, 46, 0.08);
-}
-
 .feed-hero-banner {
   background: linear-gradient(135deg, rgba(201, 125, 46, 0.12) 0%, rgba(28, 21, 16, 0.04) 100%);
   border: 1px solid var(--border);
   border-radius: 14px;
-  margin: 0 28px 16px 28px;
+  margin: 20px 28px 16px 28px;
   padding: 24px 32px;
   display: flex;
   align-items: center;
@@ -734,6 +706,35 @@
 
 [data-theme="dark"] .feed-hero-banner::after {
   background: linear-gradient(135deg, rgba(15,13,10,0.35) 0%, rgba(15,13,10,0.12) 100%);
+}
+
+/* Banner unread pill doubles as a two-step Read All control. The min-width
+   transition is what makes the label swap grow rather than snap. */
+.feed-banner-readall {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  min-width: 104px;
+  justify-content: center;
+  transition: min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+button.feed-banner-readall:hover {
+  min-width: 118px;
+  background: var(--status-error);
+  color: #ffffff;
+  border-color: var(--status-error);
+}
+
+button.feed-banner-readall.is-confirming,
+button.feed-banner-readall.is-confirming:hover {
+  background: #ff4d4f;
+  color: #000000;
+  border-color: #000000;
+  font-weight: 800;
+  min-width: 118px;
 }
 
 .feed-banner-info {

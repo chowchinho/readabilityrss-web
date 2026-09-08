@@ -31,7 +31,7 @@ function hashFromView(view) {
 }
 
 function App() {
-  const SYSTEM_VERSION = "2026-08-23 20:56 UTC";
+  const SYSTEM_VERSION = "2026-09-08 13:08 UTC";
   // Auth state
   const [authState, setAuthState] = useState('loading'); // 'loading' | 'setup' | 'login' | 'authenticated'
 
