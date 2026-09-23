@@ -184,6 +184,37 @@ def clean_article_body(text: str) -> str:
 
 _consecutive_failures = 0
 
+# Token usage for the batch currently being tagged. tag_articles_batch resets it and
+# the worker reads it afterwards, so tagging spend lands in the same usage table as
+# translation spend instead of being invisible.
+_usage_tally = {"prompt_tokens": 0, "cache_hit_tokens": 0,
+                "cache_miss_tokens": 0, "completion_tokens": 0, "calls": 0}
+
+
+def reset_usage():
+    for k in _usage_tally:
+        _usage_tally[k] = 0
+
+
+def get_usage() -> dict:
+    return dict(_usage_tally)
+
+
+def _record_usage(usage: dict):
+    if not usage:
+        return
+    prompt = usage.get("prompt_tokens", 0) or 0
+    hit = usage.get("prompt_cache_hit_tokens")
+    miss = usage.get("prompt_cache_miss_tokens")
+    if hit is None and miss is None:
+        hit, miss = 0, prompt
+    _usage_tally["prompt_tokens"] += prompt
+    _usage_tally["cache_hit_tokens"] += hit or 0
+    _usage_tally["cache_miss_tokens"] += miss or 0
+    _usage_tally["completion_tokens"] += usage.get("completion_tokens", 0) or 0
+    _usage_tally["calls"] += 1
+
+
 def _call_deepseek(payload: list[dict]) -> dict:
     global _consecutive_failures
     api_key = os.getenv("DEEPSEEK_API_KEY", DEEPSEEK_API_KEY)
@@ -217,6 +248,7 @@ def _call_deepseek(payload: list[dict]) -> dict:
             logger.warning(f"DeepSeek HTTP {resp.status_code}: {resp.text}")
         resp.raise_for_status()
         data = resp.json()
+        _record_usage(data.get("usage", {}) or {})
         choice = data["choices"][0]
         content = (choice["message"].get("content") or "").strip()
 
@@ -252,6 +284,8 @@ def _call_deepseek(payload: list[dict]) -> dict:
 def tag_articles_batch(articles: list[dict]) -> dict[int, dict]:
     if not articles:
         return {}
+
+    reset_usage()
 
     out = {}
     # 20 exhausted the token budget on every call during the 2026-08-11 dry run

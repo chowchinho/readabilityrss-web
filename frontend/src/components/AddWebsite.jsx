@@ -24,7 +24,7 @@ function AddWebsite({ onCancel, onSave, initialSource, initialStep }) {
   const [negativeKeywords, setNegativeKeywords] = useState(initialSource?.negative_keywords || '');
   const [detectedLanguage, setDetectedLanguage] = useState(initialSource?.detected_language || null);
   const [translateEnabled, setTranslateEnabled] = useState(!!initialSource?.translate_to);
-  const [translator, setTranslator] = useState(initialSource?.translator || 'google');
+  const [translator, setTranslator] = useState(initialSource?.translator || 'qwen');
 
   // Step 3: Article preview state
   const [previewArticleUrl, setPreviewArticleUrl] = useState('');
@@ -240,7 +240,7 @@ function AddWebsite({ onCancel, onSave, initialSource, initialStep }) {
         exclude_selector: excludeSelector || null,
         detected_language: detectedLanguage || null,
         translate_to: translateEnabled ? '1' : null,
-        translator: translateEnabled ? translator : 'google',
+        translator: translateEnabled ? translator : 'qwen',
         content_selector: parseOverrides.content_selector || null,
         title_selector: parseOverrides.title_selector || null,
         date_selector: useParseDate ? null : (parseOverrides.date_selector || null),
@@ -489,8 +489,10 @@ function AddWebsite({ onCancel, onSave, initialSource, initialStep }) {
                 value={translator}
                 onChange={e => setTranslator(e.target.value)}
               >
-                <option value="google">Google Translate</option>
+                <option value="qwen">Qwen-MT-flash (fast, HK vocabulary pass)</option>
                 <option value="deepseek">DeepSeek Translate (Natural HK Register)</option>
+                <option value="google">Google Translate (free, lower quality)</option>
+                <option value="lmt">LMT-60-1.7B (local, free, slow)</option>
               </select>
             </div>
           )}

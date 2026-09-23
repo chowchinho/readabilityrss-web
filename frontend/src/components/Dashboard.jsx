@@ -13,8 +13,9 @@ import {
   getTranslationUsage
 } from '../api';
 import AddWebsite from './AddWebsite';
-import googleTranslateIcon from '../assets/google-translate.svg';
+import qwenIcon from '../assets/qwen-mt.svg';
 import deepseekIcon from '../assets/deepseek.svg';
+import googleIcon from '../assets/google-translate.svg';
 import './Dashboard.css';
 
 function absolutizeArticleHtml(html) {
@@ -269,11 +270,15 @@ function SourceRow({ source, onCheck, onDelete, onEdit, onFlush, onGenerate, onP
         </a>
         {source.translate_to && (() => {
           const isDeepseek = source.translator === 'deepseek';
+          const isGoogle = source.translator === 'google';
           const cost = source.translation_cost_cny;
           const deepseekLabel = (cost != null && cost > 0)
             ? `DeepSeek Translate: ¥${cost.toFixed(2)} (7d)`
             : 'DeepSeek Translate';
-          const label = isDeepseek ? deepseekLabel : 'Google Translate';
+          const label = isDeepseek ? deepseekLabel
+            : isGoogle ? 'Google Translate (free)'
+            : 'Qwen-MT-flash';
+          const icon = isDeepseek ? deepseekIcon : isGoogle ? googleIcon : qwenIcon;
           return (
             <a
               className="translate-badge-link"
@@ -283,8 +288,8 @@ function SourceRow({ source, onCheck, onDelete, onEdit, onFlush, onGenerate, onP
               title={label}
             >
               <img
-                className={`translate-badge translate-badge--${source.translator || 'google'}`}
-                src={isDeepseek ? deepseekIcon : googleTranslateIcon}
+                className={`translate-badge translate-badge--${source.translator || 'qwen'}`}
+                src={icon}
                 alt={label}
               />
             </a>

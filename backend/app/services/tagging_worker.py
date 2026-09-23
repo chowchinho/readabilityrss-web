@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from ..database import db as global_db
-from .topic_classifier import tag_articles_batch
+from .topic_classifier import tag_articles_batch, get_usage as get_tagging_usage
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,22 @@ async def run_tagging_backfill(db=None, limit: int = 200) -> int:
         # 240s timeout each. On the event loop a full 200-article backfill freezes every
         # HTTP response - reader, API and Fever alike - for minutes at a time.
         tagged_map = await asyncio.to_thread(tag_articles_batch, untagged)
+
+        usage = get_tagging_usage()
+        if usage.get("calls"):
+            try:
+                from .translation_cost import deepseek_cost_cny
+                hit = usage.get("cache_hit_tokens", 0)
+                miss = usage.get("cache_miss_tokens", 0)
+                out = usage.get("completion_tokens", 0)
+                await database.log_translation_usage(
+                    None, None, hit, miss, out,
+                    deepseek_cost_cny(hit, miss, out),
+                    provider='deepseek',
+                    kind='tagging',
+                )
+            except Exception as log_err:
+                logger.warning(f"tagging usage logging failed: {log_err}")
 
         saved_count = 0
         for art in untagged:

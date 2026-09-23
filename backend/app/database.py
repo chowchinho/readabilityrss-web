@@ -244,6 +244,17 @@ class Database:
                 cache_miss_tokens INTEGER DEFAULT 0,
                 completion_tokens INTEGER DEFAULT 0,
                 cost_cny REAL DEFAULT 0,
+                provider TEXT DEFAULT 'deepseek',
+                kind TEXT DEFAULT 'translation',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS glossary_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tw TEXT NOT NULL UNIQUE,
+                hk TEXT NOT NULL DEFAULT '',
+                enabled INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -354,6 +365,24 @@ class Database:
             # system_settings.target_language. Normalise legacy per-feed values.
             "UPDATE feed_sources SET translate_to = '1' "
             "WHERE translate_to IS NOT NULL AND translate_to != '1'",
+            # Qwen-MT is the default for a feed that has never chosen a translator.
+            # This ran as "OR translator = 'google'" on 2026-09-21, when Google's
+            # scraped endpoint was dead; Google came back the same day on the
+            # googletrans endpoint and is selectable again, so this must no longer
+            # touch it — these statements run on every startup, and the wider form
+            # would silently undo the choice on the next restart.
+            "UPDATE feed_sources SET translator = 'qwen' WHERE translator IS NULL",
+            "ALTER TABLE translation_usage ADD COLUMN provider TEXT DEFAULT 'deepseek'",
+            "UPDATE translation_usage SET provider = 'deepseek' WHERE provider IS NULL",
+            "ALTER TABLE translation_usage ADD COLUMN kind TEXT DEFAULT 'translation'",
+            "UPDATE translation_usage SET kind = 'translation' WHERE kind IS NULL",
+            # A body the inline path could not translate waits here for the local
+            # model: the flag says there is work, the note says which provider
+            # dropped it and why, so the badge can name it.
+            "ALTER TABLE feed_articles ADD COLUMN translation_pending INTEGER DEFAULT 0",
+            "ALTER TABLE feed_articles ADD COLUMN translation_note TEXT DEFAULT NULL",
+            """CREATE INDEX IF NOT EXISTS idx_articles_translation_pending
+               ON feed_articles(translation_pending) WHERE translation_pending = 1""",
         ]
         for migration in migrations:
             try:
@@ -379,6 +408,19 @@ class Database:
         # Warm the settings cache so the sync readers in translation.py and
         # fetch.py see saved settings before the first scheduled refresh runs.
         await self.get_system_settings()
+        await self.refresh_glossary_overrides()
+
+    async def refresh_glossary_overrides(self):
+        """Push the saved glossary overrides into the in-process substitution table."""
+        from .utils import hk_glossary
+        try:
+            rules = await self.get_glossary_overrides()
+        except Exception as e:
+            logger.warning(f"Could not load glossary overrides: {e}")
+            return
+        hk_glossary.set_overrides([
+            {"tw": r["tw"], "hk": r["hk"], "enabled": bool(r["enabled"])} for r in rules
+        ])
 
     async def get_categories(self):
         db = await self._get_db()
@@ -393,16 +435,77 @@ class Database:
         return [dict(row) for row in rows]
 
     async def log_translation_usage(self, source_id, article_url, cache_hit_tokens,
-                                    cache_miss_tokens, completion_tokens, cost_cny):
+                                    cache_miss_tokens, completion_tokens, cost_cny,
+                                    provider='deepseek', kind='translation'):
+        """One row of model spend. `kind` is 'translation' or 'tagging'."""
         db = await self._get_db()
         await db.execute(
             '''INSERT INTO translation_usage
                (source_id, article_url, cache_hit_tokens, cache_miss_tokens,
-                completion_tokens, cost_cny)
-               VALUES (?, ?, ?, ?, ?, ?)''',
+                completion_tokens, cost_cny, provider, kind)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
             (source_id, article_url, cache_hit_tokens, cache_miss_tokens,
-             completion_tokens, cost_cny),
+             completion_tokens, cost_cny, provider, kind),
         )
+        await db.commit()
+
+    async def get_translation_usage_summary(self, days: int = 30):
+        """Per-provider totals and a per-day series for the dashboard usage tab."""
+        db = await self._get_db()
+        window = (f'-{int(days)} days',)
+        cursor = await db.execute(
+            '''SELECT COALESCE(provider, 'deepseek') AS provider,
+                      COALESCE(kind, 'translation') AS kind,
+                      COUNT(*) AS articles,
+                      COALESCE(SUM(cache_hit_tokens + cache_miss_tokens), 0) AS input_tokens,
+                      COALESCE(SUM(completion_tokens), 0) AS output_tokens,
+                      COALESCE(SUM(cost_cny), 0) AS cost_cny
+               FROM translation_usage
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY 1, 2 ORDER BY cost_cny DESC''', window)
+        totals = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute(
+            '''SELECT date(created_at) AS day,
+                      COALESCE(provider, 'deepseek') AS provider,
+                      COALESCE(kind, 'translation') AS kind,
+                      COUNT(*) AS articles,
+                      COALESCE(SUM(cost_cny), 0) AS cost_cny
+               FROM translation_usage
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY 1, 2, 3 ORDER BY 1''', window)
+        daily = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute(
+            '''SELECT s.name AS source,
+                      COALESCE(u.provider, 'deepseek') AS provider,
+                      COALESCE(u.kind, 'translation') AS kind,
+                      COUNT(*) AS articles,
+                      COALESCE(SUM(u.cost_cny), 0) AS cost_cny
+               FROM translation_usage u
+               LEFT JOIN feed_sources s ON s.id = u.source_id
+               WHERE u.created_at >= datetime('now', ?)
+               GROUP BY 1, 2, 3 ORDER BY cost_cny DESC LIMIT 25''', window)
+        by_source = [dict(r) for r in await cursor.fetchall()]
+        return {"days": days, "totals": totals, "daily": daily, "by_source": by_source}
+
+    async def get_glossary_overrides(self):
+        db = await self._get_db()
+        cursor = await db.execute(
+            'SELECT id, tw, hk, enabled FROM glossary_overrides ORDER BY id')
+        return [dict(r) for r in await cursor.fetchall()]
+
+    async def upsert_glossary_override(self, tw: str, hk: str, enabled: bool = True):
+        db = await self._get_db()
+        await db.execute(
+            '''INSERT INTO glossary_overrides (tw, hk, enabled) VALUES (?, ?, ?)
+               ON CONFLICT(tw) DO UPDATE SET hk = excluded.hk, enabled = excluded.enabled''',
+            (tw, hk, 1 if enabled else 0))
+        await db.commit()
+
+    async def delete_glossary_override(self, tw: str):
+        db = await self._get_db()
+        await db.execute('DELETE FROM glossary_overrides WHERE tw = ?', (tw,))
         await db.commit()
 
     async def get_translation_usage_by_source(self, days: int = 7):
@@ -628,6 +731,93 @@ class Database:
             (title, content, original_title, original_excerpt, article_id)
         )
         await db.commit()
+
+    async def save_ondemand_translation(self, article_id: int, title: str, content: str,
+                                        original_title: str | None = None,
+                                        original_excerpt: str | None = None):
+        """Persist an on-demand translation, snippets included.
+
+        update_article_translation leaves snippet/featured_snippet alone because the
+        scheduler recomputes them in the update_article_parsed call that follows it.
+        This path has no such call, so the card would keep the original-language
+        excerpt beside a translated headline.
+        """
+        db = await self._get_db()
+        snippet, featured_snippet = _safe_snippets(content)
+        await db.execute(
+            "UPDATE feed_articles SET title = ?, content = ?, original_title = ?, "
+            "original_excerpt = ?, snippet = ?, featured_snippet = ?, "
+            "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (title, content, original_title, original_excerpt,
+             snippet, featured_snippet, article_id)
+        )
+        await db.commit()
+
+    async def mark_translation_pending(self, article_id: int, note: str = None):
+        """Record that this article still needs translating, and what dropped it."""
+        db = await self._get_db()
+        await db.execute(
+            "UPDATE feed_articles SET translation_pending = 1, translation_note = ? "
+            "WHERE id = ?", (note, article_id))
+        await db.commit()
+
+    async def mark_translation_unusable(self, article_id: int):
+        """Take a row out of the deferred queue without translating it.
+
+        Some articles have nothing to translate — an image gallery with no text
+        blocks, for instance. They are not failures to retry; left flagged they sit
+        at the head of the queue and every pass stops on them.
+        """
+        db = await self._get_db()
+        await db.execute(
+            "UPDATE feed_articles SET translation_pending = 0, "
+            "translation_note = 'no translatable text' WHERE id = ?", (article_id,))
+        await db.commit()
+
+    async def get_articles_awaiting_translation(self, limit: int = 20):
+        """Rows for the deferred worker, newest first.
+
+        Covers both the flagged rows and the ones the dead Google endpoint damaged
+        before the flag existed, and skips anything already carrying a badge.
+        """
+        db = await self._get_db()
+        cursor = await db.execute(
+            """SELECT a.id, a.title, a.content, a.original_title, a.translation_pending,
+                      a.translation_note, s.detected_language, s.name AS source_name
+               FROM feed_articles a JOIN feed_sources s ON s.id = a.source_id
+               WHERE s.translate_to IS NOT NULL
+                 AND a.content IS NOT NULL AND a.content != ''
+                 AND a.content NOT LIKE '%Translated by%'
+                 AND (a.translation_pending = 1
+                      OR a.title LIKE '%(Translation Error)%'
+                      OR a.content LIKE '%(Translation Error)%')
+               ORDER BY a.id DESC LIMIT ?""", (limit,))
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    async def save_deferred_translation(self, article_id: int, title: str, content: str,
+                                        original_title: str = None):
+        """Persist a worker translation and clear the pending flag."""
+        db = await self._get_db()
+        await db.execute(
+            "UPDATE feed_articles SET title = ?, content = ?, original_title = ?, "
+            "translation_pending = 0, translation_note = NULL, "
+            "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (title, content, original_title, article_id))
+        await db.commit()
+
+    async def count_articles_awaiting_translation(self) -> int:
+        db = await self._get_db()
+        cursor = await db.execute(
+            """SELECT COUNT(*) FROM feed_articles a JOIN feed_sources s ON s.id = a.source_id
+               WHERE s.translate_to IS NOT NULL
+                 AND a.content IS NOT NULL AND a.content != ''
+                 AND a.content NOT LIKE '%Translated by%'
+                 AND (a.translation_pending = 1
+                      OR a.title LIKE '%(Translation Error)%'
+                      OR a.content LIKE '%(Translation Error)%')""")
+        row = await cursor.fetchone()
+        return row[0] if row else 0
 
     async def get_signed_image_articles(self, source_id: int):
         """Successfully-parsed articles for a source that still hold signed/expiring
@@ -980,6 +1170,8 @@ class Database:
             'target_language': 'zh-TW',
             'deepseek_enabled': bool(os.getenv('DEEPSEEK_API_KEY')),
             'deepseek_api_key': os.getenv('DEEPSEEK_API_KEY', ''),
+            'qwen_enabled': bool(os.getenv('QWEN_API_KEY') or os.getenv('DASHSCOPE_API_KEY')),
+            'qwen_api_key': os.getenv('QWEN_API_KEY', '') or os.getenv('DASHSCOPE_API_KEY', ''),
             'deepl_enabled': bool(os.getenv('DEEPL_API_KEY')),
             'deepl_api_key': os.getenv('DEEPL_API_KEY', ''),
             'flaresolverr_enabled': bool(os.getenv('FLARESOLVERR_URL')),
@@ -987,6 +1179,7 @@ class Database:
             'image_max_dimension': 1200,
             'image_jpeg_quality': 70,
             'ai_enabled': True,
+            'default_translator': 'qwen',
         }
         for row in rows:
             k, v = row['key'], row['value']
@@ -996,9 +1189,9 @@ class Database:
             elif k == 'feed_refresh_interval_hours':
                 try: settings[k] = float(v)
                 except ValueError: pass
-            elif k in ('deepseek_enabled', 'deepl_enabled', 'flaresolverr_enabled', 'ai_enabled'):
+            elif k in ('deepseek_enabled', 'qwen_enabled', 'deepl_enabled', 'flaresolverr_enabled', 'ai_enabled'):
                 settings[k] = v.lower() in ('true', '1', 'yes')
-            elif k in ('target_language', 'deepseek_api_key', 'deepl_api_key', 'flaresolverr_url'):
+            elif k in ('target_language', 'default_translator', 'deepseek_api_key', 'qwen_api_key', 'deepl_api_key', 'flaresolverr_url'):
                 settings[k] = v
         self._cached_system_settings = settings
         return settings
@@ -1012,6 +1205,8 @@ class Database:
             'target_language': 'zh-TW',
             'deepseek_enabled': bool(os.getenv('DEEPSEEK_API_KEY')),
             'deepseek_api_key': os.getenv('DEEPSEEK_API_KEY', ''),
+            'qwen_enabled': bool(os.getenv('QWEN_API_KEY') or os.getenv('DASHSCOPE_API_KEY')),
+            'qwen_api_key': os.getenv('QWEN_API_KEY', '') or os.getenv('DASHSCOPE_API_KEY', ''),
             'deepl_enabled': bool(os.getenv('DEEPL_API_KEY')),
             'deepl_api_key': os.getenv('DEEPL_API_KEY', ''),
             'flaresolverr_enabled': bool(os.getenv('FLARESOLVERR_URL')),
@@ -1019,6 +1214,7 @@ class Database:
             'image_max_dimension': 1200,
             'image_jpeg_quality': 70,
             'ai_enabled': True,
+            'default_translator': 'qwen',
         }
 
     async def update_system_settings(self, settings_dict: dict):

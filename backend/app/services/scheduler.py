@@ -2,8 +2,10 @@
 import asyncio
 import logging
 import json
+import os
 import re
 import threading
+import time
 from collections import deque
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
@@ -22,6 +24,7 @@ from ..services.parser import ReadabilityParser
 from ..services.topic_classifier import clean_article_body
 from ..utils.fetch import fetch_html_async, fetch_html_rendered_async
 from ..utils.structured_article import extract_structured_article
+from ..services import translation as T
 
 logger = logging.getLogger(__name__)
 discovery_service = LinkDiscovery()
@@ -265,7 +268,7 @@ async def _discover_links_for_source(source: dict, max_articles: int = 50) -> tu
 async def _parse_article(article: dict, source_name: str = "", translate_to: str = None,
                          content_selector: str = None, title_selector: str = None,
                          date_selector: str = None, image_selector: str = None,
-                         content_exclude_selector: str = None, translator: str = 'google',
+                         content_exclude_selector: str = None, translator: str = 'qwen',
                          use_parse_date: bool = False) -> bool:
     """Parse a single article with a hard per-article timeout.
 
@@ -303,7 +306,7 @@ async def _parse_article(article: dict, source_name: str = "", translate_to: str
 async def _parse_article_inner(article: dict, source_name: str = "", translate_to: str = None,
                                content_selector: str = None, title_selector: str = None,
                                date_selector: str = None, image_selector: str = None,
-                               content_exclude_selector: str = None, translator: str = 'google',
+                               content_exclude_selector: str = None, translator: str = 'qwen',
                                use_parse_date: bool = False) -> bool:
     """Parse a single article. Returns True on success."""
     short_url = article['url'].split('/')[-1][:60] or article['url'][:60]
@@ -397,15 +400,39 @@ async def _parse_article_inner(article: dict, source_name: str = "", translate_t
                         )
                     except Exception as log_err:
                         logger.warning(f"translation usage logging failed: {log_err}")
+            elif translator in ("google", "lmt"):
+                # Free providers, no tokens to meter, so no usage row.
+                title, content, provider, defer = await _translate_for_feed(
+                    title, content, target_lang, translator)
+                if defer:
+                    await _flag_for_deferred_translation(
+                        article.get('id'),
+                        provider if translator == "google" else "",
+                        translator, source_name)
             else:
-                from ..services.translation import translate_text_async, translate_html_async
-                title, _ = await translate_text_async(title, target_language=target_lang, translator=translator)
-                if content:
-                    content, provider = await translate_html_async(content, target_language=target_lang, translator=translator)
+                from ..services.translation import translate_article_qwen_async
+                from ..services.translation_cost import qwen_cost_from_usage
+                title, content, provider, usage = await translate_article_qwen_async(
+                    title, content, target_language=target_lang)
+                # The Qwen tally is a dict of zeros when every call failed (a missing
+                # key, say), and a non-empty dict is truthy — gate on a real call or
+                # the usage table fills with zero-cost rows that dilute the averages.
+                if usage.get('calls'):
+                    try:
+                        await db.log_translation_usage(
+                            article.get('source_id'),
+                            article.get('url'),
+                            0,
+                            usage.get('prompt_tokens', 0) or 0,
+                            usage.get('completion_tokens', 0) or 0,
+                            qwen_cost_from_usage(usage),
+                            provider='qwen',
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"translation usage logging failed: {log_err}")
             
             if content and provider != "none":
-                badge = f'<p style="color:#888;font-size:0.85em;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:12px;">🌐 Translated by {provider}</p>'
-                content = badge + content
+                content = T.badge_html(provider) + content
 
             try:
                 await db.update_article_translation(article['id'], title, content,
@@ -484,7 +511,7 @@ async def _refresh_source(source: dict, batch_started_at: datetime = None):
                     date_selector=source.get('date_selector'),
                     image_selector=source.get('image_selector'),
                     content_exclude_selector=source.get('content_exclude_selector'),
-                    translator=source.get('translator', 'google'),
+                    translator=source.get('translator') or sys_settings.get('default_translator', 'qwen'),
                     use_parse_date=bool(source.get('use_parse_date')),
                 )
                 if ok:
@@ -653,6 +680,7 @@ async def _retry_failed_articles_async():
         return
     _log_event("info", "RETRY", f"Retrying {len(articles)} failed articles")
     logger.info(f"Retrying {len(articles)} failed articles")
+    sys_settings = await db.get_system_settings()
     # Cache source translate_to settings
     source_cache = {}
     for article in articles:
@@ -670,7 +698,7 @@ async def _retry_failed_articles_async():
             date_selector=source.get('date_selector') if source else None,
             image_selector=source.get('image_selector') if source else None,
             content_exclude_selector=source.get('content_exclude_selector') if source else None,
-            translator=source.get('translator', 'google') if source else 'google',
+            translator=(source.get('translator') if source else None) or sys_settings.get('default_translator', 'qwen'),
             use_parse_date=bool(source.get('use_parse_date')) if source else False,
         )
         await asyncio.sleep(1)  # Rate limiting — yields to event loop
@@ -724,6 +752,144 @@ async def _retry_loop():
             _log_event("error", "RETRY", f"Retry error: {str(e)[:150]}")
 
 
+async def _translate_for_feed(title, content, target_lang, translator):
+    """Translate one article for a feed on a free provider.
+
+    Returns (title, content, provider, defer) where `defer` asks the caller to queue
+    the body for the deferred worker.
+
+    The two providers need opposite treatment. Google is fast enough to translate a
+    whole article inline, so it does. The local model is not — 2-5 minutes against a
+    240s per-article budget, and 12 minutes for the whole source — so it only takes
+    the title, which is a single line and comes back in 2-3 seconds, and leaves the
+    body to the worker. A feed on `lmt` therefore shows a translated headline within
+    the refresh and fills in its body within the hour.
+    """
+    from ..services.translation import translate_text_async, translate_html_async
+
+    title_out, title_provider = await translate_text_async(
+        title, target_language=target_lang, translator=translator)
+
+    if translator == "lmt":
+        # The body never goes through the refresh path for this provider.
+        return title_out, content, "none", bool(content)
+
+    if not content:
+        return title_out, content, title_provider, False
+
+    content_out, provider = await translate_html_async(
+        content, target_language=target_lang, translator=translator)
+    return title_out, content_out, provider, provider == "none"
+
+
+def _deferred_note(title_provider: str, translator: str) -> str:
+    """What to record about the provider that dropped this article.
+
+    The title is rescued inline by the local model, and its badge already says what
+    failed — "LMT-60-1.7B (fell back from Google Translate — HTTP 429)" — so the
+    reason is lifted straight out of it rather than plumbed separately.
+    """
+    from ..services import translation as T
+    match = re.search(r"fell back from (.+?)\)$", title_provider or "")
+    if match:
+        return match.group(1)
+    label = {"google": T.GOOGLE_PROVIDER_LABEL, "lmt": T.LMT_PROVIDER_LABEL,
+             "deepseek": "DeepSeek"}.get(translator, T.QWEN_PROVIDER_LABEL)
+    return f"{label} — unavailable"
+
+
+async def _flag_for_deferred_translation(article_id, title_provider, translator, source_name):
+    if not article_id:
+        return
+    note = _deferred_note(title_provider, translator)
+    try:
+        await db.mark_translation_pending(article_id, note)
+        _log_event("info", source_name, f"Body queued for {note}")
+    except Exception as e:
+        logger.warning(f"Could not flag article {article_id} for deferred translation: {e}")
+
+
+# How long one pass may spend translating with the local model. An article is 2-4
+# minutes on the Pi, so this is a handful per cycle — enough to keep up with ongoing
+# failures without holding a core all day.
+DEFERRED_TRANSLATION_BUDGET_SECONDS = int(os.getenv("DEFERRED_TRANSLATION_BUDGET", "1200"))
+DEFERRED_TRANSLATION_INTERVAL_SECONDS = int(os.getenv("DEFERRED_TRANSLATION_INTERVAL", "1800"))
+# How many rows may produce nothing in a row before the pass gives up. One bad row is
+# skipped; a run of them means the model server is gone, not that the articles are odd.
+DEFERRED_MAX_CONSECUTIVE_FAILURES = int(os.getenv("DEFERRED_MAX_FAILURES", "3"))
+
+
+async def run_deferred_translations(budget_seconds: int = None) -> int:
+    """Translate queued articles with the local model until the budget runs out."""
+    from ..services import translation_worker as W
+    budget = budget_seconds or DEFERRED_TRANSLATION_BUDGET_SECONDS
+    settings = await db.get_system_settings()
+    target_lang = settings.get('target_language', 'zh-TW')
+
+    rows = await db.get_articles_awaiting_translation(limit=50)
+    if not rows:
+        return 0
+
+    started = time.monotonic()
+    done = 0
+    consecutive_failures = 0
+    for row in rows:
+        if time.monotonic() - started > budget:
+            break
+        try:
+            result = await asyncio.to_thread(W.translate_article, row, target_lang)
+        except T.LMTError as e:
+            # The server is gone. Every row would fail the same way, so stop after a
+            # few — but leave them all queued: they are translatable, we just cannot
+            # reach the model. Dequeuing here would silently drop good articles.
+            consecutive_failures += 1
+            logger.warning(f"Local model unavailable ({e}); article {row['id']} stays queued")
+            if consecutive_failures >= DEFERRED_MAX_CONSECUTIVE_FAILURES:
+                break
+            continue
+
+        if not result:
+            # This article has nothing to translate — an image gallery, say. It will
+            # never succeed, and one such row at the head of the queue stalled the
+            # worker for 40 minutes on 2026-09-23, so take it out.
+            consecutive_failures += 1
+            await db.mark_translation_unusable(row["id"])
+            if consecutive_failures >= DEFERRED_MAX_CONSECUTIVE_FAILURES:
+                logger.warning(
+                    "Deferred translation stopping: %d rows in a row produced nothing",
+                    consecutive_failures)
+                break
+            continue
+        consecutive_failures = 0
+        await db.save_deferred_translation(result["id"], result["title"],
+                                           result["content"], result["original_title"])
+        done += 1
+        _log_event("ok", row.get("source_name") or "TRANSLATE",
+                   f"{result['provider']}: {result['title'][:60]}")
+    if done:
+        remaining = await db.count_articles_awaiting_translation()
+        logger.info(f"Deferred translation: {done} done, {remaining} still queued")
+    return done
+
+
+async def _deferred_translation_loop():
+    """Works the deferred queue with the local model, off the refresh path."""
+    while True:
+        try:
+            await asyncio.sleep(DEFERRED_TRANSLATION_INTERVAL_SECONDS)
+        except asyncio.CancelledError:
+            logger.info("Deferred translation loop cancelled — shutting down")
+            return
+        try:
+            await run_deferred_translations()
+        except asyncio.CancelledError:
+            logger.info("Deferred translation cancelled — shutting down")
+            return
+        except Exception as e:
+            logger.error(f"Deferred translation error: {e}")
+            _log_event("error", "TRANSLATE", f"Deferred translation error: {str(e)[:150]}")
+
+
 async def _tagging_loop():
     """Tagging backfill loop — runs every 10 minutes on FastAPI's event loop."""
     from .tagging_worker import run_tagging_backfill, backfill_event_labels
@@ -760,6 +926,7 @@ def start_scheduler():
         loop.create_task(_scheduler_loop())
         loop.create_task(_retry_loop())
         loop.create_task(_tagging_loop())
+        loop.create_task(_deferred_translation_loop())
     except RuntimeError:
         # No running event loop (e.g. during tests) — skip scheduling
         logger.warning("No running event loop — scheduler not started")

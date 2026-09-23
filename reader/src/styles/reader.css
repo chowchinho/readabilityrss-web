@@ -477,6 +477,9 @@
   display: flex;
   justify-content: center;
   width: 100%;
+  /* Pane 3 gets whatever the sidebar and feed columns leave, so the viewport says
+     nothing about how much room these buttons have. */
+  container: reader-actions / inline-size;
 }
 
 .reader-actions {
@@ -575,6 +578,36 @@
   color: var(--text-primary);
 }
 
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* With labels, Open Original runs into the centred votes below ~705px. */
+@container reader-actions (max-width: 740px) {
+  .action-btn .btn-label {
+    display: none;
+  }
+}
+
+/* Below ~500px Keep Unread reaches the centred votes; tighter spacing and an
+   icon-only read toggle keep the left / centre / right arrangement intact. */
+@container reader-actions (max-width: 500px) {
+  .reader-actions {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .action-btn {
+    padding: 8px 10px;
+  }
+
+  .btn-label-unread {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
   .reader-container {
     position: fixed;
@@ -605,17 +638,10 @@
   }
 
   .read-toggle-btn {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     padding: 6px 10px;
   }
 
-  /* The read toggle owns the centre on mobile, so the votes drop back into flow
-     beside the other right-hand icons. */
   .reader-feedback-center {
-    position: static;
-    transform: none;
     gap: 2px;
   }
 

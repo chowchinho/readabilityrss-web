@@ -56,15 +56,16 @@ export const setToken = (newToken) => {
   }
 };
 
-const authFetch = async (path, options = {}) => {
-  const headers = {
-    ...options.headers,
-  };
-  
+export const authHeaders = (extra = {}) => {
+  const headers = { ...extra };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+  return headers;
+};
 
+const authFetch = async (path, options = {}) => {
+  const headers = authHeaders(options.headers);
   const url = path.startsWith('http') ? path : `${API_URL}${path}`;
   const response = await fetch(url, { ...options, headers });
   
@@ -239,5 +240,49 @@ export async function flushVoteOutbox() {
       break;
     }
   }
+}
+
+// The response is NDJSON, not JSON: one event per line, arriving over tens of
+// seconds. Chunks split anywhere, including mid-line, so the tail is buffered.
+export async function translateArticle(id, onEvent) {
+  const response = await fetch(`${API_URL}/api/reader/articles/${id}/translate`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (response.status === 401) {
+    setToken('');
+    if (authFailureCallback) authFailureCallback();
+    throw new Error('Unauthorized');
+  }
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    const error = new Error(detail || `Translation failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+
+  // Older WebViews resolve the body without streaming it. Falling back to the whole
+  // text loses the progressive fill, not the result.
+  if (!response.body || !response.body.getReader) {
+    for (const line of (await response.text()).split('\n')) {
+      if (line.trim()) onEvent(JSON.parse(line));
+    }
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (line.trim()) onEvent(JSON.parse(line));
+    }
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer));
 }
 

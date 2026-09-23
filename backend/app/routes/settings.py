@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 VALID_LANGUAGES = {"zh-TW", "zh-CN", "en", "es", "fr", "de", "ja", "ko", "pt", "ru", "ar", "hi"}
 VALID_IMAGE_DIMENSIONS = (800, 1000, 1200)
 VALID_JPEG_QUALITIES = (50, 60, 70, 80, 85)
+VALID_TRANSLATORS = {"qwen", "google", "deepl"}
 
 # Walking the image cache means stat()ing tens of thousands of files, so the
 # result is reused briefly — the numbers only move when a refresh runs.
@@ -24,8 +25,11 @@ class SystemSettingsUpdate(BaseModel):
     max_articles_per_feed: int
     feed_refresh_interval_hours: float
     target_language: Optional[str] = "zh-TW"
+    default_translator: Optional[str] = "qwen"
     deepseek_enabled: Optional[bool] = False
     deepseek_api_key: Optional[str] = ""
+    qwen_enabled: Optional[bool] = False
+    qwen_api_key: Optional[str] = ""
     deepl_enabled: Optional[bool] = False
     deepl_api_key: Optional[str] = ""
     flaresolverr_enabled: Optional[bool] = False
@@ -50,6 +54,8 @@ async def update_settings(req: SystemSettingsUpdate, request: Request):
         raise HTTPException(status_code=400, detail="Invalid feed_refresh_interval_hours value")
     if req.target_language and req.target_language not in VALID_LANGUAGES:
         raise HTTPException(status_code=400, detail="Invalid target_language value")
+    if req.default_translator and req.default_translator not in VALID_TRANSLATORS:
+        raise HTTPException(status_code=400, detail="Invalid default_translator value")
     if req.image_max_dimension not in VALID_IMAGE_DIMENSIONS:
         raise HTTPException(status_code=400, detail="Invalid image_max_dimension value")
     if req.image_jpeg_quality not in VALID_JPEG_QUALITIES:
@@ -62,8 +68,11 @@ async def update_settings(req: SystemSettingsUpdate, request: Request):
         "max_articles_per_feed": req.max_articles_per_feed,
         "feed_refresh_interval_hours": req.feed_refresh_interval_hours,
         "target_language": req.target_language or "zh-TW",
+        "default_translator": req.default_translator or "qwen",
         "deepseek_enabled": bool(req.deepseek_enabled),
         "deepseek_api_key": (req.deepseek_api_key or "").strip(),
+        "qwen_enabled": bool(req.qwen_enabled),
+        "qwen_api_key": (req.qwen_api_key or "").strip(),
         "deepl_enabled": bool(req.deepl_enabled),
         "deepl_api_key": (req.deepl_api_key or "").strip(),
         "flaresolverr_enabled": bool(req.flaresolverr_enabled),

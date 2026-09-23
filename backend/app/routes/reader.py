@@ -14,13 +14,14 @@ from urllib.parse import urlparse
 
 import json
 from fastapi import APIRouter, HTTPException, Query, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from bs4 import BeautifulSoup
 import httpx
 from PIL import Image
 
 from ..database import db
+from ..services import ondemand_translation
 from ..services.ranking import score_article, score_article_breakdown
 from ..services.rerank import calibrated_rerank, promote_exploration_slots
 from ..services.vote_weights import get_effective_weights, invalidate_weights_cache
@@ -441,6 +442,77 @@ async def get_reader_article(id: int):
         "recommendation_reason": reason,
         "score": score_val
     }
+
+
+CHINESE_LANGUAGES = {"zh", "zh-tw", "zh-cn", "zh-hk", "zh-hant", "zh-hans"}
+
+
+async def _article_for_translation(id: int) -> dict:
+    """Fetch the row and refuse the cases the button should never have offered."""
+    conn = await db._get_db()
+    cursor = await conn.execute("""
+        SELECT a.id, a.source_id, a.url, a.title, a.content, f.detected_language
+        FROM feed_articles a
+        JOIN feed_sources f ON a.source_id = f.id
+        WHERE a.id = ?
+    """, (id,))
+    row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    article = dict(row)
+    content = article.get("content") or ""
+    if not content.strip():
+        raise HTTPException(status_code=409, detail="Article has no content to translate")
+    if "Translated by" in content[:400]:
+        raise HTTPException(status_code=409, detail="Article is already translated")
+    detected = (article.get("detected_language") or "").strip().lower()
+    if detected in CHINESE_LANGUAGES:
+        raise HTTPException(status_code=409, detail="Source feed is already Chinese")
+    return article
+
+
+def _ndjson(job, base_url: str):
+    """Render a job's events for one client.
+
+    Block markup is rewritten here rather than in the service: the proxy rewrite is a
+    presentation concern, and it is the same one GET /api/reader/articles/{id} applies.
+    Streamed images would otherwise bypass the proxy and break where the rest of the
+    article does not.
+    """
+    async def generate():
+        async for event in ondemand_translation.subscribe(job):
+            out = dict(event)
+            if out.get("type") == "block":
+                out["html"] = _rewrite_content_image_sources(
+                    out.get("html") or "", width=800, base_url=base_url)
+            yield json.dumps(out, ensure_ascii=False) + "\n"
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
+@router.post("/api/reader/articles/{id}/translate")
+async def translate_reader_article(id: int):
+    article = await _article_for_translation(id)
+    settings = await db.get_system_settings()
+    job = ondemand_translation.start(
+        article,
+        settings.get("target_language", "zh-TW"),
+        settings.get("default_translator", "qwen"),
+    )
+    return _ndjson(job, article.get("url") or "")
+
+
+@router.get("/api/reader/articles/{id}/translate/stream")
+async def stream_reader_article_translation(id: int):
+    """Reattach to a translation already running, or one that just finished."""
+    job = ondemand_translation.get(id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="No translation job for this article")
+    conn = await db._get_db()
+    cursor = await conn.execute("SELECT url FROM feed_articles WHERE id = ?", (id,))
+    row = await cursor.fetchone()
+    return _ndjson(job, (row["url"] if row else "") or "")
+
 
 @router.get("/api/reader/article-images/{id}")
 async def get_article_images(id: int):

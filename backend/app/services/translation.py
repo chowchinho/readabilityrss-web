@@ -1,33 +1,187 @@
-"""Translation service using DeepL API with Google Translate fallback."""
+"""Translation service: Qwen-MT-Flash (default) and DeepSeek, selectable per feed.
+
+Google Translate was removed on 2026-09-21. Its free endpoint (translate.google.com/m)
+has been CAPTCHA-walled since ~2026-09-14 and returns HTTP 429 with a /sorry/ redirect
+for every request, which silently wrote "(Translation Error)" into 38 feeds.
+"""
 import asyncio
-import logging
-import os
+from collections.abc import Iterator
 import copy
 import difflib
+import logging
+import os
 import re
-
-import requests
+import threading
 import time
+
 from bs4 import BeautifulSoup
+import requests
+
+from ..utils import hk_glossary
 
 logger = logging.getLogger(__name__)
 
 BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"}
 
-# Max characters of wrapped source text packed into a single Google Translate
-# request. deep_translator sends the text in the request URL, so the practical
-# ceiling is URL length, not Google's nominal 5000-char limit: measured against
-# the live endpoint, ~1500 chars succeed and ~2000 fail. Stay well under that.
-# Batching many small blocks into one request (instead of one request per block)
-# is what keeps long listicles (300+ blocks) inside the per-article timeout.
-GOOGLE_BATCH_CHAR_BUDGET = 1400
+QWEN_API_KEY = os.getenv("QWEN_API_KEY", "") or os.getenv("DASHSCOPE_API_KEY", "")
+QWEN_BASE_URL = os.getenv("QWEN_BASE_URL", "https://maas.qwencloudapi.com/compatible-mode/v1")
+QWEN_URL = QWEN_BASE_URL.rstrip("/") + "/chat/completions"
+QWEN_MT_MODEL = os.getenv("QWEN_MT_MODEL", "qwen-mt-flash")
+QWEN_PROVIDER_LABEL = "Qwen-MT-flash"
 
-# Pre-request pause before each Google Translate call, to stay under the free
-# endpoint's rate limits. Batching keeps normal sources to a handful of requests,
-# so the only high-volume path is the per-block fallback on ultra-dense articles
-# (300+ tiny blocks); 0.2s keeps those inside the per-article timeout while
-# staying gentle enough to avoid tripping rate limits.
-GOOGLE_REQUEST_DELAY_SECONDS = 0.2
+BADGE_STYLE = ("color:#888;font-size:0.85em;border-bottom:1px solid #ddd;"
+               "padding-bottom:6px;margin-bottom:12px;")
+
+
+def badge_html(provider: str) -> str:
+    """The line an article carries to say what translated it."""
+    return f'<p style="{BADGE_STYLE}">\U0001F310 Translated by {provider}</p>'
+
+
+# Qwen-MT takes no system prompt and caps input at 8k tokens, so blocks are packed
+# into marker-wrapped batches instead of sent one per request. 2,400 characters of
+# source keeps a batch comfortably inside the cap even for CJK.
+QWEN_BATCH_CHAR_BUDGET = 2400
+
+# Google Translate, restored 2026-09-21 for second-tier feeds. This is the endpoint
+# googletrans calls, NOT the translate.google.com/m page the old implementation
+# scraped — that one has answered 429 with a /sorry/ redirect since ~2026-09-14.
+# Free, no key, and unofficial: it can be walled off the same way without notice.
+GOOGLE_URL = "https://translate.googleapis.com/translate_a/single"
+GOOGLE_PROVIDER_LABEL = "Google Translate"
+
+# The client id decides whether this endpoint answers at all. "gtx" — what
+# googletrans and deep_translator send — is throttled hard: measured 2026-09-21, it
+# served ~60 calls and then returned 429 /sorry/ for every request for over five
+# minutes. "dict-chrome-ex" is the id Google's own Translate extension uses, and in
+# the same minute that gtx was walled it took 30 batched calls in 8.3s with no
+# failures, from the same IP. Same response shape, so only this string changes.
+GOOGLE_CLIENT = os.getenv("GOOGLE_TRANSLATE_CLIENT", "dict-chrome-ex")
+GOOGLE_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)
+
+# The source text goes in the POST body. A GET carries it in the query string, which
+# 400s past roughly 3k characters of CJK, and measured live is also slower: 4.6s for a
+# batch that POST returns in 0.6s. With the URL ceiling gone the budget is set by how
+# much the endpoint will translate in one pass — 3,000 characters round-tripped 40/40
+# markers intact in testing.
+GOOGLE_BATCH_CHAR_BUDGET = 3000
+
+# Minimum spacing between Google calls, process-wide. The endpoint is free and
+# unmetered but not unlimited: a backfill running flat out beside a refresh-all walled
+# the IP on 2026-09-21, and the live scheduler then translated into 429s. Second-tier
+# traffic is ~410 articles/day at 1-2 calls each, so one call every 2 seconds is far
+# more headroom than the feeds need and keeps bursts from looking like an attack.
+GOOGLE_MIN_INTERVAL_SECONDS = float(os.getenv("GOOGLE_MIN_INTERVAL_SECONDS", "2.0"))
+
+# When the wall does appear, stop knocking. Retrying into a 429 wastes the scheduler's
+# time and, from what the /m endpoint did, deepens the block. Each wall hit without an
+# intervening success doubles the wait, up to the ceiling.
+GOOGLE_COOLDOWN_SECONDS = float(os.getenv("GOOGLE_COOLDOWN_SECONDS", "900"))
+GOOGLE_COOLDOWN_MAX_SECONDS = float(os.getenv("GOOGLE_COOLDOWN_MAX_SECONDS", "7200"))
+
+_google_gate = threading.Lock()
+_google_last_call = 0.0
+_google_cooldown_until = 0.0
+_google_consecutive_walls = 0
+
+
+def _google_throttle_reset():
+    """Clear the pacing state. For tests, and for an operator forcing a retry."""
+    global _google_last_call, _google_cooldown_until, _google_consecutive_walls
+    with _google_gate:
+        _google_last_call = 0.0
+        _google_cooldown_until = 0.0
+        _google_consecutive_walls = 0
+
+
+def _google_cooldown_remaining() -> float:
+    with _google_gate:
+        return max(0.0, _google_cooldown_until - time.monotonic())
+
+
+def _google_enter_cooldown():
+    """Called when the endpoint returns 429."""
+    global _google_cooldown_until, _google_consecutive_walls
+    with _google_gate:
+        _google_consecutive_walls += 1
+        wait = min(GOOGLE_COOLDOWN_SECONDS * (2 ** (_google_consecutive_walls - 1)),
+                   GOOGLE_COOLDOWN_MAX_SECONDS)
+        _google_cooldown_until = time.monotonic() + wait
+    logger.warning("Google Translate walled us; pausing that provider for %.0f minutes",
+                   wait / 60)
+
+
+def _google_wait_turn():
+    """Block until this thread may make the next call, or raise if cooling down.
+
+    The slot is reserved inside the lock and the sleep happens outside it, so
+    concurrent callers queue up rather than all waking onto the same instant.
+    """
+    global _google_last_call
+    with _google_gate:
+        now = time.monotonic()
+        if now < _google_cooldown_until:
+            raise GoogleError(
+                f"Google Translate is cooling down after a 429 for another "
+                f"{_google_cooldown_until - now:.0f}s")
+        wait = (_google_last_call + GOOGLE_MIN_INTERVAL_SECONDS) - now
+        _google_last_call = now if wait <= 0 else _google_last_call + GOOGLE_MIN_INTERVAL_SECONDS
+    if wait > 0:
+        time.sleep(wait)
+
+# LMT-60-1.7B (NiuTrans, Apache-2.0), running locally on the Pi through llama.cpp
+# behind an OpenAI-compatible server. It is the last resort under every remote
+# provider: it cannot be rate limited, walled or billed, and it is the only
+# translator here that keeps working when the network does not.
+#
+# It is also slow — 8.5s for one sentence, measured from the container — so it backs
+# up titles inline and bodies through the deferred worker, never inside the
+# scheduler's 240s per-article budget.
+# No default: this is a machine on someone's own network, and baking one in
+# would both publish that address and point every other installation at it.
+# Unset means the provider is simply unavailable, which every caller handles.
+LMT_URL = os.getenv("LMT_URL", "")
+LMT_MODEL = os.getenv("LMT_MODEL", "LMT-60-1.7B")
+LMT_PROVIDER_LABEL = "LMT-60-1.7B"
+LMT_TIMEOUT_SECONDS = float(os.getenv("LMT_TIMEOUT_SECONDS", "120"))
+
+# The model takes language NAMES, not codes: the repo's own table maps zh -> "Chinese"
+# and yue -> "Yue Chinese", and there is no "cht" (that is NiuTrans's commercial API).
+# Measured: "Chinese" returns Simplified, "Traditional Chinese" returns Traditional,
+# "Yue Chinese" returns real Cantonese, and "cht" returns the Japanese back.
+LMT_LANG_MAP = {
+    "zh-TW": "Traditional Chinese",
+    "zh-HK": "Traditional Chinese",
+    "zh-HK-yue": "Yue Chinese",
+    "yue": "Yue Chinese",
+    "zh-CN": "Chinese",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+}
+LMT_SOURCE_MAP = {"ja": "Japanese", "ja-jp": "Japanese", "en": "English",
+                  "ko": "Korean", "zh": "Chinese"}
+
+# Qwen-MT names its targets in English; it rejects "Chinese (Traditional)" and
+# "Taiwanese Mandarin" with a 400.
+QWEN_LANG_MAP = {
+    "zh-TW": "Traditional Chinese",
+    "zh-HK": "Traditional Chinese",
+    "zh-CN": "Simplified Chinese",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "hi": "Hindi",
+}
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
@@ -158,6 +312,22 @@ DEEPSEEK_SYSTEM_PROMPT_NATURAL = (
     "   attributes (e.g. href on <a>) inside the translated text."
 )
 
+class GoogleError(RuntimeError):
+    """Raised when the Google endpoint errors or returns something unparseable."""
+
+
+class LMTError(RuntimeError):
+    """Raised when the local LMT-60 server is unreachable or errors."""
+
+
+class QwenError(RuntimeError):
+    """Raised when the Qwen-MT API returns a non-success response."""
+
+
+def _is_traditional_target(target_language: str) -> bool:
+    return target_language in ("zh-TW", "zh-HK")
+
+
 class DeepSeekError(RuntimeError):
     """Raised when the DeepSeek API returns a non-success response or malformed output."""
 
@@ -206,7 +376,7 @@ def _translate_deepl(text: str, target_language: str) -> str | None:
         )
         if response.status_code == 456:
             _deepl_quota_exhausted = True
-            logger.warning("DeepL quota exhausted, falling back to Google Translate")
+            logger.warning("DeepL quota exhausted, falling back to Qwen-MT")
             return None
         if response.status_code != 200:
             logger.error(f"DeepL API error {response.status_code}: {response.text}")
@@ -217,147 +387,411 @@ def _translate_deepl(text: str, target_language: str) -> str | None:
         return None
 
 
-def _translate_google_direct(text: str, target_language: str, timeout: float = 15.0) -> str:
-    """Call the endpoint directly so the request carries a timeout.
+def _qwen_settings() -> tuple[bool, str]:
+    settings = _get_translation_settings()
+    key = settings.get("qwen_api_key") or QWEN_API_KEY
+    enabled = settings.get("qwen_enabled", bool(key))
+    return bool(enabled), key
 
-    deep_translator's GoogleTranslator wraps a bare requests.get with no timeout; a hang
-    there leaks the asyncio.to_thread worker permanently, because the scheduler's outer
-    wait_for abandons the coroutine but cannot kill the blocked OS thread.
+
+# Qwen-MT reports usage per request and an article takes several, so the provider
+# functions accumulate into this (thread-local) tally rather than returning one dict.
+_usage_tally = threading.local()
+
+
+def _tally_reset():
+    _usage_tally.value = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
+
+
+def _tally_add(usage: dict):
+    current = getattr(_usage_tally, "value", None)
+    if current is None:
+        return
+    current["prompt_tokens"] += usage.get("prompt_tokens", 0) or 0
+    current["completion_tokens"] += usage.get("completion_tokens", 0) or 0
+    current["calls"] += 1
+
+
+def _tally_get() -> dict:
+    return dict(getattr(_usage_tally, "value", None) or {})
+
+
+def _qwen_call(text: str, target_language: str, max_retries: int = 3) -> tuple[str, dict]:
+    """One Qwen-MT request. Returns (translated_text, usage)."""
+    enabled, api_key = _qwen_settings()
+    if not enabled or not api_key:
+        raise QwenError("Qwen translation is disabled or QWEN_API_KEY is not set.")
+
+    target = QWEN_LANG_MAP.get(target_language, target_language)
+    body = {
+        "model": QWEN_MT_MODEL,
+        "messages": [{"role": "user", "content": text}],
+        "translation_options": {"source_lang": "auto", "target_lang": target},
+    }
+    last = None
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(
+                QWEN_URL,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=body,
+                timeout=90,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                return (data["choices"][0]["message"]["content"],
+                        data.get("usage", {}) or {})
+            last = f"HTTP {r.status_code}: {r.text[:160]}"
+            if r.status_code not in (429, 500, 502, 503, 504):
+                break
+        except requests.RequestException as e:
+            last = str(e)
+        if attempt < max_retries - 1:
+            time.sleep(1.5 * (attempt + 1))
+    raise QwenError(f"Qwen-MT request failed: {last}")
+
+
+def _parse_qwen_batch(out: str, indices: list[int]) -> dict[int, str]:
+    """Split a marker-wrapped batch response back into per-block translations.
+
+    Returns {} unless every marker sent came back exactly once, so the caller can
+    fall back to one call per block.
+    """
+    got: dict[int, str] = {}
+    current = None
+    for line in out.split("\n"):
+        m = re.match(r"^\s*\[(\d+)\]\s*(.*)$", line)
+        if m:
+            current = int(m.group(1))
+            if current in got:
+                return {}
+            got[current] = m.group(2).strip()
+        elif current is not None and line.strip():
+            got[current] += " " + line.strip()
+    if set(got) != set(indices):
+        return {}
+    return got
+
+
+def _qwen_block(text: str, target_language: str) -> str:
+    """Translate one block, repairing a Simplified response."""
+    out, usage = _qwen_call(text, target_language)
+    _tally_add(usage)
+    if _is_traditional_target(target_language) and hk_glossary.looks_simplified(out):
+        try:
+            second, retry_usage = _qwen_call(text, target_language)
+            _tally_add(retry_usage)
+            out = second if not hk_glossary.looks_simplified(second) else hk_glossary.force_traditional(second)
+        except QwenError:
+            out = hk_glossary.force_traditional(out)
+    return out
+
+
+def _translate_blocks_qwen_iter(blocks: list[str], target_language: str) -> Iterator[tuple[list[int], list[str]]]:
+    """Translate block inner-HTML strings via Qwen-MT, yielding (indices, translations) per batch."""
+    if not blocks:
+        return
+
+    batches: list[list[int]] = []
+    current: list[int] = []
+    current_len = 0
+    for i, block in enumerate(blocks):
+        wrapped = len(block) + 8
+        if current and current_len + wrapped > QWEN_BATCH_CHAR_BUDGET:
+            batches.append(current)
+            current, current_len = [], 0
+        current.append(i)
+        current_len += wrapped
+    if current:
+        batches.append(current)
+
+    traditional = _is_traditional_target(target_language)
+    for batch in batches:
+        payload = "\n".join(f"[{j}] {blocks[j]}" for j in batch)
+        parsed: dict[int, str] = {}
+        try:
+            out, usage = _qwen_call(payload, target_language)
+            _tally_add(usage)
+            parsed = _parse_qwen_batch(out, batch)
+            if parsed and traditional and hk_glossary.looks_simplified(out):
+                logger.warning("Qwen-MT returned Simplified for a batch of %d; splitting", len(batch))
+                parsed = {}
+        except QwenError as e:
+            logger.warning(f"Qwen batch failed, retrying per block: {e}")
+
+        if parsed:
+            batch_translations = [parsed[idx] for idx in batch]
+        else:
+            batch_translations = []
+            for j in batch:
+                try:
+                    batch_translations.append(_qwen_block(blocks[j], target_language))
+                except QwenError as e:
+                    logger.error(f"Qwen block translation failed: {e}")
+                    batch_translations.append(blocks[j])
+
+        if traditional:
+            batch_translations = [hk_glossary.localize(r) for r in batch_translations]
+        yield batch, batch_translations
+
+
+def _translate_blocks_qwen(blocks: list[str], target_language: str) -> list[str]:
+    """Translate block inner-HTML strings via Qwen-MT, batched.
+
+    A thin drain of _translate_blocks_qwen_iter; the batching lives there so the
+    on-demand path can stream each batch as it lands.
+    """
+    out = list(blocks)
+    for indices, translations in _translate_blocks_qwen_iter(blocks, target_language):
+        for i, translated in zip(indices, translations):
+            out[i] = translated
+    return out
+
+
+def lmt_fallback_label(primary_provider: str, reason: str) -> str:
+    """The badge an article carries when the local model rescued it.
+
+    Names what failed and why, because "translated by the slow local model" is only
+    useful if you can see which provider dropped it.
+    """
+    reason = re.sub(r"<[^>]*>", " ", reason or "")
+    reason = re.sub(r"\s+", " ", reason).strip(" :;,")
+    if len(reason) > 48:
+        reason = reason[:48].rstrip() + "…"
+    if not reason:
+        return f"{LMT_PROVIDER_LABEL} (fell back from {primary_provider})"
+    return f"{LMT_PROVIDER_LABEL} (fell back from {primary_provider} — {reason})"
+
+
+def _lmt_call(text: str, target_language: str, source_language: str = "ja",
+              max_retries: int = 2) -> str:
+    """One line through the local model. Returns the translated line."""
+    if not text or not text.strip():
+        return text
+
+    target = LMT_LANG_MAP.get(target_language, "Traditional Chinese")
+    source = LMT_SOURCE_MAP.get((source_language or "ja").lower(), "Japanese")
+    prompt = (f"Translate the following text from {source} into {target}:\n"
+              f"{source}: {text}\n{target}:")
+    body = {"model": LMT_MODEL, "temperature": 0.0, "max_tokens": 512,
+            "messages": [{"role": "user", "content": prompt}]}
+
+    if not LMT_URL:
+        raise LMTError("LMT_URL is not set; the local model is not configured")
+
+    last = None
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(LMT_URL, json=body, timeout=LMT_TIMEOUT_SECONDS)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"].strip()
+            last = f"HTTP {r.status_code}"
+        except (requests.RequestException, ValueError, KeyError, IndexError) as e:
+            last = str(e)[:120]
+        if attempt < max_retries - 1:
+            time.sleep(2)
+    raise LMTError(f"LMT request failed: {last}")
+
+
+def _lmt_sanitize(html: str) -> str:
+    """Reduce a block to what the local model handles without damaging it.
+
+    Measured against the live server: `<a href>` round-trips intact, `<strong>` is
+    silently dropped, and `<span id="...">` is echoed into the visible text as
+    `< span id="jin_huawo">` — three articles carried that leak on 2026-09-23.
+    So links keep their href and everything else is unwrapped to its text.
+    """
+    if not html:
+        return ""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all(True):
+        if tag.name == "a" and tag.get("href"):
+            tag.attrs = {"href": tag["href"]}
+        else:
+            tag.unwrap()
+    return str(soup).strip()
+
+
+def _lmt_block(text: str, target_language: str, source_language: str = "ja") -> str:
+    """Translate one block.
+
+    LMT's prompt template is line-delimited — a newline inside the source ends the
+    segment and the model stops there, silently dropping the rest. Measured on a
+    385-character block: one request returned 28 characters, line by line returned
+    the lot. So each line goes on its own, and blank lines are kept as spacing.
+    """
+    out = []
+    for line in (text or "").split("\n"):
+        if not line.strip():
+            out.append("")
+            continue
+        out.append(_lmt_call(line, target_language, source_language))
+    return "\n".join(out)
+
+
+def _translate_blocks_lmt(blocks: list[str], target_language: str,
+                          source_language: str = "ja") -> list[str]:
+    """Translate block inner-HTML strings with the local model.
+
+    No batching: the model is line-delimited and has no system prompt, so there is
+    nothing to gain from packing blocks together and a marker round-trip to lose.
+    """
+    if not blocks:
+        return []
+    traditional = _is_traditional_target(target_language)
+    results = []
+    for block in blocks:
+        try:
+            out = _lmt_block(_lmt_sanitize(block), target_language, source_language)
+        except LMTError as e:
+            logger.error(f"LMT block translation failed: {e}")
+            results.append(block)
+            continue
+        if traditional:
+            # min_ratio=0: this model mixes scripts within a block, which never
+            # reaches the 0.15 floor the remote providers use. See force_traditional.
+            out = hk_glossary.force_traditional(out, min_ratio=0.0)
+        results.append(out)
+    if traditional:
+        results = [hk_glossary.localize(r) for r in results]
+    return results
+
+
+def _google_call(text: str, target_language: str, max_retries: int = 3) -> str:
+    """One Google request. Returns the translated text.
+
+    The response is a nested array whose first element is a list of segments; long
+    input comes back split across several, so they are joined rather than indexed.
     """
     if not text or not text.strip():
         return text
-    resp = requests.get(
-        "https://translate.google.com/m",
-        params={"sl": "auto", "tl": target_language, "q": text},
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-        timeout=timeout,
-    )
-    if resp.status_code == 429:
-        raise Exception("Google Translate rate limited (HTTP 429)")
-    if resp.status_code != 200:
-        raise Exception(f"Google Translate HTTP error {resp.status_code}")
 
-    soup = BeautifulSoup(resp.text, "html.parser")
-    element = soup.find("div", class_="result-container") or soup.find("div", class_="t0")
-    if not element:
-        raise Exception("Google Translate result element not found")
-    return element.get_text()
-
-
-def _translate_google(text: str, target_language: str, max_retries: int = 3, delay_seconds: float = 2.0) -> str:
-    """Translate via Google Translate (free, no API key) with retry logic to avoid 500 errors."""
-    last_error = None
-    
+    global _google_consecutive_walls
+    params = {"client": GOOGLE_CLIENT, "sl": "auto", "tl": target_language, "dt": "t"}
+    last = None
     for attempt in range(max_retries):
         try:
-            # Small delay before each request to prevent rate limiting when translating multiple HTML blocks
-            if attempt == 0:
-                time.sleep(GOOGLE_REQUEST_DELAY_SECONDS)
-                
-            result = _translate_google_direct(text, target_language, timeout=15.0)
-            
-            # Google Translate web endpoint sometimes returns its 500 Server Error page text as the translation
-            if result and "Error 500 (Server Error)" in result:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Google Translate returned 500 error text. Retrying in {delay_seconds}s (Attempt {attempt+1}/{max_retries})")
-                    time.sleep(delay_seconds)
-                    continue
+            _google_wait_turn()
+            r = requests.post(
+                GOOGLE_URL,
+                params=params,
+                data={"q": text},
+                headers={"User-Agent": GOOGLE_USER_AGENT},
+                timeout=30,
+            )
+            if r.status_code == 200:
+                try:
+                    segments = r.json()[0] or []
+                except (ValueError, TypeError, IndexError, KeyError):
+                    last = f"unparseable response: {r.text[:160]}"
                 else:
-                    raise Exception("Google Translate returned 500 error text after all retries")
-            
-            return result
-            
-        except Exception as e:
-            last_error = e
-            if attempt < max_retries - 1:
-                logger.warning(f"Google Translate exception: {e}. Retrying in {delay_seconds}s (Attempt {attempt+1}/{max_retries})")
-                time.sleep(delay_seconds)
+                    with _google_gate:
+                        _google_consecutive_walls = 0
+                    return "".join(s[0] for s in segments if s and s[0])
+            elif r.status_code == 429:
+                # The wall. Do not retry into it — cool off and let the caller
+                # leave the article untranslated for now.
+                _google_enter_cooldown()
+                raise GoogleError(f"HTTP 429: {r.text[:120]}")
             else:
-                raise Exception(f"Google Translate failed after {max_retries} attempts. Last error: {last_error}")
+                last = f"HTTP {r.status_code}: {r.text[:160]}"
+                if r.status_code not in (500, 502, 503, 504):
+                    break
+        except requests.RequestException as e:
+            last = str(e)
+        if attempt < max_retries - 1:
+            time.sleep(1.5 * (attempt + 1))
+    raise GoogleError(f"Google Translate request failed: {last}")
 
-    raise Exception(f"Google Translate failed. Last error: {last_error}")
 
+def _parse_google_batch(out: str, indices: list[int]) -> dict[int, str]:
+    """Split a marker-wrapped batch response back into per-block translations.
 
-def _translate_google_batch(blocks: list[str], indices: list[int], target_language: str) -> dict[int, str]:
-    """Translate one batch of blocks in a single Google request.
-
-    Blocks are wrapped in <div data-i="N"> markers (N is the block's global
-    index) so the translated text can be split back apart. Returns a mapping of
-    global index -> translated inner HTML, but ONLY if the response round-trips
-    cleanly (every marker present). On any mismatch it returns {} so the caller
-    falls back to per-block translation for this batch.
+    Returns {} unless every marker sent came back exactly once and no marker leaked
+    into visible text, so the caller can fall back to one call per block.
     """
-    payload = "".join(f'<div data-i="{j}">{blocks[j]}</div>' for j in indices)
-    try:
-        translated_html = _translate_google(payload, target_language)
-    except Exception as e:
-        logger.warning(f"Google batch translation failed, will retry per-block: {e}")
-        return {}
-
-    soup = BeautifulSoup(translated_html, "html.parser")
-    out: dict[int, str] = {}
+    soup = BeautifulSoup(out, "html.parser")
+    got: dict[int, str] = {}
     for div in soup.find_all(attrs={"data-i": True}):
         try:
             idx = int(div.get("data-i"))
         except (TypeError, ValueError):
             continue
-        if idx in indices and idx not in out:
-            out[idx] = div.decode_contents()
+        if idx in indices and idx not in got:
+            got[idx] = div.decode_contents().strip()
+    if set(got) != set(indices):
+        return {}
+    if any("data-i" in text for text in got.values()):
+        return {}
+    return got
 
-    # Accept only a clean round-trip: every sent block came back exactly once,
-    # and no marker leaked into visible content (a sign Google merged blocks and
-    # corrupted their text). Otherwise discard so the caller retries per-block.
-    if set(out) != set(indices):
-        return {}
-    if any("data-i" in text for text in out.values()):
-        return {}
+
+def _google_block(text: str, target_language: str) -> str:
+    """Translate one block, repairing a Simplified response."""
+    out = _google_call(text, target_language)
+    if _is_traditional_target(target_language) and hk_glossary.looks_simplified(out):
+        out = hk_glossary.force_traditional(out)
     return out
 
 
 def _translate_blocks_google(blocks: list[str], target_language: str) -> list[str]:
-    """Translate a list of block inner-HTML strings via Google, batched.
+    """Translate block inner-HTML strings via Google, batched.
 
-    Packs blocks into requests under GOOGLE_BATCH_CHAR_BUDGET characters, sending
-    each batch as one HTTP call instead of one call per block. Any batch whose
-    response does not round-trip cleanly falls back to per-block translation, so
-    output is always a correct 1:1, same-order list of translated strings.
+    HTML survives this endpoint, so blocks are wrapped in <div data-i="N"> and sent
+    together; a batch whose markers do not round-trip is re-sent one block at a time.
+    Unlike Qwen-MT this translator takes no instructions, so the Hong Kong vocabulary
+    pass is the only lever on register — and it needs it: the endpoint drops to
+    Simplified on short segments (路线概览 for ルート概要) even with tl=zh-TW.
     """
     if not blocks:
         return []
 
-    # Greedily pack block indices into batches under the char budget.
     batches: list[list[int]] = []
     current: list[int] = []
     current_len = 0
     for i, block in enumerate(blocks):
-        wrapped_len = len(block) + len(f'<div data-i="{i}"></div>')
-        if current and current_len + wrapped_len > GOOGLE_BATCH_CHAR_BUDGET:
+        wrapped = len(block) + len(f'<div data-i="{i}"></div>')
+        if current and current_len + wrapped > GOOGLE_BATCH_CHAR_BUDGET:
             batches.append(current)
-            current = []
-            current_len = 0
+            current, current_len = [], 0
         current.append(i)
-        current_len += wrapped_len
+        current_len += wrapped
     if current:
         batches.append(current)
 
-    results: list[str | None] = [None] * len(blocks)
+    results: list[str] = [""] * len(blocks)
+    traditional = _is_traditional_target(target_language)
     for batch in batches:
-        for idx, text in _translate_google_batch(blocks, batch, target_language).items():
-            results[idx] = text
+        payload = "".join(f'<div data-i="{j}">{blocks[j]}</div>' for j in batch)
+        parsed: dict[int, str] = {}
+        try:
+            parsed = _parse_google_batch(_google_call(payload, target_language), batch)
+        except GoogleError as e:
+            logger.warning(f"Google batch failed, retrying per block: {e}")
 
-    # Fill any block the batch path could not resolve with a direct per-block call.
-    for i, value in enumerate(results):
-        if value is None:
-            results[i] = _translate_google(blocks[i], target_language)
+        if parsed:
+            for idx, text in parsed.items():
+                results[idx] = hk_glossary.force_traditional(text) if (
+                    traditional and hk_glossary.looks_simplified(text)) else text
+            continue
 
+        for j in batch:
+            try:
+                results[j] = _google_block(blocks[j], target_language)
+            except GoogleError as e:
+                logger.error(f"Google block translation failed: {e}")
+                results[j] = blocks[j]
+
+    if traditional:
+        results = [hk_glossary.localize(r) for r in results]
     return results
 
 
-# Attributes that carry machine-readable values, not prose. Google's free
-# endpoint is a plain-text translator, so any attribute value containing spaces
-# or commas (notably srcset) gets its punctuation localised — full-width commas,
-# CJK quote brackets — which breaks the URL. alt/title are deliberately absent:
-# they are human-readable and should stay translated.
+# Attributes that carry machine-readable values, not prose. A machine translator
+# will localise punctuation inside any attribute value containing spaces or commas
+# (notably srcset) — full-width commas, CJK quote brackets — which breaks the URL.
+# alt/title are deliberately absent: they are human-readable and should stay
+# translated.
 _IMMUTABLE_MARKUP_ATTRS = (
     "src", "srcset", "data-src", "data-srcset", "data-lazy-src",
     "href", "width", "height", "sizes", "poster",
@@ -480,7 +914,7 @@ def _match_by_url_prefix(damaged_url: str, candidates: list, url_attr: str):
     return by_url[best_url]
 
 
-def _interleave_translation(soup: BeautifulSoup, el, translated_text: str) -> None:
+def _interleave_translation(soup: BeautifulSoup, el, translated_text: str) -> str:
     """Replace a block element with <blockquote>original</blockquote> + translation."""
     tag_name = el.name
     original_inner = el.decode_contents()
@@ -495,111 +929,171 @@ def _interleave_translation(soup: BeautifulSoup, el, translated_text: str) -> No
 
     el.replace_with(blockquote)
     blockquote.insert_after(translated_el)
+    return str(blockquote) + str(translated_el)
 
 
-def translate_text(text: str, target_language: str = "zh-TW", translator: str = "google") -> tuple[str, str]:
-    """Translate plain text to target language.
+def translate_text(text: str, target_language: str = "zh-TW", translator: str = "qwen",
+                   source_language: str = "ja") -> tuple[str, str]:
+    """Translate plain text (a title, say) to the target language.
 
     Returns:
-        (translated_text, provider) where provider is "DeepL", "Google Translate",
-        or "none" if translation failed.
+        (translated_text, provider), or (the original text, "none") on failure.
+
+    A failure returns the source text untouched. It used to append
+    "(Translation Error)", which the reader then showed as the headline and built the
+    article's URL slug from, and no later pass ever repaired it.
     """
     if not text or not text.strip():
         return text or "", "none"
     try:
-        # Standalone text translation (e.g. titles before content is ready) falls back to Google.
-        if translator in ("google", "deepseek"):
-            return _translate_google(text, target_language), "Google Translate"
-            
-        # Legacy fallback logic
-        result = _translate_deepl(text, target_language)
-        if result is not None:
-            return result, "DeepL"
-        return _translate_google(text, target_language), "Google Translate"
+        if translator == "deepl":
+            result = _translate_deepl(text, target_language)
+            if result is not None:
+                return result, "DeepL"
+        if translator == "lmt":
+            out = _lmt_block(text, target_language, source_language)
+            if _is_traditional_target(target_language):
+                out = hk_glossary.localize(out)
+            return out, LMT_PROVIDER_LABEL
+        if translator == "google":
+            out = _google_block(text, target_language)
+            primary = GOOGLE_PROVIDER_LABEL
+        else:
+            out = _qwen_block(text, target_language)
+            primary = QWEN_PROVIDER_LABEL
+        if _is_traditional_target(target_language):
+            out = hk_glossary.localize(out)
+        return out, primary
     except Exception as e:
-        logger.error(f"Translation failed: {e}")
-        return text + " (Translation Error)", "none"
+        # The local model is the last resort under every remote provider. A title is
+        # one line — about 8s — so it can be rescued inline; a body cannot, and is
+        # left for the deferred worker.
+        primary = {"google": GOOGLE_PROVIDER_LABEL, "deepl": "DeepL"}.get(
+            translator, QWEN_PROVIDER_LABEL)
+        logger.warning(f"{primary} title translation failed, trying {LMT_PROVIDER_LABEL}: {e}")
+        try:
+            out = _lmt_block(text, target_language, source_language)
+            if _is_traditional_target(target_language):
+                out = hk_glossary.localize(out)
+            return out, lmt_fallback_label(primary, str(e))
+        except Exception as lmt_err:
+            logger.error(f"Translation failed, {LMT_PROVIDER_LABEL} too: {lmt_err}")
+            return text, "none"
 
 
-def translate_html(html: str, target_language: str = "zh-TW", translator: str = "google") -> tuple[str, str]:
-    """Translate HTML content with bilingual interleaving.
+def translate_html_iter(html: str, target_language: str = "zh-TW", translator: str = "qwen") -> Iterator[dict]:
+    """Translate HTML content yielding block events as batches arrive, followed by a result event.
 
-    For each block element, the original is wrapped in a <blockquote>
-    (for Miniflux-compatible visual distinction) followed by the translated element.
-
-    Handles readability's <html><body><div> wrappers by searching for block
-    elements at any depth rather than only direct children.
-
-    Returns:
-        (translated_html, provider) where provider is "DeepL", "Google Translate",
-        "DeepL + Google Translate" (if both were used), or "none" on failure.
+    Yields:
+        {"type": "block", "index": int, "html": str}
+        {"type": "result", "html": str, "provider": str, "total": int}
     """
     if not html or not html.strip():
-        return html or "", "none"
-    try:
-        soup = BeautifulSoup(html, "html.parser")
+        yield {"type": "result", "html": html or "", "provider": "none", "total": 0}
+        return
 
-        # Find all block elements with non-empty text (at any depth)
-        elements = soup.find_all(list(BLOCK_TAGS))
-        elements = [el for el in elements if el.get_text().strip()]
+    soup = BeautifulSoup(html, "html.parser")
 
-        if not elements:
-            return html, "none"
+    # Find all block elements with non-empty text (at any depth)
+    elements = soup.find_all(list(BLOCK_TAGS))
+    elements = [el for el in elements if el.get_text().strip()]
 
-        # Top-level blocks only — skip nested blocks (e.g. <li> inside <blockquote>)
-        # and empty shells. These are the units we translate and interleave.
-        top_elements = [
-            el for el in elements
-            if not el.find_parent(list(BLOCK_TAGS)) and el.decode_contents().strip()
-        ]
-        if not top_elements:
-            return html, "none"
+    if not elements:
+        yield {"type": "result", "html": html, "provider": "none", "total": 0}
+        return
 
-        providers_used = set()
+    # Top-level blocks only — skip nested blocks (e.g. <li> inside <blockquote>)
+    # and empty shells. These are the units we translate and interleave.
+    top_elements = [
+        el for el in elements
+        if not el.find_parent(list(BLOCK_TAGS)) and el.decode_contents().strip()
+    ]
+    if not top_elements:
+        yield {"type": "result", "html": html, "provider": "none", "total": 0}
+        return
 
-        if translator in ("google", "deepseek"):
-            # Bypass DeepL on the default Google path; batch to minimize requests.
-            originals = [_strip_media_for_translation(el.decode_contents()) for el in top_elements]
-            translations = _translate_blocks_google(originals, target_language)
-            providers_used.add("Google Translate")
-            for el, translated_text in zip(top_elements, translations):
-                _interleave_translation(soup, el, translated_text)
-        else:
-            for el in top_elements:
-                original_text = _strip_media_for_translation(el.decode_contents())
-                translated_text = _translate_deepl(original_text, target_language)
-                if translated_text is not None:
-                    providers_used.add("DeepL")
-                else:
-                    translated_text = _translate_google(original_text, target_language)
-                    providers_used.add("Google Translate")
-                _interleave_translation(soup, el, translated_text)
+    providers_used = set()
 
+    if translator == "deepl":
+        for el in top_elements:
+            original_text = _strip_media_for_translation(el.decode_contents())
+            translated_text = _translate_deepl(original_text, target_language)
+            if translated_text is None:
+                translated_text = _qwen_block(original_text, target_language)
+                providers_used.add(QWEN_PROVIDER_LABEL)
+            else:
+                providers_used.add("DeepL")
+            _interleave_translation(soup, el, translated_text)
         if len(providers_used) > 1:
-            provider = "DeepL + Google Translate"
+            provider = " + ".join(sorted(providers_used))
         elif providers_used:
             provider = providers_used.pop()
         else:
             provider = "none"
+        yield {"type": "result", "html": str(soup), "provider": provider, "total": len(top_elements)}
+        return
 
-        return str(soup), provider
+    if translator != "qwen":
+        label = GOOGLE_PROVIDER_LABEL if translator == "google" else translator
+        batch = _translate_blocks_google if translator == "google" else _translate_blocks_qwen
+        originals = [_strip_media_for_translation(el.decode_contents()) for el in top_elements]
+        translations = batch(originals, target_language)
+        applied = 0
+        for el, original_text, translated_text in zip(top_elements, originals, translations):
+            if not translated_text or translated_text.strip() == original_text.strip():
+                continue
+            _interleave_translation(soup, el, translated_text)
+            applied += 1
+        if applied:
+            yield {"type": "result", "html": str(soup), "provider": label, "total": len(top_elements)}
+        else:
+            yield {"type": "result", "html": html, "provider": "none", "total": len(top_elements)}
+        return
+
+    originals = [_strip_media_for_translation(el.decode_contents()) for el in top_elements]
+    applied = 0
+    for batch_indices, translations in _translate_blocks_qwen_iter(originals, target_language):
+        for idx, translated_text in zip(batch_indices, translations):
+            original_text = originals[idx]
+            if not translated_text or translated_text.strip() == original_text.strip():
+                continue
+            el = top_elements[idx]
+            block_markup = _interleave_translation(soup, el, translated_text)
+            applied += 1
+            yield {"type": "block", "index": idx, "html": block_markup}
+
+    if applied:
+        provider = QWEN_PROVIDER_LABEL
+        out_html = str(soup)
+    else:
+        provider = "none"
+        out_html = html
+
+    yield {"type": "result", "html": out_html, "provider": provider, "total": len(top_elements)}
+
+
+def translate_html(html: str, target_language: str = "zh-TW", translator: str = "qwen") -> tuple[str, str]:
+    """Translate HTML content with bilingual interleaving.
+
+    For each block element, the original is wrapped in a <blockquote> (for
+    Miniflux-compatible visual distinction) followed by the translated element.
+
+    A thin drain of translate_html_iter.
+
+    Returns:
+        (translated_html, provider), or (the source html, "none") on failure.
+    """
+    if not html or not html.strip():
+        return html or "", "none"
+    try:
+        final = None
+        for event in translate_html_iter(html, target_language, translator):
+            if event["type"] == "result":
+                final = event
+        return (final["html"], final["provider"]) if final else (html, "none")
     except Exception as e:
         logger.error(f"HTML translation failed: {e}")
-        
-        try:
-            error_soup = BeautifulSoup(html, "html.parser")
-            banner = error_soup.new_tag("div")
-            banner.string = "(Translation Error)"
-            banner["style"] = "color: #c62828; background-color: #ffebee; padding: 10px; margin-bottom: 1em; border-radius: 4px; font-weight: bold; text-align: center;"
-            
-            if error_soup.body:
-                error_soup.body.insert(0, banner)
-            else:
-                error_soup.insert(0, banner)
-            return str(error_soup), "none"
-        except Exception:
-            # Fallback if soup parsing fails on the error handler
-            return "<div style='color: #c62828; background-color: #ffebee; padding: 10px; margin-bottom: 1em; border-radius: 4px; font-weight: bold; text-align: center;'>(Translation Error)</div>" + html, "none"
+        return html, "none"
 
 
 LANG_NAME_MAP = {
@@ -749,7 +1243,7 @@ def _translate_deepseek_article(title: str, content_html: str, target_language: 
 
 
 def translate_article_deepseek(title: str, content_html: str, target_language: str = "zh-TW") -> tuple[str, str, str, dict]:
-    """Translate title and HTML content using DeepSeek with fallback to Google Translate.
+    """Translate title and HTML content using DeepSeek, falling back to Qwen-MT.
 
     Returns (translated_title, translated_content, provider, usage). `usage` is the
     DeepSeek API usage dict, and is {} on the empty/fallback/error paths.
@@ -809,22 +1303,52 @@ def translate_article_deepseek(title: str, content_html: str, target_language: s
         return t_title, str(soup), "DeepSeek", usage
 
     except Exception as e:
-        logger.warning(f"DeepSeek translation failed, falling back to Google: {e}")
+        logger.warning(f"DeepSeek translation failed, falling back to Qwen-MT: {e}")
         try:
-            fallback_title, _ = translate_text(title, target_language, translator="google")
-            fallback_content, _ = translate_html(content_html, target_language, translator="google")
-            return fallback_title, fallback_content, "Google Translate (fallback after DeepSeek failed)", {}
+            fallback_title, _ = translate_text(title, target_language, translator="qwen")
+            fallback_content, fallback_provider = translate_html(
+                content_html, target_language, translator="qwen")
+            if fallback_provider == "none":
+                # Both providers are down. Say so rather than badging the untouched
+                # source as translated.
+                return title, content_html, "none", {}
+            return (fallback_title, fallback_content,
+                    f"{QWEN_PROVIDER_LABEL} (fallback after DeepSeek failed)", {})
         except Exception as fb_err:
             logger.error(f"Fallback translation failed: {fb_err}")
-            return title + " (Translation Error)", content_html, "none", {}
+            return title, content_html, "none", {}
 
 
-async def translate_text_async(text: str, target_language: str = "zh-TW", translator: str = "google") -> tuple[str, str]:
+def translate_article_qwen(title: str, content_html: str,
+                           target_language: str = "zh-TW") -> tuple[str, str, str, dict]:
+    """Translate title and content with Qwen-MT-Flash.
+
+    Mirrors translate_article_deepseek's signature so the scheduler can treat the two
+    providers alike. `usage` sums every request the article took; Qwen-MT has no cache
+    tier, so it reports prompt_tokens / completion_tokens / calls only.
+    """
+    if not content_html or not content_html.strip():
+        return title, content_html, "none", {}
+
+    _tally_reset()
+    translated_title = title
+    try:
+        if title and title.strip():
+            translated_title, _ = translate_text(title, target_language, translator="qwen")
+    except Exception as e:
+        logger.warning(f"Qwen title translation failed: {e}")
+
+    translated_content, provider = translate_html(content_html, target_language, translator="qwen")
+    return translated_title, translated_content, provider, _tally_get()
+
+
+async def translate_text_async(text: str, target_language: str = "zh-TW", translator: str = "qwen",
+                               source_language: str = "ja") -> tuple[str, str]:
     """Async wrapper for translate_text — runs in thread pool to avoid blocking event loop."""
-    return await asyncio.to_thread(translate_text, text, target_language, translator)
+    return await asyncio.to_thread(translate_text, text, target_language, translator, source_language)
 
 
-async def translate_html_async(html: str, target_language: str = "zh-TW", translator: str = "google") -> tuple[str, str]:
+async def translate_html_async(html: str, target_language: str = "zh-TW", translator: str = "qwen") -> tuple[str, str]:
     """Async wrapper for translate_html — runs in thread pool to avoid blocking event loop."""
     return await asyncio.to_thread(translate_html, html, target_language, translator)
 
@@ -833,3 +1357,8 @@ async def translate_article_deepseek_async(title: str, content_html: str, target
     """Async wrapper for translate_article_deepseek — runs in thread pool to avoid blocking event loop."""
     return await asyncio.to_thread(translate_article_deepseek, title, content_html, target_language)
 
+
+async def translate_article_qwen_async(title: str, content_html: str,
+                                       target_language: str = "zh-TW") -> tuple[str, str, str, dict]:
+    """Async wrapper for translate_article_qwen — runs in a thread to keep the loop free."""
+    return await asyncio.to_thread(translate_article_qwen, title, content_html, target_language)

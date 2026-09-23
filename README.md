@@ -62,9 +62,36 @@ per-site CSS selectors rather than giving up on the feed.
 
 ### Translation
 
-- DeepSeek as the primary translator with automatic Google Translate fallback
-- Per-source target languages and a translation attribution badge
-- Cost tracking per provider
+Translation is per feed, and every translated article keeps its original text alongside
+the translation rather than replacing it, so you can always check what was said.
+
+Four providers, chosen per source:
+
+| Provider | Cost | Notes |
+|---|---|---|
+| **Qwen-MT-flash** | paid, cheap | The default. A dedicated translation model. |
+| **DeepSeek** | paid | Follows a style prompt, so it can be steered toward a regional register. |
+| **Google Translate** | free | An undocumented endpoint. Works well until it rate-limits you, which it will — see below. |
+| **Local model** | free | Runs on your own hardware. Slow, lower quality, but cannot be rate limited or billed. See [docs/local-translation.md](docs/local-translation.md). |
+
+Whatever a feed is set to, the local model backs it up: if the chosen provider fails, the
+article's title is translated locally and its body is queued for a background worker. The
+badge then says what happened — `LMT-60-1.7B (fell back from Google Translate — HTTP 429)`.
+
+**A failed translation never damages the article.** It is stored in its original language
+and re-queued. An earlier version appended `(Translation Error)` to the title on failure,
+which reached the stored text and the URL slugs of 1,524 articles before anyone noticed.
+
+Also here:
+
+- On-demand translation of an open article, streamed block by block as it arrives
+- A Simplified-to-Traditional pass with a Hong Kong vocabulary glossary you can extend
+- Per-provider cost tracking, with scheduled and on-demand usage counted separately
+
+**On the free Google endpoint.** It is the one `googletrans` uses, and it is throttled per
+client id: measured over 30 hours, `gtx` walled after about 60 calls and `dict-chrome-ex`
+and `at` each lasted a few hundred before returning HTTP 429 for hours at a time. The code
+paces itself and backs off, but treat it as best-effort rather than something to depend on.
 
 <!-- screenshot: a single extracted article. Add as docs/screenshots/article-view.png -->
 
@@ -132,7 +159,10 @@ list. The ones that matter most:
 | `DATA_DIR` | `backend/data` | Where `feeds.db` and the image caches live |
 | `CORS_ORIGINS` | local dev only | Comma-separated allow-list; add your public hostname |
 | `PUBLIC_URL` | request host | Base URL for generated RSS and OPML links |
-| `DEEPSEEK_API_KEY` | unset | Primary translator; Google fallback needs no key |
+| `QWEN_API_KEY` | unset | Default translator |
+| `DEEPSEEK_API_KEY` | unset | Alternative translator, steerable by prompt |
+| `LMT_URL` | unset | A local OpenAI-compatible translation server. Unset means that provider is simply unavailable |
+| `GOOGLE_TRANSLATE_CLIENT` | `dict-chrome-ex` | Which client id the free Google endpoint uses; `at` is the other one that works |
 | `FLARESOLVERR_URL` | unset | Cloudflare bypass; degrades gracefully when absent |
 | `ALLOW_PRIVATE_IP_FETCH` | `0` | SSRF guard. Leave off unless you fetch from your own LAN |
 

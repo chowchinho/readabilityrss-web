@@ -31,7 +31,7 @@ class FeedSourceCreate(BaseModel):
     negative_keywords: Optional[str] = None
     desktop_view_mode: Optional[str] = 'standard'
     mobile_view_mode: Optional[str] = 'standard'
-    translator: Optional[str] = 'google'
+    translator: Optional[str] = 'qwen'
     use_parse_date: Optional[bool] = False
 
 class FeedSourceUpdate(BaseModel):
@@ -51,7 +51,7 @@ class FeedSourceUpdate(BaseModel):
     negative_keywords: Optional[str] = None
     desktop_view_mode: Optional[str] = 'standard'
     mobile_view_mode: Optional[str] = 'standard'
-    translator: Optional[str] = 'google'
+    translator: Optional[str] = 'qwen'
     use_parse_date: Optional[bool] = False
 
 async def _check_source_status(source: dict, html: Optional[str] = None):

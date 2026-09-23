@@ -10,7 +10,12 @@ import {
   getSystemSettings,
   updateSystemSettings,
   getStorageStats,
-  getLabelWeights
+  getLabelWeights,
+  getTranslationUsageSummary,
+  getGlossary,
+  saveGlossaryOverride,
+  deleteGlossaryOverride,
+  previewGlossary
 } from '../api';
 import './Options.css';
 
@@ -210,6 +215,21 @@ function Options({ onLogout }) {
   const [activeTab, setActiveTab] = useState('feed');
   const [opmlCopied, setOpmlCopied] = useState(false);
 
+  // Translation usage tab
+  const [usage, setUsage] = useState(null);
+  const [usageDays, setUsageDays] = useState(30);
+  const [usageError, setUsageError] = useState('');
+
+  // Glossary tab
+  const [glossary, setGlossary] = useState(null);
+  const [glossaryFilter, setGlossaryFilter] = useState('');
+  const [newTw, setNewTw] = useState('');
+  const [newHk, setNewHk] = useState('');
+  const [glossaryError, setGlossaryError] = useState('');
+  const [glossaryBusy, setGlossaryBusy] = useState(false);
+  const [sampleText, setSampleText] = useState('這款軟體的品質不錯，網路連線也很快，錢包放得下。');
+  const [sampleResult, setSampleResult] = useState(null);
+
   // Security state
   const [authUsername, setAuthUsername] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -233,9 +253,12 @@ function Options({ onLogout }) {
   const [maxArticles, setMaxArticles] = useState(50);
   const [refreshInterval, setRefreshInterval] = useState(1.0);
   const [targetLanguage, setTargetLanguage] = useState('zh-TW');
+  const [defaultTranslator, setDefaultTranslator] = useState('qwen');
   const [aiEnabled, setAiEnabled] = useState(true);
   const [deepseekEnabled, setDeepseekEnabled] = useState(false);
   const [deepseekApiKey, setDeepseekApiKey] = useState('');
+  const [qwenEnabled, setQwenEnabled] = useState(false);
+  const [qwenApiKey, setQwenApiKey] = useState('');
   const [deeplEnabled, setDeeplEnabled] = useState(false);
   const [deeplApiKey, setDeeplApiKey] = useState('');
   const [flaresolverrEnabled, setFlaresolverrEnabled] = useState(false);
@@ -262,9 +285,12 @@ function Options({ onLogout }) {
         if (data.max_articles_per_feed) setMaxArticles(data.max_articles_per_feed);
         if (data.feed_refresh_interval_hours) setRefreshInterval(data.feed_refresh_interval_hours);
         if (data.target_language) setTargetLanguage(data.target_language);
+        if (data.default_translator) setDefaultTranslator(data.default_translator);
         if (data.ai_enabled !== undefined) setAiEnabled(data.ai_enabled);
         if (data.deepseek_enabled !== undefined) setDeepseekEnabled(data.deepseek_enabled);
         if (data.deepseek_api_key !== undefined) setDeepseekApiKey(data.deepseek_api_key);
+        if (data.qwen_enabled !== undefined) setQwenEnabled(data.qwen_enabled);
+        if (data.qwen_api_key !== undefined) setQwenApiKey(data.qwen_api_key);
         if (data.deepl_enabled !== undefined) setDeeplEnabled(data.deepl_enabled);
         if (data.deepl_api_key !== undefined) setDeeplApiKey(data.deepl_api_key);
         if (data.flaresolverr_enabled !== undefined) setFlaresolverrEnabled(data.flaresolverr_enabled);
@@ -357,8 +383,11 @@ function Options({ onLogout }) {
         max_articles_per_feed: maxArticles,
         feed_refresh_interval_hours: refreshInterval,
         target_language: targetLanguage,
+        default_translator: defaultTranslator,
         deepseek_enabled: deepseekEnabled,
         deepseek_api_key: deepseekApiKey,
+        qwen_enabled: qwenEnabled,
+        qwen_api_key: qwenApiKey,
         deepl_enabled: deeplEnabled,
         deepl_api_key: deeplApiKey,
         flaresolverr_enabled: flaresolverrEnabled,
@@ -430,6 +459,64 @@ function Options({ onLogout }) {
     }
   };
 
+  const loadUsage = useCallback(async (days) => {
+    setUsageError('');
+    try {
+      setUsage(await getTranslationUsageSummary(days));
+    } catch (e) {
+      setUsageError(e.message || 'Could not load usage');
+    }
+  }, []);
+
+  const loadGlossary = useCallback(async () => {
+    setGlossaryError('');
+    try {
+      setGlossary(await getGlossary());
+    } catch (e) {
+      setGlossaryError(e.message || 'Could not load the glossary');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'usage') loadUsage(usageDays);
+    if (activeTab === 'glossary') loadGlossary();
+  }, [activeTab, usageDays, loadUsage, loadGlossary]);
+
+  const addOverride = async (tw, hk, enabled = true) => {
+    setGlossaryBusy(true);
+    setGlossaryError('');
+    try {
+      await saveGlossaryOverride({ tw, hk, enabled });
+      setNewTw('');
+      setNewHk('');
+      await loadGlossary();
+    } catch (e) {
+      setGlossaryError(e.message || 'Could not save');
+    } finally {
+      setGlossaryBusy(false);
+    }
+  };
+
+  const removeOverride = async (tw) => {
+    setGlossaryBusy(true);
+    try {
+      await deleteGlossaryOverride(tw);
+      await loadGlossary();
+    } catch (e) {
+      setGlossaryError(e.message || 'Could not remove');
+    } finally {
+      setGlossaryBusy(false);
+    }
+  };
+
+  const runPreview = async () => {
+    try {
+      setSampleResult(await previewGlossary(sampleText));
+    } catch (e) {
+      setGlossaryError(e.message || 'Could not run the sample');
+    }
+  };
+
   return (
     <div className="options-container">
       <h2>Options</h2>
@@ -447,6 +534,18 @@ function Options({ onLogout }) {
           onClick={() => setActiveTab('translation')}
         >
           🌐 Translation &amp; AI
+        </button>
+        <button
+          className={`options-tab-btn ${activeTab === 'usage' ? 'active' : ''}`}
+          onClick={() => setActiveTab('usage')}
+        >
+          API Usage
+        </button>
+        <button
+          className={`options-tab-btn ${activeTab === 'glossary' ? 'active' : ''}`}
+          onClick={() => setActiveTab('glossary')}
+        >
+          HK Glossary
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
@@ -647,6 +746,61 @@ function Options({ onLogout }) {
                   </select>
                 </div>
 
+                <div className="options-row options-row-vertical" style={{ marginTop: '16px' }}>
+                  <div className="options-row-label">Default Translation Provider</div>
+                  <div className="options-row-desc">
+                    Used for on-demand article translation in the reader, and as the fallback for feeds without a specific translator.
+                  </div>
+                  <select
+                    value={defaultTranslator}
+                    onChange={e => setDefaultTranslator(e.target.value)}
+                    className="options-input"
+                    style={{ maxWidth: '320px', marginTop: '6px', cursor: 'pointer' }}
+                  >
+                    <option value="qwen">Qwen-MT-flash</option>
+                    <option value="google">Google Translate</option>
+                    <option value="deepl">DeepL</option>
+                  </select>
+                </div>
+
+                {/* Qwen-MT Translation */}
+                <div className="options-card-group" style={{ marginTop: '20px' }}>
+                  <div className="options-section-header">
+                    <div>
+                      <div className="options-row-label">Qwen-MT-flash Translation</div>
+                      <div className="options-row-desc">
+                        Default translator. Purpose-built machine translation, batched per article,
+                        with a Hong Kong vocabulary pass applied to the output.
+                      </div>
+                    </div>
+                    <button
+                      className={`options-toggle ${qwenEnabled ? 'active' : ''}`}
+                      onClick={() => setQwenEnabled(v => !v)}
+                      role="switch"
+                      aria-checked={qwenEnabled}
+                    >
+                      <span className="options-toggle-track">
+                        <span className="options-toggle-thumb" />
+                      </span>
+                    </button>
+                  </div>
+
+                  {qwenEnabled && (
+                    <div className="options-conditional-field">
+                      <div className="options-row-label">Qwen API Key</div>
+                      <input
+                        type="password"
+                        placeholder="sk-..."
+                        value={qwenApiKey}
+                        onChange={e => setQwenApiKey(e.target.value)}
+                        className="options-input"
+                        autoComplete="off"
+                        style={{ marginTop: '6px' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {/* DeepSeek Translation */}
                 <div className="options-card-group" style={{ marginTop: '20px' }}>
                   <div className="options-section-header">
@@ -737,6 +891,313 @@ function Options({ onLogout }) {
       )}
 
       {/* ── TAB 3: Integrations ── */}
+      {/* TAB: API Usage */}
+      {activeTab === 'usage' && (
+        <div className="options-tab-panel options-tab-panel--wide">
+          <div className="options-panel-head">
+            <div>
+              <div className="options-row-label">Model API usage</div>
+              <div className="options-row-desc">
+                Every paid model call, split by the work it did. DeepSeek bills in CNY;
+                Qwen-MT-flash bills in USD ($0.16 / $0.49 per 1M in / out) and is converted
+                at 7.1 CNY so both sit in one column.
+              </div>
+            </div>
+            <select
+              className="options-input glossary-input"
+              value={usageDays}
+              onChange={e => setUsageDays(Number(e.target.value))}
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={14}>Last 14 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+          </div>
+
+          {usageError && <div className="options-inline-error">{usageError}</div>}
+          {!usage && !usageError && <div className="options-row-desc">Loading...</div>}
+
+          {usage && (
+            <>
+              <div className="usage-total-row">
+                <span className="usage-total-label">Total</span>
+                <span className="usage-total-value">
+                  {'\u00A5'}{usage.totals.reduce((a, t) => a + t.cost_cny, 0).toFixed(2)}
+                </span>
+                <span className="usage-total-split">
+                  scheduled {'\u00A5'}
+                  {usage.totals.filter(t => (t.kind || 'translation') === 'translation')
+                    .reduce((a, t) => a + t.cost_cny, 0).toFixed(2)}
+                  {' \u00B7 '}on-demand {'\u00A5'}
+                  {usage.totals.filter(t => t.kind === 'ondemand')
+                    .reduce((a, t) => a + t.cost_cny, 0).toFixed(2)}
+                  {' \u00B7 '}tagging {'\u00A5'}
+                  {usage.totals.filter(t => t.kind === 'tagging')
+                    .reduce((a, t) => a + t.cost_cny, 0).toFixed(2)}
+                </span>
+              </div>
+
+              {usage.totals.length === 0 && (
+                <div className="options-row-desc">No model calls in this window yet.</div>
+              )}
+
+              {['translation', 'ondemand', 'tagging'].map(kind => {
+                const rows = usage.totals.filter(t => (t.kind || 'translation') === kind);
+                if (rows.length === 0) return null;
+                const unit = kind === 'tagging' ? 'batches' : 'articles';
+                const heading =
+                  kind === 'tagging'
+                    ? 'Tagging'
+                    : kind === 'ondemand'
+                    ? 'On-demand Translation'
+                    : 'Scheduled Translation';
+                return (
+                  <div className="usage-section" key={kind}>
+                    <div className="options-row-label">
+                      {heading}
+                    </div>
+                    <div className="usage-cards">
+                      {rows.map(t => (
+                        <div className="usage-card" key={t.provider + t.kind}>
+                          <div className="usage-card-name">
+                            {t.provider === 'qwen' ? 'Qwen-MT-flash' : 'DeepSeek'}
+                          </div>
+                          <div className="usage-card-cost">
+                            {'\u00A5'}{t.cost_cny.toFixed(2)}
+                          </div>
+                          <div className="usage-card-meta">
+                            {t.articles.toLocaleString()} {unit}
+                            {' \u00B7 '}{(t.input_tokens / 1000).toFixed(0)}k in
+                            {' \u00B7 '}{(t.output_tokens / 1000).toFixed(0)}k out
+                          </div>
+                          <div className="usage-card-meta">
+                            {'\u00A5'}{(t.cost_cny / Math.max(t.articles, 1)).toFixed(4)} per {unit.replace(/e?s$/, '')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {usage.daily.length > 0 && (
+                <div className="usage-section">
+                  <div className="usage-legend-row">
+                    <span className="options-row-label">Daily cost</span>
+                    <span className="usage-legend">
+                      <span className="usage-swatch" /> translation
+                      <span className="usage-swatch usage-swatch--tagging" /> tagging
+                    </span>
+                  </div>
+                  <div className="usage-bars">
+                    {(() => {
+                      const byDay = {};
+                      usage.daily.forEach(d => {
+                        const kind = d.kind || 'translation';
+                        byDay[d.day] = byDay[d.day]
+                          || { day: d.day, cost: 0, translation: 0, tagging: 0 };
+                        byDay[d.day].cost += d.cost_cny;
+                        byDay[d.day][kind] += d.cost_cny;
+                      });
+                      const days = Object.values(byDay);
+                      const max = Math.max(...days.map(d => d.cost), 0.0001);
+                      return days.map(d => (
+                        <div
+                          className="usage-bar-row"
+                          key={d.day}
+                          title={'translation \u00A5' + d.translation.toFixed(3)
+                            + ' \u00B7 tagging \u00A5' + d.tagging.toFixed(3)}
+                        >
+                          <span className="usage-bar-day">{d.day.slice(5)}</span>
+                          <span className="usage-bar-track">
+                            <span
+                              className="usage-bar-fill"
+                              style={{ width: Math.max((d.translation / max) * 100, 0) + '%' }}
+                            />
+                            <span
+                              className="usage-bar-fill usage-bar-fill--tagging"
+                              style={{ width: Math.max((d.tagging / max) * 100, 0) + '%' }}
+                            />
+                          </span>
+                          <span className="usage-bar-value">{'\u00A5'}{d.cost.toFixed(3)}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {usage.by_source.length > 0 && (
+                <div className="usage-section">
+                  <div className="options-row-label">By feed and work</div>
+                  <table className="usage-table">
+                    <thead>
+                      <tr>
+                        <th>Feed</th><th>Work</th><th>Provider</th>
+                        <th className="num">Calls</th><th className="num">Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usage.by_source.map((r, i) => (
+                        <tr key={r.source + '-' + r.provider + '-' + r.kind + '-' + i}>
+                          <td>{r.source || (r.kind === 'tagging' ? 'all feeds' : '(deleted feed)')}</td>
+                          <td className="sub">{r.kind === 'tagging' ? 'tagging' : 'translation'}</td>
+                          <td>{r.provider === 'qwen' ? 'Qwen-MT-flash' : 'DeepSeek'}</td>
+                          <td className="num">{r.articles.toLocaleString()}</td>
+                          <td className="num">{'\u00A5'}{r.cost_cny.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* TAB: HK Glossary */}
+      {activeTab === 'glossary' && (
+        <div className="options-tab-panel options-tab-panel--wide">
+          <div className="options-panel-head">
+            <div>
+              <div className="options-row-label">Hong Kong vocabulary pass</div>
+              <div className="options-row-desc">
+                Applied to every Qwen-MT translation after it comes back. Your overrides beat
+                the built-in table; disable a built-in with its Disable button.
+              </div>
+            </div>
+            {glossary && (
+              <span className="glossary-stat">
+                {glossary.stats.active} active
+                {' \u00B7 '}{glossary.stats.builtin} built-in
+                {' \u00B7 '}{glossary.stats.overrides} overrides
+              </span>
+            )}
+          </div>
+
+          {glossaryError && <div className="options-inline-error">{glossaryError}</div>}
+
+          <div className="glossary-add">
+            <input
+              className="options-input glossary-input"
+              placeholder="Taiwan term"
+              value={newTw}
+              onChange={e => setNewTw(e.target.value)}
+              maxLength={20}
+            />
+            <span className="glossary-arrow">{'\u2192'}</span>
+            <input
+              className="options-input glossary-input"
+              placeholder="Hong Kong term"
+              value={newHk}
+              onChange={e => setNewHk(e.target.value)}
+              maxLength={20}
+            />
+            <button
+              className="options-btn"
+              disabled={glossaryBusy || !newTw.trim() || !newHk.trim()}
+              onClick={() => addOverride(newTw.trim(), newHk.trim(), true)}
+            >
+              Add override
+            </button>
+          </div>
+
+          <div className="glossary-sample">
+            <div className="options-row-label">Try it</div>
+            <textarea
+              className="options-input glossary-textarea"
+              rows={2}
+              value={sampleText}
+              onChange={e => setSampleText(e.target.value)}
+            />
+            <button className="options-btn" onClick={runPreview}>Run the pass</button>
+            {sampleResult && <div className="glossary-sample-out">{sampleResult.after}</div>}
+          </div>
+
+          {glossary && glossary.overrides.length > 0 && (
+            <div className="usage-section">
+              <div className="options-row-label">Your overrides</div>
+              <table className="usage-table">
+                <thead>
+                  <tr><th>From</th><th>To</th><th>State</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {glossary.overrides.map(o => (
+                    <tr key={o.tw}>
+                      <td className="cjk">{o.tw}</td>
+                      <td className="cjk">{o.hk || <em>(disabled)</em>}</td>
+                      <td>{o.enabled ? 'active' : 'built-in off'}</td>
+                      <td className="num">
+                        <button
+                          className="options-btn options-btn-quiet"
+                          disabled={glossaryBusy}
+                          onClick={() => removeOverride(o.tw)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {glossary && (
+            <div className="usage-section">
+              <div className="options-panel-head">
+                <div className="options-row-label">Built-in terms</div>
+                <input
+                  className="options-input glossary-input"
+                  placeholder="Filter"
+                  value={glossaryFilter}
+                  onChange={e => setGlossaryFilter(e.target.value)}
+                />
+              </div>
+              <table className="usage-table">
+                <thead>
+                  <tr><th>From</th><th>To</th><th>Category</th><th>Note</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {glossary.builtin
+                    .filter(t => !glossaryFilter
+                      || t.tw.includes(glossaryFilter)
+                      || t.hk.includes(glossaryFilter)
+                      || t.category.toLowerCase().includes(glossaryFilter.toLowerCase()))
+                    .map(t => {
+                      const override = glossary.overrides.find(o => o.tw === t.tw);
+                      const off = override && !override.enabled;
+                      return (
+                        <tr key={t.tw} className={off ? 'glossary-off' : ''}>
+                          <td className="cjk">{t.tw}</td>
+                          <td className="cjk">
+                            {override && override.enabled ? override.hk : t.hk}
+                          </td>
+                          <td className="sub">{t.category}</td>
+                          <td className="sub">
+                            {t.note || (t.count ? t.count + ' in corpus' : '')}
+                          </td>
+                          <td className="num">
+                            <button
+                              className="options-btn options-btn-quiet"
+                              disabled={glossaryBusy}
+                              onClick={() => (off ? removeOverride(t.tw) : addOverride(t.tw, '', false))}
+                            >
+                              {off ? 'Re-enable' : 'Disable'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'integrations' && (
         <div className="options-tab-panel">
           {/* FlareSolverr */}

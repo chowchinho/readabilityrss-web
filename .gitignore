@@ -68,3 +68,4 @@ backend/tests/fixtures/benchmark_pages/
 
 # Review analysis files and scrapbooks
 analysis/
+backend/scripts/translation_eval_data/qwen_eval_parsed_cache.json

@@ -225,8 +225,11 @@ async def test_parse_article_persists_translation_before_image_cache(monkeypatch
     monkeypatch.setattr(scheduler.db, "get_system_settings", AsyncMock(return_value={"target_language": "zh-TW"}))
 
     from app.services import translation
-    monkeypatch.setattr(translation, "translate_text_async", AsyncMock(return_value=("翻譯標題", "deepl")))
-    monkeypatch.setattr(translation, "translate_html_async", AsyncMock(return_value=("<p>翻譯內容</p>", "deepl")))
+    monkeypatch.setattr(
+        translation,
+        "translate_article_qwen_async",
+        AsyncMock(return_value=("翻譯標題", "<p>翻譯內容</p>", "Qwen-MT-flash", {})),
+    )
 
     update_translation = AsyncMock()
     monkeypatch.setattr(scheduler.db, "update_article_translation", update_translation)

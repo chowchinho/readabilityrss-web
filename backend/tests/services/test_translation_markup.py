@@ -70,9 +70,10 @@ def test_no_image_is_lost_or_duplicated_by_translation(monkeypatch):
 
     def fake_batch(blocks, target_language):
         sent_to_translator.extend(blocks)
-        return [f"[zh]{BeautifulSoup(b, 'html.parser').get_text()}" for b in blocks]
+        yield (list(range(len(blocks))),
+               [f"[zh]{BeautifulSoup(b, 'html.parser').get_text()}" for b in blocks])
 
-    monkeypatch.setattr(tr, "_translate_blocks_google", fake_batch)
+    monkeypatch.setattr(tr, "_translate_blocks_qwen_iter", fake_batch)
 
     html = (
         '<div><p>導入文<img src="https://x.com/in-paragraph.jpg"></p>'
@@ -82,10 +83,10 @@ def test_no_image_is_lost_or_duplicated_by_translation(monkeypatch):
     )
     original_srcs = sorted(i["src"] for i in BeautifulSoup(html, "html.parser").find_all("img"))
 
-    out, provider = tr.translate_html(html, "zh-TW", translator="google")
+    out, provider = tr.translate_html(html, "zh-TW", translator="qwen")
     out_srcs = sorted(i["src"] for i in BeautifulSoup(out, "html.parser").find_all("img"))
 
-    assert provider == "Google Translate"
+    assert provider == tr.QWEN_PROVIDER_LABEL
     assert out_srcs == original_srcs, "images must survive exactly once, unchanged"
     # The translator never saw an image URL.
     assert not any("x.com" in block or "<img" in block for block in sent_to_translator)
@@ -95,10 +96,10 @@ def test_no_image_is_lost_or_duplicated_by_translation(monkeypatch):
 def test_images_remain_cacheable_after_translation(monkeypatch):
     """Remote URLs must still be present for cache_article_images to rewrite."""
     monkeypatch.setattr(
-        tr, "_translate_blocks_google", lambda blocks, target_language: ["譯文"] * len(blocks)
+        tr, "_translate_blocks_qwen", lambda blocks, target_language: ["譯文"] * len(blocks)
     )
     html = '<div><p>文<img src="https://cdn.example.com/a.jpg"></p></div>'
-    out, _ = tr.translate_html(html, "zh-TW", translator="google")
+    out, _ = tr.translate_html(html, "zh-TW", translator="qwen")
     img = BeautifulSoup(out, "html.parser").find("img")
     assert img is not None
     assert img["src"] == "https://cdn.example.com/a.jpg"

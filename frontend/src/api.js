@@ -202,6 +202,49 @@ export async function getTranslationUsage(days = 7) {
   return response.json();
 }
 
+export async function getTranslationUsageSummary(days = 30) {
+  const response = await authFetch(`${API_URL}/translation/usage/summary?days=${days}`);
+  if (!response.ok) throw new Error('Failed to fetch translation usage summary');
+  return response.json();
+}
+
+export async function getGlossary() {
+  const response = await authFetch(`${API_URL}/translation/glossary`);
+  if (!response.ok) throw new Error('Failed to fetch glossary');
+  return response.json();
+}
+
+export async function saveGlossaryOverride(rule) {
+  const response = await authFetch(`${API_URL}/translation/glossary`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rule),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.detail || 'Failed to save glossary override');
+  }
+  return response.json();
+}
+
+export async function deleteGlossaryOverride(tw) {
+  const response = await authFetch(`${API_URL}/translation/glossary/${encodeURIComponent(tw)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete glossary override');
+  return response.json();
+}
+
+export async function previewGlossary(text) {
+  const response = await authFetch(`${API_URL}/translation/glossary/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) throw new Error('Failed to preview glossary');
+  return response.json();
+}
+
 export async function createFeedSource(data) {
   const response = await authFetch(`${API_URL}/feed-sources`, {
     method: 'POST',

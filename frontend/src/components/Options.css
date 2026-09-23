@@ -1,5 +1,14 @@
 .options-container {
-  max-width: 600px;
+  max-width: 1120px;
+}
+
+/* Settings forms stay a comfortable reading width; the data tabs use the room. */
+.options-tab-panel {
+  max-width: 680px;
+}
+
+.options-tab-panel--wide {
+  max-width: none;
 }
 
 .options-container h2 {
@@ -360,10 +369,10 @@
 /* ── Tab Navigation ── */
 .options-nav-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   border-bottom: 2px solid var(--border);
   margin-bottom: 24px;
-  overflow-x: auto;
   padding-bottom: 2px;
 }
 
@@ -445,3 +454,205 @@
 .label-weights tr.is-unseen td:last-child { color: #b23a3a; font-weight: 600; }
 .label-weights-axis h4 { margin: 14px 0 4px; }
 
+
+/* API usage + HK glossary tabs */
+.options-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.usage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.usage-card {
+  border: 1px solid var(--border, #e0d4c3);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--card-bg, #fffaf3);
+}
+
+.usage-card-name {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent, #c97d2e);
+}
+
+.usage-card-cost {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 6px;
+}
+
+.usage-card-meta {
+  font-size: 12px;
+  color: #8a7868;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A wide table scrolls inside its own section, never the page. */
+.usage-section { margin-bottom: 26px; overflow-x: auto; }
+
+.usage-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.usage-bar-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-bar-day { color: #8a7868; }
+
+.usage-bar-track {
+  height: 10px;
+  background: rgba(138, 120, 104, 0.15);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.usage-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent, #c97d2e);
+  border-radius: 5px;
+}
+
+.usage-bar-value { text-align: right; color: #8a7868; }
+
+.usage-table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  margin-top: 8px;
+}
+
+.usage-table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a7868;
+  font-weight: 600;
+  padding: 0 10px 6px 0;
+  border-bottom: 1px solid var(--border, #e0d4c3);
+}
+
+.usage-table td {
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid rgba(224, 212, 195, 0.6);
+}
+
+.usage-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.usage-table .sub { color: #8a7868; font-size: 12px; }
+.usage-table .cjk { font-family: 'Noto Sans HK', 'Noto Sans TC', sans-serif; white-space: nowrap; }
+.usage-table tr.glossary-off td { opacity: 0.45; text-decoration: line-through; }
+.usage-table tr.glossary-off td:last-child { opacity: 1; text-decoration: none; }
+
+.glossary-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.glossary-input { width: auto; min-width: 150px; }
+.glossary-arrow { color: #8a7868; }
+
+.glossary-stat {
+  font-size: 12px;
+  color: #8a7868;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.glossary-sample { margin-bottom: 22px; }
+.glossary-textarea { width: 100%; margin: 6px 0 8px; font-family: 'Noto Sans HK', sans-serif; }
+
+.glossary-sample-out {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent, #c97d2e);
+  background: rgba(201, 125, 46, 0.07);
+  font-family: 'Noto Sans HK', 'Noto Sans TC', sans-serif;
+  line-height: 1.7;
+}
+
+.options-btn-quiet {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.usage-total-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border, #e0d4c3);
+  margin-bottom: 18px;
+}
+
+.usage-total-label {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #8a7868;
+}
+
+.usage-total-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-total-split { font-size: 12.5px; color: #8a7868; font-variant-numeric: tabular-nums; }
+
+.usage-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.usage-legend {
+  font-size: 11.5px;
+  color: #8a7868;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.usage-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--accent, #c97d2e);
+  margin-left: 8px;
+}
+
+.usage-swatch--tagging { background: #6b8f9c; }
+
+.usage-bar-track { display: flex; }
+.usage-bar-fill--tagging { background: #6b8f9c; }
