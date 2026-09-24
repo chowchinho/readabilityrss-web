@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import json
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from bs4 import BeautifulSoup
@@ -24,6 +24,7 @@ from ..database import db
 from ..services import ondemand_translation
 from ..services.ranking import score_article, score_article_breakdown
 from ..services.rerank import calibrated_rerank, promote_exploration_slots
+from ..services.translation import CHINESE_LANGUAGES
 from ..services.vote_weights import get_effective_weights, invalidate_weights_cache
 from ..services.article_events import record_article_vote
 from ..services.article_image_cache import (
@@ -37,6 +38,7 @@ from ..services.article_image_cache import (
 from ..services.snippets import build_snippets
 from ..utils.fetch import HEADERS, get_flaresolverr_solution
 from ..utils.fever_key import validate_api_key
+from ..utils.session import session_is_valid
 from ..utils.timeutil import utcnow
 
 router = APIRouter(tags=["reader"])
@@ -444,7 +446,9 @@ async def get_reader_article(id: int):
     }
 
 
-CHINESE_LANGUAGES = {"zh", "zh-tw", "zh-cn", "zh-hk", "zh-hant", "zh-hans"}
+class TranslateArticleRequest(BaseModel):
+    api_key: str | None = None
+    raw: bool = False
 
 
 async def _article_for_translation(id: int) -> dict:
@@ -472,7 +476,7 @@ async def _article_for_translation(id: int) -> dict:
     return article
 
 
-def _ndjson(job, base_url: str):
+def _ndjson(job, base_url: str, raw: bool = False):
     """Render a job's events for one client.
 
     Block markup is rewritten here rather than in the service: the proxy rewrite is a
@@ -483,7 +487,7 @@ def _ndjson(job, base_url: str):
     async def generate():
         async for event in ondemand_translation.subscribe(job):
             out = dict(event)
-            if out.get("type") == "block":
+            if not raw and out.get("type") in ("block", "source"):
                 out["html"] = _rewrite_content_image_sources(
                     out.get("html") or "", width=800, base_url=base_url)
             yield json.dumps(out, ensure_ascii=False) + "\n"
@@ -491,7 +495,31 @@ def _ndjson(job, base_url: str):
 
 
 @router.post("/api/reader/articles/{id}/translate")
-async def translate_reader_article(id: int):
+async def translate_reader_article(
+    id: int,
+    request: Request,
+    body: TranslateArticleRequest | None = None,
+):
+    req_body = body or TranslateArticleRequest()
+
+    if req_body.api_key:
+        if not await validate_api_key(req_body.api_key):
+            token = request.headers.get("authorization", "")
+            if token.startswith("Bearer ") and token[7:].strip():
+                session_valid = await session_is_valid(request, db_instance=db)
+                if session_valid is None:
+                    raise HTTPException(status_code=503, detail="Authentication service unavailable")
+                if not session_valid:
+                    raise HTTPException(status_code=401, detail="Not authenticated")
+            else:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+    else:
+        session_valid = await session_is_valid(request, db_instance=db)
+        if session_valid is None:
+            raise HTTPException(status_code=503, detail="Authentication service unavailable")
+        if not session_valid:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
     article = await _article_for_translation(id)
     settings = await db.get_system_settings()
     job = ondemand_translation.start(
@@ -499,7 +527,7 @@ async def translate_reader_article(id: int):
         settings.get("target_language", "zh-TW"),
         settings.get("default_translator", "qwen"),
     )
-    return _ndjson(job, article.get("url") or "")
+    return _ndjson(job, article.get("url") or "", raw=req_body.raw)
 
 
 @router.get("/api/reader/articles/{id}/translate/stream")

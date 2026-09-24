@@ -59,6 +59,7 @@ from .routes.settings import router as settings_router
 from .routes.translation_usage import router as translation_usage_router
 from .services.scheduler import start_scheduler
 from .spa import SpaStaticFiles
+from .utils.session import session_is_valid
 
 
 async def _snippet_backfill_loop():
@@ -108,6 +109,7 @@ AUTH_EXEMPT_PATTERNS = [
     re.compile(r"^/api/reader/ranking/scores"),
     re.compile(r"^/api/reader/ranking/feedback"),
     re.compile(r"^/api/reader/focal-points$"),
+    re.compile(r"^/api/reader/articles/\d+/translate$"),
     re.compile(r"^/health$"),
     re.compile(r"^/fever/?$"),
     re.compile(r"^/feed/.+/rss$"),
@@ -128,27 +130,11 @@ async def auth_middleware(request: Request, call_next):
     if path.startswith("/api/"):
         exempt = any(p.match(path) for p in AUTH_EXEMPT_PATTERNS)
         if not exempt:
-            # Check if web_auth is set up — if not, skip auth (first-time use)
-            try:
-                auth = await db.get_web_auth()
-            except Exception as e:
-                # Fail closed. Treating a DB error as "not configured yet" skipped
-                # authentication for the request across all of /api/*.
-                logger.error(f"Auth check database error: {e}")
+            is_valid = await session_is_valid(request, db_instance=db)
+            if is_valid is None:
                 return JSONResponse(status_code=503, content={"detail": "Authentication service unavailable"})
-            if auth is not None:
-                token = request.headers.get("authorization", "")
-                if token.startswith("Bearer "):
-                    token = token[7:]
-                else:
-                    token = ""
-                try:
-                    is_valid = await db.validate_session_token(token)
-                except Exception as e:
-                    logger.error(f"Session validation database error: {e}")
-                    return JSONResponse(status_code=503, content={"detail": "Authentication service unavailable"})
-                if not is_valid:
-                    return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+            if not is_valid:
+                return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
 
     return await call_next(request)
 

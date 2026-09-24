@@ -1,8 +1,11 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 from ..database import db
+from ..services import translation_status
 from ..utils import hk_glossary
 
 router = APIRouter(prefix="/api/translation", tags=["translation"])
@@ -26,6 +29,16 @@ async def get_usage_summary(days: int = 30):
     if days not in (7, 14, 30, 90):
         raise HTTPException(status_code=400, detail="days must be 7, 14, 30 or 90")
     return await db.get_translation_usage_summary(days)
+
+
+@router.get("/status")
+async def get_translation_status(hours: int = 12):
+    """Translation throughput, success rate and the live queue over the last `hours`."""
+    if hours not in translation_status.WINDOW_HOURS:
+        raise HTTPException(status_code=400, detail="hours must be 1, 6, 12, 24, 72 or 168")
+    rows = await db.get_translation_status_rows(hours)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return translation_status.build_status(hours=hours, now=now, **rows)
 
 
 class GlossaryOverride(BaseModel):

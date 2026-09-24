@@ -106,3 +106,44 @@ async def test_a_failed_title_does_not_stop_the_body_being_deferred():
 
     assert title == "見出し", "untouched, not damaged"
     assert deferred is True
+
+
+# --- the badge a deferred body ends up with ---------------------------------
+
+
+def test_a_feed_on_the_local_model_records_no_fallback():
+    """Deferring is this provider's normal route, not a failure.
+
+    A feed set to lmt always defers its body, so labelling that "LMT-60-1.7B —
+    unavailable" produced the badge "Translated by LMT-60-1.7B (fell back from
+    LMT-60-1.7B — unavailable)" on every second-tier article.
+    """
+    assert scheduler._deferred_note("", "lmt") == ""
+    assert scheduler._deferred_note(scheduler.T.LMT_PROVIDER_LABEL, "lmt") == ""
+
+
+def test_a_remote_provider_that_failed_is_still_named():
+    note = scheduler._deferred_note(
+        "LMT-60-1.7B (fell back from Google Translate — HTTP 429)", "google")
+    assert note == "Google Translate — HTTP 429"
+
+
+def test_a_remote_provider_with_no_reason_is_still_named():
+    assert scheduler._deferred_note("none", "google") == "Google Translate — unavailable"
+
+
+def test_the_worker_badges_a_deferred_lmt_body_plainly():
+    """End of the chain: an empty note must give a plain badge, not a fallback one."""
+    from unittest.mock import patch
+    from app.services import translation_worker as W
+
+    row = {"id": 1, "title": "見出し", "content": "<p>本文です</p>", "original_title": None,
+           "translation_pending": 1, "translation_note": "", "detected_language": "ja"}
+
+    with patch.object(W.translation, "_translate_blocks_lmt",
+                      side_effect=lambda b, *a, **k: ["譯文"]), \
+         patch.object(W.translation, "_lmt_block", return_value="標題"):
+        result = W.translate_article(row, target_language="zh-TW")
+
+    assert result["provider"] == "LMT-60-1.7B"
+    assert "fell back" not in result["content"]

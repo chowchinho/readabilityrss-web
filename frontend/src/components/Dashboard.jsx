@@ -16,6 +16,7 @@ import AddWebsite from './AddWebsite';
 import qwenIcon from '../assets/qwen-mt.svg';
 import deepseekIcon from '../assets/deepseek.svg';
 import googleIcon from '../assets/google-translate.svg';
+import lmtIcon from '../assets/lmt-local.svg';
 import './Dashboard.css';
 
 function absolutizeArticleHtml(html) {
@@ -269,16 +270,19 @@ function SourceRow({ source, onCheck, onDelete, onEdit, onFlush, onGenerate, onP
           {source.name}
         </a>
         {source.translate_to && (() => {
-          const isDeepseek = source.translator === 'deepseek';
-          const isGoogle = source.translator === 'google';
+          // Qwen is the fallback here because it is the default translator for a
+          // feed that has never chosen one.
           const cost = source.translation_cost_cny;
           const deepseekLabel = (cost != null && cost > 0)
             ? `DeepSeek Translate: ¥${cost.toFixed(2)} (7d)`
             : 'DeepSeek Translate';
-          const label = isDeepseek ? deepseekLabel
-            : isGoogle ? 'Google Translate (free)'
-            : 'Qwen-MT-flash';
-          const icon = isDeepseek ? deepseekIcon : isGoogle ? googleIcon : qwenIcon;
+          const providers = {
+            deepseek: { icon: deepseekIcon, label: deepseekLabel },
+            google: { icon: googleIcon, label: 'Google Translate (free)' },
+            lmt: { icon: lmtIcon, label: 'LMT-60-1.7B (local model, free)' },
+            qwen: { icon: qwenIcon, label: 'Qwen-MT-flash' },
+          };
+          const { icon, label } = providers[source.translator] || providers.qwen;
           return (
             <a
               className="translate-badge-link"

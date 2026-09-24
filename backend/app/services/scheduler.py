@@ -790,10 +790,15 @@ def _deferred_note(title_provider: str, translator: str) -> str:
     reason is lifted straight out of it rather than plumbed separately.
     """
     from ..services import translation as T
+    if translator == "lmt":
+        # Nothing failed. A feed on the local model always defers its body — that is
+        # the route, not a fallback — so there is no provider to name, and the badge
+        # should read plainly "Translated by LMT-60-1.7B".
+        return ""
     match = re.search(r"fell back from (.+?)\)$", title_provider or "")
     if match:
         return match.group(1)
-    label = {"google": T.GOOGLE_PROVIDER_LABEL, "lmt": T.LMT_PROVIDER_LABEL,
+    label = {"google": T.GOOGLE_PROVIDER_LABEL,
              "deepseek": "DeepSeek"}.get(translator, T.QWEN_PROVIDER_LABEL)
     return f"{label} — unavailable"
 

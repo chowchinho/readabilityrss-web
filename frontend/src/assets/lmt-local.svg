@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="#2f6f4f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- A processor: this translator runs on your own hardware rather than an API. -->
+  <rect x="7" y="7" width="10" height="10" rx="1.5"/>
+  <rect x="10.5" y="10.5" width="3" height="3" rx="0.5" fill="#2f6f4f" stroke="none"/>
+  <path d="M10 7V4M14 7V4M10 20v-3M14 20v-3M7 10H4M7 14H4M20 10h-3M20 14h-3"/>
+</svg>

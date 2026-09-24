@@ -105,3 +105,37 @@ def test_untranslatable_article_reports_none_and_streams_nothing():
     assert [e for e in events if e["type"] == "block"] == []
     assert events[-1]["provider"] == "none"
     assert events[-1]["html"] == HTML
+
+
+def test_source_event_emitted_before_blocks_with_data_tb():
+    with patch.object(translation, "_qwen_call", side_effect=_bracket):
+        events = list(translation.translate_html_iter(HTML, "zh-TW", "qwen"))
+
+    source_events = [e for e in events if e["type"] == "source"]
+    assert len(source_events) == 1
+    assert events[0]["type"] == "source"
+
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(source_events[0]["html"], "html.parser")
+    elements_with_tb = soup.find_all(attrs={"data-tb": True})
+    tb_values = [el["data-tb"] for el in elements_with_tb]
+    assert tb_values == ["0", "1", "2"]
+
+    blocks = [e for e in events if e["type"] == "block"]
+    block_indices = [str(e["index"]) for e in blocks]
+    assert block_indices == tb_values
+
+    # Assert the final result html contains no data-tb
+    result_event = events[-1]
+    assert result_event["type"] == "result"
+    assert "data-tb" not in result_event["html"]
+
+
+def test_google_and_deepl_emit_no_source_event():
+    with patch.object(translation, "_translate_blocks_google", return_value=["一", "二", "三"]):
+        google_events = list(translation.translate_html_iter(HTML, "zh-TW", "google"))
+    assert not any(e["type"] == "source" for e in google_events)
+
+    with patch.object(translation, "_translate_deepl", side_effect=lambda text, target: "翻譯"):
+        deepl_events = list(translation.translate_html_iter(HTML, "zh-TW", "deepl"))
+    assert not any(e["type"] == "source" for e in deepl_events)

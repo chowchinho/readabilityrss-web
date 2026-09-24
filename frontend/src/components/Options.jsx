@@ -17,6 +17,8 @@ import {
   deleteGlossaryOverride,
   previewGlossary
 } from '../api';
+import TabIcon from './TabIcon';
+import TranslationStatus from './TranslationStatus';
 import './Options.css';
 
 const ARTICLE_STOPS = [
@@ -527,37 +529,43 @@ function Options({ onLogout }) {
           className={`options-tab-btn ${activeTab === 'feed' ? 'active' : ''}`}
           onClick={() => setActiveTab('feed')}
         >
-          ⚙ Feed &amp; Refresh
+          <TabIcon name="feed" />Feed &amp; Refresh
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'translation' ? 'active' : ''}`}
           onClick={() => setActiveTab('translation')}
         >
-          🌐 Translation &amp; AI
+          <TabIcon name="translation" />Translation
+        </button>
+        <button
+          className={`options-tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ai')}
+        >
+          <TabIcon name="ai" />AI
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'usage' ? 'active' : ''}`}
           onClick={() => setActiveTab('usage')}
         >
-          API Usage
+          <TabIcon name="usage" />API Usage
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'glossary' ? 'active' : ''}`}
           onClick={() => setActiveTab('glossary')}
         >
-          HK Glossary
+          <TabIcon name="glossary" />HK Glossary
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
           onClick={() => setActiveTab('integrations')}
         >
-          🔌 Integrations
+          <TabIcon name="integrations" />Integrations
         </button>
         <button
           className={`options-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
           onClick={() => setActiveTab('security')}
         >
-          🔒 Account &amp; Export
+          <TabIcon name="account" />Account &amp; Export
         </button>
       </div>
 
@@ -683,8 +691,8 @@ function Options({ onLogout }) {
         </div>
       )}
 
-      {/* ── TAB 2: Translation & AI ── */}
-      {activeTab === 'translation' && (
+      {/* ── TAB: AI ── */}
+      {activeTab === 'ai' && (
         <div className="options-tab-panel">
           <div className="options-section">
             {!settingsLoading && (
@@ -723,6 +731,21 @@ function Options({ onLogout }) {
               </div>
             )}
 
+            {!settingsLoading && (
+              <button onClick={handleSettingsSave} className="btn" disabled={settingsSaving}>
+                {settingsSaving ? 'Saving…' : 'Save Settings'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: Translation ── */}
+      {activeTab === 'translation' && (
+        <div className="options-tab-panel options-tab-panel--wide">
+          <TranslationStatus />
+
+          <div className="options-section">
             <div className="options-section-title">Translation &amp; Target Language</div>
 
             {!settingsLoading && (

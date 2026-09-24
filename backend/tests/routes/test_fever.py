@@ -153,7 +153,30 @@ def test_feeds(mock_db):
     assert feed["title"] == "TechBlog"
     assert feed["site_url"] == "https://techblog.com"
     assert feed["is_spark"] == 0
+    assert feed["ondemand_translatable"] == 1
     assert "feeds_groups" in data
+
+
+@patch('app.routes.fever.db')
+def test_fever_feeds_ondemand_translatable(mock_db):
+    mock_db.get_fever_auth = AsyncMock(return_value={"username": TEST_USER, "api_key": TEST_API_KEY})
+    mock_db.get_last_refreshed_on_time = AsyncMock(return_value=0)
+    mock_sources = [
+        {"id": 1, "name": "Chinese Feed", "url": "https://cn.com", "category_id": 1,
+         "detected_language": "zh-tw", "last_fetch_at": None, "updated_at": "2026-03-21 10:00:00"},
+        {"id": 2, "name": "Japanese Feed", "url": "https://jp.com", "category_id": 1,
+         "detected_language": "ja", "last_fetch_at": None, "updated_at": "2026-03-21 10:00:00"},
+        {"id": 3, "name": "Undetected Feed", "url": "https://unknown.com", "category_id": 1,
+         "detected_language": None, "last_fetch_at": None, "updated_at": "2026-03-21 10:00:00"},
+    ]
+    mock_db.get_feed_sources = AsyncMock(return_value=mock_sources)
+
+    resp = _fever_post("?api&feeds")
+    data = resp.json()
+    assert len(data["feeds"]) == 3
+    assert data["feeds"][0]["ondemand_translatable"] == 0
+    assert data["feeds"][1]["ondemand_translatable"] == 1
+    assert data["feeds"][2]["ondemand_translatable"] == 1
 
 
 @patch('app.routes.fever.db')

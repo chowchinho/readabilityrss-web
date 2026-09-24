@@ -4,11 +4,14 @@ import hmac
 import os
 import urllib.parse
 from datetime import datetime
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
 from ..database import db
 from ..services.article_image_cache import is_local_cached_image_url
+from ..services.translation import CHINESE_LANGUAGES
 
 router = APIRouter(tags=["fever"])
 
@@ -160,6 +163,8 @@ async def fever_api(request: Request):
         feeds = []
         for s in sources:
             favicon_proxy = f"{base_url}/api/reader/favicon/{s['id']}"
+            lang = (s.get("detected_language") or "").strip().lower()
+            ondemand_translatable = 0 if lang in CHINESE_LANGUAGES else 1
             feeds.append({
                 "id": s["id"],
                 "favicon_id": 0,
@@ -170,6 +175,7 @@ async def fever_api(request: Request):
                 "favicon_proxy": favicon_proxy,
                 "is_spark": 0,
                 "last_updated_on_time": _to_unix_ts(s.get("last_fetch_at") or s.get("updated_at")),
+                "ondemand_translatable": ondemand_translatable,
             })
         response["feeds"] = feeds
         response["feeds_groups"] = _build_feeds_groups(sources)

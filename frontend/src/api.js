@@ -208,6 +208,12 @@ export async function getTranslationUsageSummary(days = 30) {
   return response.json();
 }
 
+export async function getTranslationStatus(hours = 12) {
+  const response = await authFetch(`${API_URL}/translation/status?hours=${hours}`);
+  if (!response.ok) throw new Error('Failed to fetch translation status');
+  return response.json();
+}
+
 export async function getGlossary() {
   const response = await authFetch(`${API_URL}/translation/glossary`);
   if (!response.ok) throw new Error('Failed to fetch glossary');

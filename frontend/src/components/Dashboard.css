@@ -207,6 +207,12 @@
   opacity: 0.7;
 }
 
+/* The local-model glyph is drawn as a stroked outline, so grayscale leaves it faint. */
+.translate-badge.translate-badge--lmt {
+  filter: none;
+  opacity: 0.85;
+}
+
 .translate-badge.translate-badge--deepseek {
   width: 18px;
   height: 14px;

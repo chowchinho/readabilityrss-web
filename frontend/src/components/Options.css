@@ -656,3 +656,13 @@
 
 .usage-bar-track { display: flex; }
 .usage-bar-fill--tagging { background: #6b8f9c; }
+
+.tstatus-bar-row { grid-template-columns: 72px minmax(0, 1fr) 112px; }
+.tstatus-bar-stack { display: flex; flex-direction: column; gap: 2px; }
+.tstatus-arrived-track { height: 3px; display: block; }
+.tstatus-arrived-fill { display: block; height: 100%; background: #8a7868; opacity: 0.55; border-radius: 2px; }
+.tstatus-arrived-swatch { background: #8a7868; opacity: 0.55; }
+.tstatus-note { font-weight: 400; color: #8a7868; font-size: 12px; }
+
+.options-tab-btn { display: inline-flex; align-items: center; gap: 6px; }
+.options-tab-icon { width: 15px; height: 15px; flex: 0 0 auto; }

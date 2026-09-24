@@ -489,6 +489,53 @@ class Database:
         by_source = [dict(r) for r in await cursor.fetchall()]
         return {"days": days, "totals": totals, "daily": daily, "by_source": by_source}
 
+    async def get_translation_status_rows(self, hours: int):
+        """Raw rows for services.translation_status.build_status."""
+        db = await self._get_db()
+        window = (f'-{int(hours)} hours',)
+        # The badge and error banner are prepended, so only the head of the body is read.
+        badge = ('''CASE WHEN instr(substr(a.content, 1, 600), 'Translated by ') > 0
+                    THEN substr(a.content, instr(a.content, 'Translated by ') + 14, 120)
+                 END''')
+        cursor = await db.execute(
+            f'''SELECT a.created_at, a.updated_at, {badge} AS badge
+                FROM feed_articles a
+                WHERE a.updated_at >= datetime('now', ?)
+                  AND instr(substr(a.content, 1, 600), 'Translated by ') > 0''', window)
+        translated = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute(
+            f'''SELECT a.created_at, {badge} AS badge,
+                       instr(substr(COALESCE(a.content, ''), 1, 600), '(Translation Error)') > 0
+                         OR instr(COALESCE(a.title, ''), 'Translation Error') > 0 AS has_error,
+                       a.translation_pending = 1 AS pending
+                FROM feed_articles a
+                JOIN feed_sources s ON s.id = a.source_id
+                WHERE a.created_at >= datetime('now', ?)
+                  AND s.translate_to IS NOT NULL AND s.translate_to != ''
+                  AND a.parse_status = 'success' ''', window)
+        arrivals = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute(
+            '''SELECT s.name AS source, s.translator AS translator,
+                      COUNT(*) AS count, MIN(a.created_at) AS oldest
+               FROM feed_articles a
+               LEFT JOIN feed_sources s ON s.id = a.source_id
+               WHERE a.translation_pending = 1
+               GROUP BY a.source_id ORDER BY oldest''')
+        queue = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute(
+            '''SELECT COALESCE(provider, 'deepseek') AS provider,
+                      COALESCE(SUM(cost_cny), 0) AS cost_cny
+               FROM translation_usage
+               WHERE created_at >= datetime('now', ?)
+                 AND COALESCE(kind, 'translation') IN ('translation', 'ondemand')
+               GROUP BY 1''', window)
+        costs = [dict(r) for r in await cursor.fetchall()]
+        return {"translated": translated, "arrivals": arrivals,
+                "queue": queue, "costs": costs}
+
     async def get_glossary_overrides(self):
         db = await self._get_db()
         cursor = await db.execute(

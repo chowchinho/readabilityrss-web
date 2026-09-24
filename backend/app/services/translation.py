@@ -183,6 +183,8 @@ QWEN_LANG_MAP = {
     "hi": "Hindi",
 }
 
+CHINESE_LANGUAGES = {"zh", "zh-tw", "zh-cn", "zh-hk", "zh-hant", "zh-hans"}
+
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"
@@ -1049,6 +1051,14 @@ def translate_html_iter(html: str, target_language: str = "zh-TW", translator: s
         else:
             yield {"type": "result", "html": html, "provider": "none", "total": len(top_elements)}
         return
+
+    for i, el in enumerate(top_elements):
+        el["data-tb"] = str(i)
+    source_html = str(soup)
+    for el in top_elements:
+        del el["data-tb"]
+
+    yield {"type": "source", "html": source_html}
 
     originals = [_strip_media_for_translation(el.decode_contents()) for el in top_elements]
     applied = 0
