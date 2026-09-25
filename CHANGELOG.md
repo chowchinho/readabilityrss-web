@@ -82,3 +82,129 @@ Initial public release.
   or move it off port 8001.
 - Ranking starts neutral: every topic, region and type weight starts at zero and
   learns from your votes.
+- First-run account setup in the reader.
+- The data directory, CORS origins and allowed hosts are configurable.
+- Runtime and test dependencies are split, which keeps the Docker image lean.
+- Fixed database worker threads that outlived their connections and stopped the
+  process from exiting.
+
+---
+
+# Before the public release
+
+The project was developed privately from March 2026. These entries summarise that
+history by month. They have no matching commits in this repository, which starts
+at the 2026-09-03 release.
+
+## 2026-08
+
+### Added
+- **Sources Index**, a magazine-style landing view for the reader, with category
+  pills that follow your custom category order.
+- **Personalised feed ranking.** An LLM tags each article by topic, region and
+  type, and the reader records opens, hover dwell and impressions. A feed-order
+  setting chooses between personalised, latest and random.
+- **Vote-driven ranking.** Thumbs up and down on every card layout. Weights decay
+  over time and saturate, and a re-ranker keeps topic and type diversity. An info
+  popover shows the full score arithmetic, and a dashboard table shows what
+  voting has changed. Exposure decay and exploration slots keep labels you rarely
+  see from disappearing.
+- An **AI master switch** that turns off tagging, ranking and the feedback
+  controls together.
+- A ranking API for the Android app.
+- **Smart cropping** for card thumbnails. Focal points come from face and object
+  detection and are computed on the server, then served in bulk.
+- An **autoplay image slideshow** on article cards. It runs only while a card is
+  on screen.
+- **Single-origin serving.** One process serves the reader at `/`, the dashboard
+  at `/manage/` and the API, and both apps share one sign-in.
+- A global system settings page in the dashboard, with storage indicators.
+- Card preview snippets are stored with each article instead of being rebuilt on
+  every page load.
+- A subtle mark on cards you have voted on.
+
+### Changed
+- Article typography redesigned for bilingual (original plus translation)
+  reading.
+- SVG images are dropped as site chrome, and images are no longer sent through
+  the translator.
+- The service worker is scoped to reader paths and is not cached by CDNs.
+
+### Fixed
+- Deleting a feed no longer leaves unreachable articles behind.
+- Category views on the index no longer come up empty. They paginate per
+  category.
+- The reader no longer bypasses the image cache through `srcset` and `<picture>`.
+- Tagging no longer freezes the server during a backfill, or runs before the
+  article body is parsed.
+- Keyboard navigation no longer counts every article stepped past as read.
+- Votes survive refreshes, offline use and navigating back.
+
+## 2026-07
+
+### Fixed
+- Google Translate requests are batched, so refreshing a feed no longer times out.
+
+## 2026-05
+
+### Added
+- Per-feed translation with DeepSeek or Google, with a provider badge on each
+  feed and translation cost logging (a 7-day cost badge per feed).
+- A **negative keywords** filter that drops articles by title.
+- Category reordering in the reader.
+- A reader setting that hides feeds with no unread articles.
+- A per-feed option to use the parsing date as the publish date.
+- The dashboard shows each feed's latest article date as a relative badge (Today,
+  Yesterday, nD ago).
+- Expiring signed image URLs are re-cached automatically on later refreshes.
+
+### Changed
+- Retry backoff after a refresh timeout is gentler and shows a countdown.
+
+### Fixed
+- Translation rate limiting, with a clear error state when a provider fails.
+- `srcset` values with a leading comma, which broke inline images on some sites.
+- Pages whose HTTP header omits the charset now honour the HTML meta charset.
+- Feed favicons resolve through the site's real URL.
+- Articles are ordered by publish date rather than insert order.
+
+## 2026-04
+
+### Added
+- Fever API image and favicon extensions.
+
+### Changed
+- Offline caching defaults to off and is labelled Experimental.
+
+### Fixed
+- The scheduler could stop silently, or stall on image URLs.
+- Images wrapped in `<figure>` or links now display at full width without
+  distortion. Inline `sizes` attributes and styles are stripped from parsed
+  content.
+- Pages blocked by an anti-bot challenge fail instead of being stored as the
+  article.
+- Feed retry backoff.
+
+## 2026-03
+
+The first month: the parser, then the feed system, then the reader.
+
+### Added
+- **Parser tuning tool.** Paste a URL to see Readability's extraction as RSS
+  fields beside the original page, with lazy-loaded images converted to standard
+  `<img>` tags.
+- **CSS selector overrides** per field, with a DevTools-style element picker that
+  produces site-wide selectors rather than article-specific ones.
+- **Publish-date detection** from page metadata and content, including natural-
+  language dates in English, Chinese and Japanese, with a freshness sanity check.
+- **Image recovery** for images Readability drops, with a boilerplate filter that
+  keeps navigation and ad images out. It falls back to the `<article>` element
+  when Readability extracts too little.
+- **Feed management dashboard** with link discovery and full-text RSS output.
+- **Reader app**: an installable PWA with offline caching in IndexedDB, local
+  image caching, URL routing with readable slugs, mobile swipe and back-button
+  navigation, and a settings pane.
+
+### Fixed
+- Many early reader fixes: offline cold start, stale unread counts, and mobile
+  back navigation after a fresh sign-in.
