@@ -9,25 +9,12 @@ import { IMAGES_CACHE, FAVICONS_CACHE } from '../constants/caches';
 import { makeSlug } from '../utils/slug';
 import FeedbackButtons from './FeedbackButtons';
 import ScoreBreakdown, { useScoreBreakdown } from './ScoreBreakdown';
+import { findTopLevelBlocks } from '../utils/readDepth';
+import { useReadCompletion } from '../hooks/useReadCompletion';
 
 // >5s is the threshold the dwell-time literature uses to separate an effective click
 // from noise; below it, a click says more about navigation than about interest.
 const EFFECTIVE_READ_MS = 5000;
-
-const BLOCK_TAG_NAMES = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'LI', 'FIGCAPTION']);
-
-function findTopLevelBlocks(root) {
-  const allElements = Array.from(root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, li, figcaption'));
-  return allElements.filter(el => {
-    if (!el.textContent.trim()) return false;
-    let parent = el.parentElement;
-    while (parent && parent !== root) {
-      if (BLOCK_TAG_NAMES.has(parent.tagName)) return false;
-      parent = parent.parentElement;
-    }
-    return Boolean(el.innerHTML.trim());
-  });
-}
 
 function applyBlockSubstitutions(originalHtml, blockMap) {
   if (!originalHtml || Object.keys(blockMap).length === 0) return originalHtml;
@@ -47,6 +34,7 @@ function applyBlockSubstitutions(originalHtml, blockMap) {
 
 export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onRetry, isDesktop, articles, toastMsg, onToastDismiss, isOffline, onVoted }) {
   const containerRef = useRef(null);
+  const contentRef = useRef(null);
   const navigate = useNavigate();
   const typedElement = useRef(null);
   const typedInstance = useRef(null);
@@ -140,6 +128,13 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
       report('skip');
     };
   }, [effectiveArticle?.id]);
+
+  useReadCompletion({
+    article: effectiveArticle,
+    scrollRef: containerRef,
+    contentRef,
+    contentKey: renderedContent,
+  });
 
   useSwipe({
     onSwipeLeft,
@@ -571,6 +566,7 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
         </div>
 
         <div
+          ref={contentRef}
           className="article-content"
           dangerouslySetInnerHTML={{ __html: renderedContent }}
         />

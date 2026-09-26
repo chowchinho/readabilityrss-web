@@ -3,6 +3,8 @@ feed and label diversity."""
 import math
 from typing import Any
 
+from .ranking import REGION_FACTOR
+
 DEFAULT_FLOOR = 0.02
 
 
@@ -74,7 +76,7 @@ def calibrated_rerank(candidates: list[dict[str, Any]], lambda_: float = 0.3,
                       label_weights: dict | None = None,
                       floor: float = DEFAULT_FLOOR) -> list[dict[str, Any]]:
     """Re-rank to balance score against distribution alignment over feed source,
-    primary topic and article type. Returns a permutation of candidates."""
+    primary topic, region and article type. Returns a permutation of candidates."""
     if not candidates or len(candidates) <= 1:
         return list(candidates)
 
@@ -97,6 +99,15 @@ def calibrated_rerank(candidates: list[dict[str, Any]], lambda_: float = 0.3,
             "topic",
             [(c.get("topics") or {}).get("primary") or "unknown" for c in candidates],
             label_weights.get("topic"),
+        ))
+        # Targets use the region weight as scored, not raw: unscaled, exp(5.5) against
+        # exp(0.1) hands the most-shown regions ~99% of the target and this dimension would
+        # entrench the region skew instead of correcting it.
+        dimensions.append((
+            "region",
+            [(c.get("topics") or {}).get("region") or "unknown" for c in candidates],
+            {label: {"effective": REGION_FACTOR * float(entry.get("effective", 0.0))}
+             for label, entry in (label_weights.get("region") or {}).items()},
         ))
         dimensions.append((
             "type",

@@ -86,3 +86,21 @@ def test_impression_counts_accept_a_since_filter(vote_db):
     assert asyncio.run(vote_db.get_tag_impression_counts())["Travel"] == 2
     recent = asyncio.run(vote_db.get_tag_impression_counts(since="2025-01-01 00:00:00"))
     assert recent["Travel"] == 1
+
+
+def test_read_completions_carry_article_id_and_labels(vote_db):
+    asyncio.run(vote_db.insert_events([
+        {"article_id": 7, "event_type": "read_complete", "dwell_seconds": 40,
+         "primary_topic": "Travel", "region": "Taiwan", "article_type": "Feature"},
+        {"article_id": 8, "event_type": "open", "primary_topic": "Travel"},
+    ]))
+    rows = asyncio.run(vote_db.get_read_completions())
+    assert [(r["article_id"], r["primary_topic"], r["region"]) for r in rows] == \
+        [(7, "Travel", "Taiwan")]
+
+
+def test_read_complete_is_not_a_behavioural_signal(vote_db):
+    asyncio.run(vote_db.insert_events([
+        {"article_id": 7, "event_type": "read_complete", "primary_topic": "Travel"},
+    ]))
+    assert asyncio.run(vote_db.get_behavioural_signals()) == []

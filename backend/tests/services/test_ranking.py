@@ -233,3 +233,30 @@ def test_zero_weight_primary_topic_allows_secondary_vote_scoring(monkeypatch):
     sub_hf = next(t for t in bd_hf["terms"] if t["kind"] == "secondary_subtotal")
     assert sub_hf["contribution"] == pytest.approx(0.6)
     assert sub_hf["clamped"] is False
+
+
+def test_region_is_scaled_as_a_modifier():
+    from app.services.ranking import REGION_FACTOR
+    weights = {"region": {"Japan": {"declared": 2.0, "votes": 300, "prior": 0.0,
+                                    "behavioural": 1.0, "effective": 5.5}}}
+    bd = score_article_breakdown({"primary": "Travel", "region": "Japan", "type": "News"},
+                                 0.5, weights=weights)
+    row = next(t for t in bd["terms"] if t.get("axis") == "region")
+    assert row["multiplier"] == REGION_FACTOR
+    assert row["contribution"] == pytest.approx(5.5 * REGION_FACTOR)
+    assert sum(t["contribution"] for t in bd["terms"]) == pytest.approx(bd["total"])
+
+
+def test_a_loved_topic_from_a_weak_region_beats_a_weak_topic_from_a_strong_one():
+    """The live failure this guards: region used to swing as far as topic, so a
+    much-liked topic from Hong Kong ranked below a lukewarm one from Japan."""
+    w = lambda e: {"declared": 0.0, "votes": 0, "prior": 0.0, "behavioural": 0.0,
+                   "effective": e}
+    weights = {"topic": {"Anime & Manga": w(5.5), "Food & Dining": w(1.9)},
+               "region": {"Japan": w(5.5), "Hong Kong": w(2.0)},
+               "type": {"News": w(5.5)}}
+    loved_hk, _ = score_article({"primary": "Anime & Manga", "region": "Hong Kong",
+                                 "type": "News"}, 0.5, weights=weights)
+    meh_jp, _ = score_article({"primary": "Food & Dining", "region": "Japan",
+                               "type": "News"}, 0.5, weights=weights)
+    assert loved_hk > meh_jp

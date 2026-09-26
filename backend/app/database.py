@@ -1508,6 +1508,18 @@ class Database:
         cursor = await db.execute(query, params)
         return [dict(r) for r in await cursor.fetchall()]
 
+    async def get_read_completions(self) -> list[dict]:
+        """read_complete events. Deduplication per article and precedence over votes are
+        applied in compute_label_weights, not here."""
+        db = await self._get_db()
+        cursor = await db.execute("""
+            SELECT article_id, created_at, primary_topic, secondary_topics, region,
+                   article_type
+            FROM user_article_events
+            WHERE event_type = 'read_complete'
+        """)
+        return [dict(r) for r in await cursor.fetchall()]
+
     async def get_secondary_cooccurrence(self) -> dict[str, dict[str, int]]:
         """Canonical secondary label -> {primary_topic: article count}.
 

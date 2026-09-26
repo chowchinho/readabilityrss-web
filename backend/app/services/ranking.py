@@ -42,6 +42,10 @@ TYPE_WEIGHTS = {
 SECONDARY_WEIGHTS = {}  # sparse opt-in; anything absent scores 0
 
 SECONDARY_FACTOR = 0.3
+# Region is a modifier, not a peer of topic. Every vote lands on one of a handful of
+# regions, so the most-shown region saturates first and would otherwise outrank
+# better-liked topics from elsewhere.
+REGION_FACTOR = 0.3
 # Floor for the secondary clamp below. Without it, a primary topic whose effective
 # weight is exactly 0 - the pre-vote state of `unknown`, the default for every
 # untagged article - zeroes out all secondary vote signal for that article.
@@ -141,12 +145,13 @@ def score_article_breakdown(tags: dict | None, feed_age_percentile: float,
     for axis, label in (("topic", primary), ("type", art_type), ("region", region)):
         entry = _axis_entry(axis, label, weights)
         axis_values[axis] = entry["effective"]
+        multiplier = REGION_FACTOR if axis == "region" else 1.0
         terms.append({
-            "kind": "axis", "axis": axis, "multiplier": 1.0, "label": label,
+            "kind": "axis", "axis": axis, "multiplier": multiplier, "label": label,
             "declared": entry["declared"], "votes": entry["votes"],
             "prior": entry["prior"],
             "behavioural": entry["behavioural"],
-            "contribution": entry["effective"],
+            "contribution": multiplier * entry["effective"],
         })
 
     raw_sec_sum = 0.0

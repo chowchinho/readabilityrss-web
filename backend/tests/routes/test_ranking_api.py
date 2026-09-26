@@ -234,7 +234,12 @@ def test_reconciliation_extras_plus_weights_equals_score(test_db, client):
             weight_map[axis][key] = r["effective"]
 
     from app.services.labels import canonical_label
-    from app.services.ranking import DECLARED_WEIGHTS, SECONDARY_FACTOR
+    from app.services.ranking import DECLARED_WEIGHTS, REGION_FACTOR, SECONDARY_FACTOR
+
+    # A client rebuilds the breakdown from this payload, so the multipliers must travel with it.
+    assert data["factors"] == {"region": REGION_FACTOR, "secondary": SECONDARY_FACTOR}
+    region_factor = data["factors"]["region"]
+    secondary_factor = data["factors"]["secondary"]
 
     for art_id, score in scores_dict.items():
         tag = tags_by_id[art_id]
@@ -248,7 +253,7 @@ def test_reconciliation_extras_plus_weights_equals_score(test_db, client):
         for sec in tag["secondary"]:
             csec = canonical_label(sec)
             raw_sec += weight_map["secondary"].get(csec, float(DECLARED_WEIGHTS["secondary"].get(csec, 0)))
-        sec_subtotal = SECONDARY_FACTOR * raw_sec
+        sec_subtotal = secondary_factor * raw_sec
         max_sec = abs(topic_eff)
         if sec_subtotal > max_sec:
             sec_subtotal = max_sec
@@ -260,7 +265,7 @@ def test_reconciliation_extras_plus_weights_equals_score(test_db, client):
         exposure = ext.get("exposure", 0.0)
         vote_penalty = -4.0 if tag["vote"] == "show_less" else 0.0
 
-        calc_score = round(topic_eff + type_eff + region_eff + sec_subtotal + pairs_sum + freshness + exposure + vote_penalty, 2)
+        calc_score = round(topic_eff + type_eff + region_factor * region_eff + sec_subtotal + pairs_sum + freshness + exposure + vote_penalty, 2)
         assert abs(calc_score - score) <= 0.02
 
 

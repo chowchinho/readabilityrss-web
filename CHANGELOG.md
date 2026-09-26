@@ -3,6 +3,28 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-09-26
+
+### Added
+- **Read-to-the-end signal.** The reader sends a `read_complete` event once per
+  article when you have reached the paragraph at 80% of the text and spent at least
+  half the estimated reading time on it (15 to 90 seconds, counted only while the
+  tab is visible). Position is measured on the text rather than on scroll pixels,
+  so a lead image or a gallery at the end does not skew it, and a translated article
+  that shows the original text counts only the translation toward reading time.
+  The ranking treats it as half an upvote (`signal_read_complete`, default 0.5). An
+  article you voted on ignores it, so reading to the end and upvoting counts once.
+- `GET /api/reader/ranking/scores` returns the axis multipliers under `factors`, so
+  a client that rebuilds the score breakdown can make its rows add up.
+
+### Changed
+- **Region is now a modifier rather than a peer of topic.** Its weight is
+  multiplied by 0.3 (`REGION_FACTOR`). Every vote lands on one of only a handful of
+  regions, so the most-shown region used to saturate first and push well-liked
+  topics from other regions far down the page.
+- The smart-sort re-ranker balances region alongside feed, topic and type, using
+  the scaled region weights.
+
 ## 2026-09-25
 
 ### Added

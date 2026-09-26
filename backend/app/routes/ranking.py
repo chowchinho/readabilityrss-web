@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ..database import db
 from ..services.labels import canonical_label
-from ..services.ranking import score_article_breakdown
+from ..services.ranking import REGION_FACTOR, SECONDARY_FACTOR, score_article_breakdown
 from ..services.vote_weights import (
     _parse_ts,
     get_effective_weights,
@@ -219,6 +219,9 @@ async def get_ranking_scores(
         "extras": extras,
         "tags": tags,
         "weights": weights_out,
+        # The app rebuilds the breakdown from raw weights, so it needs the axis multipliers
+        # to make its rows add up to the score.
+        "factors": {"region": REGION_FACTOR, "secondary": SECONDARY_FACTOR},
         "ai_enabled": True,
         "generated_at": now_iso,
     }

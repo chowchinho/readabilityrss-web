@@ -251,3 +251,27 @@ def test_exploration_slots_fall_back_to_score_when_feeds_exhausted():
     out = promote_exploration_slots(candidates, every=10, exposure=exposure)
     assert set(c["id"] for c in out) == set(c["id"] for c in candidates)
     assert out[9]["source_id"] == 1
+
+
+def test_a_dominant_region_cannot_own_the_page():
+    # 40 top-scoring Japan articles and 10 from Hong Kong one region-gap lower, on the
+    # same topic and type from distinct feeds - only region separates them. The low
+    # fillers give the page a realistic score range; without them the two groups
+    # normalise to 1.0 and 0.0 and the gap is the whole range.
+    def _r(cid, region, score, topic="Anime & Manga"):
+        return {"id": cid, "source_id": cid, "score": score,
+                "topics": {"primary": topic, "type": "News", "region": region}}
+    candidates = [_r(i, "Japan", 19.0) for i in range(40)]
+    candidates += [_r(100 + i, "Hong Kong", 18.0) for i in range(10)]
+    candidates += [_r(200 + i, "Japan", 8.0, topic="Politics") for i in range(10)]
+    weights = {"topic": {"Anime & Manga": {"effective": 5.5},
+                         "Politics": {"effective": -0.6}},
+               "type": {"News": {"effective": 5.5}},
+               "region": {"Japan": {"effective": 5.5}, "Hong Kong": {"effective": 2.0}}}
+
+    out = calibrated_rerank(candidates, lambda_=0.3, label_weights=weights, floor=0.02)
+
+    top_20_regions = [c["topics"]["region"] for c in out[:20]]
+    assert "Hong Kong" in top_20_regions
+    assert top_20_regions.count("Japan") > top_20_regions.count("Hong Kong"), \
+        "region balancing should temper the preference, not invert it"

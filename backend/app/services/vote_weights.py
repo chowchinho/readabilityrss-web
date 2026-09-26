@@ -29,6 +29,10 @@ VOTE_DEFAULTS = {
     "signal_skip": -0.4,
     "signal_skip_min_dwell": 1,
     "signal_read_no_vote": -0.1,
+    # Fraction of a show_more vote, tallied in the explicit channel. The behavioural
+    # channel is capped at 1.0 per label and the main labels already sit at that cap, so
+    # a strong signal there would move nothing.
+    "signal_read_complete": 0.5,
     "rerank_target_floor": 0.02,
     # A secondary label with no votes of its own inherits a fraction of the taste
     # already expressed for the primary topics it usually appears alongside. See
@@ -203,12 +207,17 @@ def _secondary_priors(cooccurrence: dict | None, topic_weights: dict,
 def compute_label_weights(votes: list[dict], signals: list[dict],
                           declared: dict, settings: dict,
                           now: datetime,
-                          cooccurrence: dict | None = None) -> dict:
+                          cooccurrence: dict | None = None,
+                          completions: list[dict] | None = None) -> dict:
     """Per-label declared weight, vote count, both channel adjustments, and effective.
 
     cooccurrence maps a canonical secondary label to {primary_topic: article_count} over
     the archive; it is what lets a label with no votes inherit a prior. Omitting it
     reproduces the previous behaviour exactly.
+
+    completions are read_complete events. Each counts once per article as a fraction of a
+    vote, and not at all on an article that has a vote: the strongest signal per article
+    wins, so reading to the end and upvoting is worth one vote, not one and a half.
     """
     s = resolve_settings(settings)
     half_life = s["vote_half_life_days"]
@@ -224,6 +233,18 @@ def compute_label_weights(votes: list[dict], signals: list[dict],
             for label in labels:
                 explicit_tally[axis][label] = explicit_tally[axis].get(label, 0.0) + weight
                 explicit_count[axis][label] = explicit_count[axis].get(label, 0) + 1
+
+    counted = {row.get("article_id") for row in votes}
+    for row in sorted(completions or [], key=lambda r: str(r.get("created_at") or "")):
+        aid = row.get("article_id")
+        if aid is None or aid in counted:
+            continue
+        counted.add(aid)
+        weight = s["signal_read_complete"] * decay_factor(
+            _age_days(row.get("created_at"), now), half_life)
+        for axis, labels in _labels_of(row).items():
+            for label in labels:
+                explicit_tally[axis][label] = explicit_tally[axis].get(label, 0.0) + weight
 
     for row in signals:
         value = signal_value(row, s)
@@ -306,9 +327,10 @@ async def get_effective_weights(force: bool = False, db_instance=None) -> dict:
     votes = await database.get_article_votes()
     signals = await database.get_behavioural_signals()
     cooccurrence = await database.get_secondary_cooccurrence()
+    completions = await database.get_read_completions()
     value = compute_label_weights(
         votes, signals, DECLARED_WEIGHTS, settings, utcnow(),
-        cooccurrence=cooccurrence)
+        cooccurrence=cooccurrence, completions=completions)
     _cache["at"] = now_mono
     _cache["value"] = value
     return value

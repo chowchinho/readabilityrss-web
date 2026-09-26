@@ -384,3 +384,75 @@ def test_a_much_voted_label_outranks_a_barely_voted_one_on_the_same_axis():
     barely = out["topic"]["Barely Seen"]["effective"]
     assert heavy > barely, f"{heavy} should beat {barely}"
     assert heavy - barely > 1.0
+
+
+def _completion(article_id, days_ago=0, topic="Politics", created_at=None):
+    return {
+        "article_id": article_id,
+        "primary_topic": topic,
+        "article_type": "News",
+        "region": "Global",
+        "secondary_topics": None,
+        "created_at": created_at or (NOW - timedelta(days=days_ago)).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def test_read_complete_default_is_half_a_vote():
+    assert VOTE_DEFAULTS["signal_read_complete"] == 0.5
+
+
+def test_a_completion_is_worth_less_than_an_upvote():
+    upvoted = compute_label_weights([_vote(1, "show_more", topic="Politics")], [],
+                                    DECLARED, S, NOW)
+    read = compute_label_weights([], [], DECLARED, S, NOW, completions=[_completion(1)])
+    up = upvoted["topic"]["Politics"]["explicit"]
+    rc = read["topic"]["Politics"]["explicit"]
+    assert 0 < rc < up
+    assert rc == pytest.approx(saturate(0.5, 4.0, 17))
+
+
+def test_a_completion_is_not_counted_as_a_vote():
+    out = compute_label_weights([], [], DECLARED, S, NOW, completions=[_completion(1)])
+    assert out["topic"]["Politics"]["votes"] == 0
+
+
+def test_reading_to_the_end_and_upvoting_counts_one_vote_not_one_and_a_half():
+    vote_only = compute_label_weights([_vote(1, "show_more", topic="Politics")], [],
+                                      DECLARED, S, NOW)
+    both = compute_label_weights([_vote(1, "show_more", topic="Politics")], [],
+                                 DECLARED, S, NOW, completions=[_completion(1)])
+    assert both["topic"]["Politics"]["explicit"] == \
+        pytest.approx(vote_only["topic"]["Politics"]["explicit"])
+
+
+def test_show_less_overrides_a_completion():
+    out = compute_label_weights([_vote(1, "show_less", topic="Politics")], [],
+                                DECLARED, S, NOW, completions=[_completion(1)])
+    assert out["topic"]["Politics"]["explicit"] == pytest.approx(-saturate(1, 4.0, 17))
+
+
+def test_a_completion_counts_once_per_article():
+    once = compute_label_weights([], [], DECLARED, S, NOW, completions=[_completion(1)])
+    twice = compute_label_weights([], [], DECLARED, S, NOW,
+                                  completions=[_completion(1), _completion(1, days_ago=1)])
+    assert twice["topic"]["Politics"]["explicit"] == \
+        pytest.approx(once["topic"]["Politics"]["explicit"], rel=0.01)
+
+
+def test_duplicate_completions_keep_the_earliest():
+    # The earliest is the real read; a later duplicate must not reset its decay.
+    out = compute_label_weights([], [], DECLARED, S, NOW, completions=[
+        _completion(1, days_ago=0), _completion(1, days_ago=90)])
+    assert out["topic"]["Politics"]["explicit"] == pytest.approx(saturate(0.25, 4.0, 17))
+
+
+def test_completions_decay_like_votes():
+    out = compute_label_weights([], [], DECLARED, S, NOW,
+                                completions=[_completion(1, days_ago=90)])
+    assert out["topic"]["Politics"]["explicit"] == pytest.approx(saturate(0.25, 4.0, 17))
+
+
+def test_read_complete_weight_is_tunable():
+    out = compute_label_weights([], [], DECLARED, {"signal_read_complete": "1.0"}, NOW,
+                                completions=[_completion(1)])
+    assert out["topic"]["Politics"]["explicit"] == pytest.approx(saturate(1.0, 4.0, 17))
