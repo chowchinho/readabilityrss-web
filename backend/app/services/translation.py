@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import Iterator
 import copy
 import difflib
+import html as html_lib
 import logging
 import os
 import re
@@ -601,7 +602,8 @@ def _lmt_sanitize(html: str) -> str:
     Measured against the live server: `<a href>` round-trips intact, `<strong>` is
     silently dropped, and `<span id="...">` is echoed into the visible text as
     `< span id="jin_huawo">` — three articles carried that leak on 2026-09-23.
-    So links keep their href and everything else is unwrapped to its text.
+    So links keep their href and everything else is unwrapped to its text. The link
+    round-trip turned out to fail too, which _lmt_repair_links handles on the way out.
     """
     if not html:
         return ""
@@ -612,6 +614,57 @@ def _lmt_sanitize(html: str) -> str:
         else:
             tag.unwrap()
     return str(soup).strip()
+
+
+_LMT_QUOTES = "\"'“”‘’＂"
+_LMT_LINK_TAG = re.compile(
+    r"(?:<|&lt;)\s*(?:"
+    r"(?P<close>/\s*a\s*)"
+    r"|a\s+href\s*=\s*[" + _LMT_QUOTES + r"]?(?P<url>[^" + _LMT_QUOTES + r"<>\n]*)"
+    r"\s*[" + _LMT_QUOTES + r"]?[^<>\n]*?"
+    r")(?:>|&gt;)",
+    re.IGNORECASE,
+)
+
+
+def _lmt_repair_links(text: str) -> str:
+    """Rebuild the link tags the local model echoes back as text.
+
+    The link round-trip in _lmt_sanitize is not reliable: articles showed
+    `< a href = “ /magazine/article/100/ ” >` as visible text, spaced out
+    and with typographic quotes, which html.parser keeps as text. A tag that pairs
+    with a closer is rebuilt so _restore_markup_attributes can put the original href
+    back; an unpaired one is dropped, because html.parser would otherwise stretch the
+    link to the end of the block.
+    """
+    if not text or ("<" not in text and "&lt;" not in text):
+        return text
+
+    matches = list(_LMT_LINK_TAG.finditer(text))
+    if not matches:
+        return text
+
+    replacement: dict[int, str] = {}
+    pending = None
+    for i, m in enumerate(matches):
+        replacement[i] = ""
+        if m.group("close") is None:
+            pending = i
+        elif pending is not None:
+            opener = matches[pending]
+            if text[opener.end():m.start()].strip():
+                url = re.sub(r"\s+", "", opener.group("url") or "")
+                replacement[pending] = f'<a href="{html_lib.escape(url, quote=True)}">'
+                replacement[i] = "</a>"
+            pending = None
+
+    out, last = [], 0
+    for i, m in enumerate(matches):
+        out.append(text[last:m.start()])
+        out.append(replacement[i])
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out)
 
 
 def _lmt_block(text: str, target_language: str, source_language: str = "ja") -> str:
@@ -644,7 +697,8 @@ def _translate_blocks_lmt(blocks: list[str], target_language: str,
     results = []
     for block in blocks:
         try:
-            out = _lmt_block(_lmt_sanitize(block), target_language, source_language)
+            out = _lmt_repair_links(
+                _lmt_block(_lmt_sanitize(block), target_language, source_language))
         except LMTError as e:
             logger.error(f"LMT block translation failed: {e}")
             results.append(block)

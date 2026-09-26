@@ -5,6 +5,13 @@ dashboard shows the build time in its top bar.
 
 ## 2026-09-26
 
+### Fixed
+- **Links in local-model translations no longer show up as raw markup.** The local
+  model sometimes hands a link back spaced out and with typographic quotes, such as
+  `< a href = “ /article/ ” >`, which then appeared as visible text. Such a tag is now
+  rebuilt into a real link when it has a matching closer, with the address taken from
+  the original rather than the model's copy, and dropped when it has none.
+
 ### Added
 - **Read-to-the-end signal.** The reader sends a `read_complete` event once per
   article when you have reached the paragraph at 80% of the text and spent at least

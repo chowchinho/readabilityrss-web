@@ -139,3 +139,99 @@ def test_a_simplified_target_is_left_simplified():
     with patch.object(translation, "_lmt_call", return_value=SIMPLIFIED_BLOCK):
         out = translation._translate_blocks_lmt(["原文"], "zh-CN")
     assert out[0] == SIMPLIFIED_BLOCK
+
+
+# --- leaked link tags -------------------------------------------------------
+
+# An observed leak. The source block's link spans two lines, so the closer went
+# out on the second request and the model dropped it; the opener came back as text.
+OBSERVED_SOURCE_BLOCK = (
+    '<a href="/magazine/article/100/"><strong>「山の会」</strong><br/>\n'
+    '<strong>入会・詳細はこちら</strong></a><br/>\n'
+    '※入会月は無料お試し期間です。会費は翌月1日から発生します。'
+)
+OBSERVED_LEAKED_OUTPUT = (
+    '< a href = " /magazine/article/100/ " > 「 山の会 」 詳情請見 '
+    '※入會月為免費試用期，下個月1日起收取會費'
+)
+
+
+def test_the_observed_leak_is_removed_from_visible_text():
+    out = translation._lmt_repair_links(OBSERVED_LEAKED_OUTPUT)
+    assert out == ' 「 山の会 」 詳情請見 ※入會月為免費試用期，下個月1日起收取會費'
+
+
+@pytest.mark.parametrize("leaked", [
+    '&lt; a href = " /magazine/article/100/ " &gt; 「 山の会 」 詳情請見',
+    '&lt; a href = “ /magazine/article/100/ ” &gt; 「 山の会 」 詳情請見',
+    '&lt; a href= " https://www.example.com/magazine/article/200/"&gt; 「 山の会 」 詳情請見',
+])
+def test_escaped_and_curly_quoted_forms_are_removed(leaked):
+    out = translation._lmt_repair_links(leaked)
+    assert "href" not in out and "&lt;" not in out and "&gt;" not in out
+    assert out.strip() == "「 山の会 」 詳情請見"
+
+
+def test_a_paired_leak_is_rebuilt_as_a_link():
+    out = translation._lmt_repair_links('詳情請見 < a href = " /x/ " > 這裡 < / a > 。')
+    assert out == '詳情請見 <a href="/x/"> 這裡 </a> 。'
+
+
+def test_an_escaped_closer_pairs_with_an_escaped_opener():
+    out = translation._lmt_repair_links('&lt; a href = “ /x/ ” &gt;這裡&lt; / a &gt;')
+    assert out == '<a href="/x/">這裡</a>'
+
+
+def test_a_stray_closer_is_dropped():
+    assert translation._lmt_repair_links("詳情請見 < / a > 。") == "詳情請見  。"
+
+
+def test_an_intact_link_is_left_as_a_link():
+    out = translation._lmt_repair_links('詳情請見<a href="https://example.com/x">這裡</a>。')
+    assert out == '詳情請見<a href="https://example.com/x">這裡</a>。'
+
+
+def test_text_without_markup_is_untouched():
+    assert translation._lmt_repair_links("A < B 而且 C > D") == "A < B 而且 C > D"
+
+
+def test_the_observed_block_end_to_end():
+    """Through the real sanitise -> per-line call -> interleave path."""
+    from unittest.mock import patch
+
+    from bs4 import BeautifulSoup
+
+    replies = iter([
+        '< a href = " /magazine/article/100/ " > 「 山の会 」',
+        "詳情請見",
+        "※入會月為免費試用期，下個月1日起收取會費",
+    ])
+    with patch.object(translation, "_lmt_call", side_effect=lambda *a, **k: next(replies)):
+        translated = translation._translate_blocks_lmt([OBSERVED_SOURCE_BLOCK], "zh-TW")[0]
+
+    soup = BeautifulSoup(f"<p>{OBSERVED_SOURCE_BLOCK}</p>", "html.parser")
+    translation._interleave_translation(soup, soup.find("p"), translated)
+    translated_p = soup.find("blockquote").find_next_sibling("p")
+
+    assert "href" not in translated_p.get_text()
+    assert "山の会" in translated_p.get_text()
+    assert "詳情請見" in translated_p.get_text()
+    assert soup.find("blockquote").find("a")["href"] == "/magazine/article/100/"
+
+
+def test_a_rebuilt_link_gets_the_original_href_back():
+    """The model's copy of the URL is not trusted; the original's is restored."""
+    from unittest.mock import patch
+
+    from bs4 import BeautifulSoup
+
+    source = '詳しくは<a href="https://www.example.com/magazine/article/200/">前編</a>へ'
+    reply = '詳情見 < a href = " https：//www.example.com/magazine/article/200/ " > 前篇 < / a >'
+    with patch.object(translation, "_lmt_call", return_value=reply):
+        translated = translation._translate_blocks_lmt([source], "zh-TW")[0]
+
+    soup = BeautifulSoup(f"<p>{source}</p>", "html.parser")
+    translation._interleave_translation(soup, soup.find("p"), translated)
+    link = soup.find("blockquote").find_next_sibling("p").find("a")
+    assert link["href"] == "https://www.example.com/magazine/article/200/"
+    assert link.get_text(strip=True) == "前篇"
