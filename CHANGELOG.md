@@ -3,6 +3,16 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-01 — Feeds screen header
+
+### Changed
+- The phone Feeds screen opens with the app icon and name in a compact bar instead of a
+  large "Feeds" title, which leaves room for one more feed row.
+
+### Fixed
+- On Android Chrome, dragging the Feeds list no longer moves the sync status and theme
+  buttons at the bottom of the screen.
+
 ## 2026-10-01 — Saved articles
 
 ### Added

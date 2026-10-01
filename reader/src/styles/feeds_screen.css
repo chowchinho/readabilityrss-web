@@ -28,15 +28,65 @@
 
 .fs-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 16px calc(var(--fs-floor) + 80px);
+  padding: 8px 16px calc(var(--fs-floor) + 80px);
 }
 
-.fs-top {
+/* Same 56px as the list's app bar, so moving between the two keeps the chrome in place. */
+.fs-bar {
+  flex-shrink: 0;
+  height: 56px;
   display: flex;
-  justify-content: flex-end;
-  padding: 12px 0 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid transparent;
+}
+
+.fs-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.fs-brand-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+
+.fs-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Scroll edge (apple-design): the bar gets its hairline only once the list passes
+   under it. Without scroll-driven animations it stays borderless. */
+@supports (animation-timeline: scroll()) {
+  .feeds-screen { timeline-scope: --fs-scroll; }
+  .fs-scroll { scroll-timeline: --fs-scroll y; }
+  .fs-bar {
+    animation: rr-scroll-edge linear both;
+    animation-timeline: --fs-scroll;
+    animation-range: 0 24px;
+  }
 }
 
 .fs-round-btn {
@@ -52,15 +102,6 @@
 }
 
 .fs-round-btn .material-symbols-outlined { font-size: 1.3125rem; }
-
-.fs-title {
-  margin: 0 0 12px;
-  font-family: var(--font-heading);
-  font-size: 2.125rem;
-  font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.022em;
-}
 
 .fs-search {
   display: flex;

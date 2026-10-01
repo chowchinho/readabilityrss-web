@@ -74,18 +74,22 @@ export default function FeedsScreen({
       aria-hidden={!isOpen}
       inert={isOpen ? undefined : ''}
     >
-      <div className="fs-scroll">
-        <div className="fs-top">
-          <button type="button" className="fs-round-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
-        </div>
-
-        <h1 className="fs-title">
-          Feeds
+      {/* A bar outside the scroller, not a title inside it: a scroller that fills the
+          whole viewport is promoted to the page's root scroller on Android Chrome, and
+          then dragging it moves the URL bar and stretches the floating controls too. */}
+      <header className="fs-bar">
+        <span className="fs-brand">
+          <img className="fs-brand-logo" src="/favicon-192.png" alt="" />
+          ReadabilityRSS
           {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
-        </h1>
+        </span>
+        <button type="button" className="fs-round-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
+          <span className="material-symbols-outlined">settings</span>
+        </button>
+      </header>
+      <h1 className="fs-sr-only">Feeds</h1>
 
+      <div className="fs-scroll">
         <label className="fs-search">
           <span className="material-symbols-outlined" aria-hidden="true">search</span>
           <input
