@@ -1091,9 +1091,13 @@
     touch-action: pan-y;
   }
 
+  /* flow-root keeps a card's own margins inside this cover. A full-image card has an
+     8px top margin, which otherwise collapsed through it, leaving a strip of the row
+     uncovered where the Read and Hide colours showed above every card. */
   .swipe-content {
     position: relative;
     z-index: 1;
+    display: flow-root;
     background: var(--bg-sunken);
     will-change: transform;
   }

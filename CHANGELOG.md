@@ -16,6 +16,12 @@ dashboard shows the build time in its top bar.
 - Desktop list: under a one-line headline, a single feed's cards show four lines of
   preview, and All Articles three, both ending level with the photo.
 
+### Fixed
+- Dragging the divider between the article list and the reading pane no longer brings
+  up the error screen.
+- In full-image view on phones, the colours of the swipe actions no longer show as a
+  strip above each card.
+
 ## 2026-10-01 — Feeds screen header
 
 ### Changed

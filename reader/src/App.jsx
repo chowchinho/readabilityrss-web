@@ -53,7 +53,7 @@ function App() {
   // Keep the selected feed visibly active for a beat before mobile navigation.
   // This gives Android predictive back a stable Pane 1 snapshot to return to.
   const MOBILE_FEED_NAV_DELAY_MS = 100;
-  const SYSTEM_VERSION = "2026-10-01 17:07 UTC";
+  const SYSTEM_VERSION = "2026-10-01 20:21 UTC";
   const { feedSlug, articleSlug } = useParams();
   const routeArticleId = articleSlug ? parseId(articleSlug) : null;
   const isSavedRoute = feedSlug === 'saved';

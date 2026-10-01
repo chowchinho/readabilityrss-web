@@ -178,14 +178,23 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
       card.style.setProperty('--snip-slack', `${nextSlack.toFixed(2)}px`);
     };
     measure();
-    phone.addEventListener('change', measure);
+    // Later passes run on the next frame, once per frame. Writing the line count inside
+    // the observer's own callback resized what it watches in the same frame, and the
+    // browser reported "ResizeObserver loop completed with undelivered notifications"
+    // on every step of a pane-divider drag.
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; measure(); });
+    };
+    phone.addEventListener('change', schedule);
     // The source row settles once its fonts and favicon load, moving the summary
     // without resizing the card, so it is watched too.
     let cancelled = false;
-    document.fonts?.ready.then(() => { if (!cancelled) measure(); });
+    document.fonts?.ready.then(() => { if (!cancelled) schedule(); });
     let observer;
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(measure);
+      observer = new ResizeObserver(schedule);
       observer.observe(card);
       if (titleRef.current) observer.observe(titleRef.current);
       const sourceRow = card.querySelector('.card-footer');
@@ -193,7 +202,8 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
     }
     return () => {
       cancelled = true;
-      phone.removeEventListener('change', measure);
+      if (frame) cancelAnimationFrame(frame);
+      phone.removeEventListener('change', schedule);
       observer?.disconnect();
     };
   }, [fitsToPhoto, displayTitle, displaySnippet]);

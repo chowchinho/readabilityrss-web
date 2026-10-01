@@ -121,6 +121,9 @@ class ErrorBoundary extends React.Component {
 
 window.addEventListener('error', (event) => {
   if (document.getElementById('fatal-error-overlay')) return;
+  // A browser notice, not an exception: the deferred resize notifications are simply
+  // delivered on the next frame. Treating it as fatal blanked the reader mid-drag.
+  if (!event.error && /^ResizeObserver loop/.test(event.message || '')) return;
   const el = document.createElement('div');
   el.id = 'fatal-error-overlay';
   el.style = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:black;color:#ff5555;z-index:9999;padding:20px;overflow:auto;font-family:monospace;white-space:pre-wrap;";
