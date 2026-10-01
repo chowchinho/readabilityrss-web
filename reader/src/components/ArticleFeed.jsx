@@ -217,7 +217,20 @@ export default function ArticleFeed({
       </div>
       {!isDesktop && largeTitle && (
         <div className="feed-large-title" ref={largeTitleRef}>
-          <h1>{largeTitle}</h1>
+          {selectedFeedId && selectedFeedId !== 'saved' && selectedFeed?.favicon_url ? (
+            <div className="feed-large-title-row">
+              <img
+                key={selectedFeed.favicon_url}
+                src={`${API_URL}${selectedFeed.favicon_url}`}
+                alt=""
+                className="feed-large-title-favicon"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              <h1>{largeTitle}</h1>
+            </div>
+          ) : (
+            <h1>{largeTitle}</h1>
+          )}
           {largeTitleSub && <p>{largeTitleSub}</p>}
         </div>
       )}

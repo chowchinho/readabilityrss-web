@@ -83,9 +83,20 @@ export default function FeedsScreen({
           ReadabilityRSS
           {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
         </span>
-        <button type="button" className="fs-round-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
-          <span className="material-symbols-outlined">settings</span>
-        </button>
+        <div className="fs-bar-actions">
+          <button
+            type="button"
+            className="fs-round-btn"
+            onClick={onToggleTheme}
+            aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+          </button>
+          <button type="button" className="fs-round-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
+            <span className="material-symbols-outlined">settings</span>
+          </button>
+        </div>
       </header>
       <h1 className="fs-sr-only">Feeds</h1>
 
@@ -206,15 +217,6 @@ export default function FeedsScreen({
             toggleForcedOffline={toggleForcedOffline}
           />
         </div>
-        <button
-          type="button"
-          className="fs-round-btn"
-          onClick={onToggleTheme}
-          aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-        >
-          <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
-        </button>
       </div>
     </div>
   );

@@ -7,7 +7,9 @@ dashboard shows the build time in its top bar.
 
 ### Changed
 - The phone Feeds screen opens with the app icon and name in a compact bar instead of a
-  large "Feeds" title, which leaves room for one more feed row.
+  large "Feeds" title, which leaves room for one more feed row. The light/dark switch
+  sits in that bar beside Settings rather than floating at the bottom.
+- On phones, a single feed's article list shows the feed's icon beside its name again.
 
 ### Fixed
 - On Android Chrome, dragging the Feeds list no longer moves the sync status and theme
