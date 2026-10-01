@@ -3,6 +3,19 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-01 — Article list previews
+
+### Changed
+- **Previews fill the card.** In the article list, each card's preview now runs to the
+  bottom edge of its photo, so the last line ends level with the photo. Wider phones and
+  small tablets show more lines (up to about nine at tablet width), and a one-line
+  headline leaves room for an extra line. In a single feed's list, the date stays at the
+  end of the last line.
+- On phones and small tablets the thumbnail is always 30% of the screen width, without
+  the earlier size cap.
+- Desktop list: under a one-line headline, a single feed's cards show four lines of
+  preview, and All Articles three, both ending level with the photo.
+
 ## 2026-10-01 — Feeds screen header
 
 ### Changed

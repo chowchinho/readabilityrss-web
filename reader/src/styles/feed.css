@@ -261,6 +261,29 @@
   transition: opacity 150ms ease;
 }
 
+/* The photo spans both rows; without this the grid shares its extra height across
+   them, so the source row grew and the summary moved whenever its line count did. */
+.article-card:not(.inline-meta):not(.featured):not(.full-image):not(.no-image) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* Measured fit (ArticleCard sets data-fit), phone and desktop pane 2: as many summary
+   lines as reach the photo's bottom edge, so the last line, and the time on
+   single-feed rows, end level with it. The fixed clamps are the fallback before the
+   first measurement. */
+.article-card[data-fit]:not(.full-image):not(.featured) .card-snippet {
+  -webkit-line-clamp: var(--snip-lines);
+  line-clamp: var(--snip-lines);
+  line-height: var(--snip-lh);
+  margin-top: var(--snip-slack);
+}
+
+.article-card.inline-meta[data-fit]:not(.featured) .card-snippet::before {
+  height: calc((var(--snip-lines) - 1) * var(--snip-lh));
+}
+
+.article-card[data-fit]:not(.featured) .card-when { height: var(--snip-lh); }
+
 /* The identity row. It sits above the headline, so it is named footer only for history. */
 .card-footer {
   position: relative;
@@ -333,10 +356,11 @@
     height: 18px;
   }
 
-  /* Square row. The thumbnail is 30% of the screen and, with the 12px right margin,
-     its column is a third. The 28px left gutter holds the unread dot. */
+  /* Square row. The thumbnail is 30% of the screen at every phone and small-tablet
+     width (no upper cap) and, with the 12px right margin, its column is a third. The
+     28px left gutter holds the unread dot. */
   .article-card {
-    --thumb: clamp(96px, 30vw, 140px);
+    --thumb: max(96px, 30vw);
     margin: 0;
     padding: 14px 12px 14px 28px;
     border-radius: 0;

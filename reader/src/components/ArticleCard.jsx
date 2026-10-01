@@ -106,7 +106,9 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
   // time alone. The time moves to the end of the snippet and the row is dropped.
   const inlineMeta = hideSource && effectiveViewMode === 'standard';
   const displayTitle = cleanTranslationTag(article.title);
-  const displaySnippet = stripBreadcrumb(cleanTranslationTag(article.snippet)) || stripHtml(article.description || article.content).substring(0, 160).trim();
+  // The 1,200-character featured snippet, not the 200-character one: a wide phone or
+  // small tablet fits more lines than 200 characters fill. The line clamp does the cutting.
+  const displaySnippet = stripBreadcrumb(cleanTranslationTag(article.featured_snippet || article.snippet)) || stripHtml(article.description || article.content).substring(0, 160).trim();
   // The thumbnail fixes the card's height, so a headline that fits on one line leaves
   // a line free for the snippet. CSS cannot count wrapped lines, hence the measuring;
   // the observer catches the pane being dragged wider or narrower.
@@ -127,6 +129,74 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
     observer.observe(el);
     return () => observer.disconnect();
   }, [measureTitle, displayTitle]);
+
+  // Square rows, phone and desktop pane 2: the summary takes as many lines as fit
+  // between its top and the photo's bottom edge, so its last line ends level with the
+  // photo. Phones vary the line height within 18-22px; any remainder short of a line
+  // goes above the summary rather than below it.
+  const cardRef = useRef(null);
+  const imageBoxRef = useRef(null);
+  const snippetRef = useRef(null);
+  const fitsToPhoto = effectiveViewMode === 'standard' && !isFeature && Boolean(imageSrc) && Boolean(displaySnippet);
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card) return undefined;
+    const clear = () => {
+      delete card.dataset.fit;
+      card.style.removeProperty('--snip-lines');
+      card.style.removeProperty('--snip-lh');
+      card.style.removeProperty('--snip-slack');
+    };
+    if (!fitsToPhoto) { clear(); return undefined; }
+    const phone = window.matchMedia('(max-width: 767px)');
+    const measure = () => {
+      const img = imageBoxRef.current;
+      const snip = snippetRef.current;
+      if (!img || !snip) { clear(); return; }
+      const slack = parseFloat(card.style.getPropertyValue('--snip-slack')) || 0;
+      const avail = img.getBoundingClientRect().bottom - (snip.getBoundingClientRect().top - slack);
+      if (avail < 18) { clear(); return; }
+      let fitLines;
+      let lh;
+      if (phone.matches) {
+        const lines = Math.max(1, Math.round(avail / 20));
+        lh = Math.min(22, Math.max(18, avail / lines));
+        fitLines = Math.max(1, Math.min(lines, Math.floor((avail + 0.5) / lh)));
+      } else {
+        // Desktop pane 2 keeps its 1.25rem leading and fills whole lines: three under a
+        // two-line headline, four under a one-line one on a single-feed list.
+        lh = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.25 || 20;
+        fitLines = Math.max(1, Math.floor((avail + 0.5) / lh));
+      }
+      const nextSlack = Math.max(0, avail - fitLines * lh);
+      const prevLines = card.style.getPropertyValue('--snip-lines');
+      const prevLh = parseFloat(card.style.getPropertyValue('--snip-lh')) || 0;
+      if (prevLines === String(fitLines) && Math.abs(prevLh - lh) < 0.1 && Math.abs(slack - nextSlack) < 0.1) return;
+      card.dataset.fit = '';
+      card.style.setProperty('--snip-lines', String(fitLines));
+      card.style.setProperty('--snip-lh', `${lh.toFixed(2)}px`);
+      card.style.setProperty('--snip-slack', `${nextSlack.toFixed(2)}px`);
+    };
+    measure();
+    phone.addEventListener('change', measure);
+    // The source row settles once its fonts and favicon load, moving the summary
+    // without resizing the card, so it is watched too.
+    let cancelled = false;
+    document.fonts?.ready.then(() => { if (!cancelled) measure(); });
+    let observer;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(card);
+      if (titleRef.current) observer.observe(titleRef.current);
+      const sourceRow = card.querySelector('.card-footer');
+      if (sourceRow) observer.observe(sourceRow);
+    }
+    return () => {
+      cancelled = true;
+      phone.removeEventListener('change', measure);
+      observer?.disconnect();
+    };
+  }, [fitsToPhoto, displayTitle, displaySnippet]);
 
   const score = typeof article.score === 'number' ? article.score.toFixed(2) : null;
   // Nothing to explain or to train under latest/random ordering.
@@ -204,7 +274,8 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
   );
 
   return (
-    <div 
+    <div
+      ref={cardRef}
       className={`article-card ${isActive ? 'active' : ''} ${article.is_read ? 'is-read' : ''} ${!imageSrc ? 'no-image' : ''} ${effectiveViewMode === 'full_image' ? 'full-image' : ''} ${inlineMeta ? 'inline-meta' : ''} ${inlineMeta && titleOneLine ? 'title-one-line' : ''} ${titleOneLine && effectiveViewMode === 'standard' ? 'title-single' : ''} ${isFeature ? 'featured' : ''}`}
       onClick={handleClick}
       onMouseLeave={cancelDwellWithGrace}
@@ -216,7 +287,7 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
       {effectiveViewMode === 'standard' && !inlineMeta && footerContent}
 
       {imageSrc && (
-        <div className="card-image-container">
+        <div className="card-image-container" ref={imageBoxRef}>
           <ArticleCardSlideshow
             article={article}
             mainImage={imageSrc}
@@ -245,12 +316,12 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
             <h3 className="card-title" ref={titleRef}>{displayTitle}</h3>
             {inlineMeta ? (
               // .card-when floats, so it has to come before the text it sits at the end of.
-              <p className="card-snippet">
+              <p className="card-snippet" ref={snippetRef}>
                 <span className="card-when">{timeAndState}</span>
                 {displaySnippet ? `${displaySnippet}…` : null}
               </p>
             ) : (
-              displaySnippet ? <p className="card-snippet">{displaySnippet}…</p> : null
+              displaySnippet ? <p className="card-snippet" ref={snippetRef}>{displaySnippet}…</p> : null
             )}
           </>
         )}
