@@ -1112,7 +1112,9 @@ def translate_html_iter(html: str, target_language: str = "zh-TW", translator: s
     for el in top_elements:
         del el["data-tb"]
 
-    yield {"type": "source", "html": source_html}
+    # The total lets a client show real progress; the start event cannot carry it
+    # because the blocks are only known once the content is parsed here.
+    yield {"type": "source", "html": source_html, "total": len(top_elements)}
 
     originals = [_strip_media_for_translation(el.decode_contents()) for el in top_elements]
     applied = 0

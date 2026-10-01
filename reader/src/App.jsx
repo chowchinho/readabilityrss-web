@@ -11,6 +11,8 @@ import { getFeedsDataFromDB, getArticlesFromDB, getArticleFromDB, getSettings, s
 import { applyLocalCachePolicy } from './sync';
 import Sidebar from './components/Sidebar';
 import ArticleFeed from './components/ArticleFeed';
+import PullToRefresh from './components/PullToRefresh';
+import ListBottomBar from './components/ListBottomBar';
 import ArticleReader from './components/ArticleReader';
 import SourcesIndex from './components/SourcesIndex';
 // Settings (and the category dialog inside it) carry Base UI's Drawer and Dialog;
@@ -51,7 +53,7 @@ function App() {
   // Keep the selected feed visibly active for a beat before mobile navigation.
   // This gives Android predictive back a stable Pane 1 snapshot to return to.
   const MOBILE_FEED_NAV_DELAY_MS = 100;
-  const SYSTEM_VERSION = "2026-09-30 01:37 UTC";
+  const SYSTEM_VERSION = "2026-10-01 13:44 UTC";
   const { feedSlug, articleSlug } = useParams();
   const routeArticleId = articleSlug ? parseId(articleSlug) : null;
   const routeFeedId = feedSlug ? parseId(feedSlug) : null;
@@ -86,6 +88,9 @@ function App() {
   const [isInstallPromptPending, setIsInstallPromptPending] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
+  // Phones: whether the list's large title is still on screen. Once it scrolls
+  // away the app bar shows the title small instead.
+  const [largeTitleVisible, setLargeTitleVisible] = useState(true);
   const [showReadArticles, setShowReadArticles] = useState(localStorage.getItem('reader_show_read') === 'true');
   const [hideEmptySources, setHideEmptySources] = useState(localStorage.getItem('reader_hide_empty_sources') === 'true');
   const [offlineCachingEnabled, setOfflineCachingEnabled] = useState(isOfflineCachingEnabled);
@@ -323,6 +328,17 @@ function App() {
       setLoading(false);
     }
   }, []);
+
+  // Pull to refresh on phones. Live mode has no sync, and no refresh button either,
+  // so the pull reloads feeds and articles; with offline caching it runs a sync,
+  // whose completion reloads the lists from IndexedDB as usual.
+  const handlePullRefresh = useCallback(async () => {
+    if (isPureLiveMode) {
+      await loadLiveData(true);
+    } else {
+      await performSync();
+    }
+  }, [isPureLiveMode, loadLiveData, performSync]);
 
   const openMobileSidebar = useCallback(() => {
     if (isDesktopRef.current || routeArticleId) return;
@@ -1311,12 +1327,27 @@ function App() {
     return cat ? (cat.name || 'Uncategorized') : 'All Articles';
   }, [selectedCategoryId, liveFeedsData]);
 
+  // Phones move through a stack: Feeds, a list, an article. The list slides in
+  // from the right when pushed from Feeds and from the left when an article is
+  // popped off it. Recorded during render so the direction is there on the very
+  // frame the pane is shown; the animation itself replays on display:none -> flex.
+  const mobileView = selectedArticleId ? 'article' : (isMobileSidebarOpen ? 'feeds' : 'list');
+  const mobileViewRef = useRef({ view: mobileView, from: null });
+  if (mobileViewRef.current.view !== mobileView) {
+    mobileViewRef.current = { view: mobileView, from: mobileViewRef.current.view };
+  }
+  const listEnter = isDesktop || mobileView !== 'list' || !mobileViewRef.current.from
+    ? undefined
+    : (mobileViewRef.current.from === 'feeds' ? 'push' : 'pop');
+
   if (!isAuthenticated) {
     return <Login onAuth={handleLoginSuccess} />;
   }
 
   const selectedFeed = liveFeedsData?.categories?.flatMap(c => c?.feeds || [])?.find(f => f?.id === pane2ContextFeedId);
   const unreadCount = pane2ContextFeedId ? selectedFeed?.unread_count : liveFeedsData?.total_unread;
+  const listTitle = pane2ContextFeedId ? (selectedFeed?.name || 'Articles') : activeCategoryName;
+  const unreadLabel = unreadCount > 0 ? `${unreadCount.toLocaleString()} unread` : null;
   const currentViewMode = pane2ContextFeedId
     ? (isDesktop ? selectedFeed?.desktop_view_mode : selectedFeed?.mobile_view_mode) || 'standard'
     : allArticlesViewMode;
@@ -1335,8 +1366,8 @@ function App() {
   return (
     <>
       <div className="app-container">
-      {(!selectedArticleId || isDesktop) && (
-        <div className="mobile-top-bar">
+      {(isDesktop || (!selectedArticleId && !isMobileSidebarOpen)) && (
+        <div data-enter={isIndexViewMode ? undefined : listEnter} className={`mobile-top-bar${isIndexViewMode ? ' is-index' : ''}${isIndexViewMode || !largeTitleVisible ? ' has-title' : ''}${!isIndexViewMode && !largeTitleVisible ? ' is-scrolled' : ''}`}>
           {cacheProgress > 0 && offlineCachingEnabled && (
             <div
               className="mobile-cache-progress-bar"
@@ -1346,36 +1377,40 @@ function App() {
               }}
             />
           )}
-          <button className="mobile-menu-btn" onClick={openMobileSidebar}>
-            <span className="material-symbols-outlined">menu</span>
+          <button className="mobile-menu-btn" onClick={openMobileSidebar} aria-label="Back to Feeds" title="Feeds">
+            <span className="material-symbols-outlined">chevron_left</span>
+            <span className="mobile-back-label">Feeds</span>
           </button>
 
           <div className="mobile-title-group">
             <span className="mobile-title-text">
               {isIndexViewMode
                 ? (pane2ContextFeedId ? (selectedFeed?.name || 'Feed Index') : activeCategoryName)
-                : (pane2ContextFeedId ? (selectedFeed?.name || 'Articles') : activeCategoryName)}
+                : listTitle}
               {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
             </span>
-            {unreadCount > 0 && <div className="header-unread-badge">{unreadCount}</div>}
+            {unreadCount > 0 && <span className="mobile-title-sub">{unreadLabel}</span>}
+          </div>
+
+          <div className="mobile-top-actions">
             {!isIndexViewMode && (
               <button
-                className="view-mode-btn"
+                className="mobile-top-btn"
                 onClick={(e) => { e.stopPropagation(); toggleViewMode(); }}
+                aria-label={`Switch to ${currentViewMode === 'standard' ? 'Full Image' : 'Standard'} View`}
                 title={`Switch to ${currentViewMode === 'standard' ? 'Full Image' : 'Standard'} View`}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                <span className="material-symbols-outlined">
                   {currentViewMode === 'standard' ? 'image' : 'view_stream'}
                 </span>
               </button>
             )}
+            {!isPureLiveMode && !isOffline && (
+              <button className="mobile-top-btn mobile-sync-btn" onClick={performSync} disabled={syncing} aria-label="Sync" title="Sync">
+                <span className={`material-symbols-outlined ${syncing ? 'spinning' : ''}`}>refresh</span>
+              </button>
+            )}
           </div>
-
-          {!isPureLiveMode && !isOffline && (
-            <button className="mobile-sync-btn" onClick={performSync} disabled={syncing}>
-              <span className={`material-symbols-outlined ${syncing ? 'spinning' : ''}`}>refresh</span>
-            </button>
-          )}
         </div>
       )}
 
@@ -1412,6 +1447,7 @@ function App() {
           height: '100%', 
           overflow: 'hidden' 
         }}>
+          <PullToRefresh enabled={!isDesktop && !isOffline} onRefresh={handlePullRefresh}>
           <SourcesIndex
             feedsData={liveFeedsData}
             articles={filteredArticles}
@@ -1430,17 +1466,20 @@ function App() {
             showOnlyUnread={showOnlyUnread}
             setShowOnlyUnread={setShowOnlyUnread}
           />
+          </PullToRefresh>
         </div>
       ) : (
         <>
-          <div style={{ 
+          <div className="mobile-list-pane" data-enter={listEnter} style={{
             display: (!isDesktop && (selectedArticleId || isMobileSidebarOpen)) ? 'none' : 'flex',
             flex: isDesktop ? 'none' : 1,
+            position: 'relative',
             width: isDesktop ? 'var(--feed-width)' : 'auto',
             flexShrink: 0,
             height: '100%', 
             overflow: 'hidden' 
           }}>
+            <PullToRefresh enabled={!isDesktop && !isOffline} onRefresh={handlePullRefresh}>
             <ArticleFeed
               articles={displayedArticles}
               rankPool={filteredArticles}
@@ -1459,7 +1498,24 @@ function App() {
               onUpdateViewMode={handleUpdateFeedViewMode}
               customViewMode={currentViewMode}
               onVoted={handleVoted}
+              largeTitle={listTitle}
+              largeTitleSub={unreadLabel}
+              onLargeTitleVisibility={setLargeTitleVisible}
+              onRowToggleRead={(id, isRead) => toggleReadManual(id, isRead)}
+              onRowHide={(id) => { markArticleRead(id); handleHideArticle(id); }}
             />
+            </PullToRefresh>
+            {!isDesktop && (
+              <ListBottomBar
+                showRead={showReadArticles}
+                onToggleShowRead={(next) => {
+                  setShowReadArticles(next);
+                  localStorage.setItem('reader_show_read', String(next));
+                }}
+                onMarkAllRead={() => handleBulkMarkRead(pane2ContextFeedId || null)}
+                markAllLabel={pane2ContextFeedId ? 'Mark feed read' : 'Mark all read'}
+              />
+            )}
           </div>
 
           {isDesktop && <Resizer varName="--feed-width" defaultWidth={500} minWidth={250} maxWidth={800} />}
@@ -1482,6 +1538,15 @@ function App() {
               onToggleRead={() => {
                 const target = (fullArticle && String(fullArticle.id) === String(selectedArticleId)) ? fullArticle : selectedArticleMeta;
                 if (target) toggleReadManual(target.id, target.is_read);
+              }}
+              onHide={() => {
+                // Read, then out of the list, then back to it: a finished article
+                // the reader wants gone from this session's list.
+                const id = fullArticle?.id ?? selectedArticleId;
+                if (id == null) return;
+                markArticleRead(id);
+                handleHideArticle(id);
+                navigate(-1);
               }}
               onRetry={retryArticle}
               isDesktop={isDesktop}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import ArticleCard from './ArticleCard';
+import SwipeRow from './SwipeRow';
 import { API_URL, getSortMode } from '../api';
 import { selectTopPicks } from '../utils/topPicks';
 import { useImpressions } from '../hooks/useImpressions';
@@ -23,6 +24,11 @@ export default function ArticleFeed({
   onUpdateViewMode,
   customViewMode,
   onVoted,
+  largeTitle,
+  largeTitleSub,
+  onLargeTitleVisibility,
+  onRowToggleRead,
+  onRowHide,
 }) {
   useImpressions();
   const loaderRef = useRef(null);
@@ -37,6 +43,22 @@ export default function ArticleFeed({
     () => (!isDesktop && sortMode === 'smart' ? selectTopPicks(articles, rankPool) : null),
     [articles, rankPool, isDesktop, sortMode]
   );
+
+  // Phones: the large title scrolls away with the list, and the app bar shows the
+  // title small once it has gone.
+  const largeTitleRef = useRef(null);
+  const hasList = articles.length > 0;
+  useEffect(() => {
+    const el = largeTitleRef.current;
+    if (!onLargeTitleVisibility) return undefined;
+    if (!el || !containerRef.current) { onLargeTitleVisibility(true); return undefined; }
+    const observer = new IntersectionObserver(
+      ([entry]) => onLargeTitleVisibility(entry.isIntersecting),
+      { root: containerRef.current, threshold: 0 }
+    );
+    observer.observe(el);
+    return () => { observer.disconnect(); onLargeTitleVisibility(true); };
+  }, [onLargeTitleVisibility, hasList, isDesktop, largeTitle]);
 
   const handleCardClick = useCallback((id) => {
     onSelectArticle(id);
@@ -177,20 +199,39 @@ export default function ArticleFeed({
         )}
         {unreadCount > 0 && <div className="header-unread-badge">{unreadCount}</div>}
       </div>
+      {!isDesktop && largeTitle && (
+        <div className="feed-large-title" ref={largeTitleRef}>
+          <h1>{largeTitle}</h1>
+          {largeTitleSub && <p>{largeTitleSub}</p>}
+        </div>
+      )}
       
-      {articles.map(article => (
-        <ArticleCard
-          key={article.id}
-          article={article}
-          isActive={article.id === selectedArticleId}
-          onClick={handleCardClick}
-          hideSource={!!selectedFeedId}
-          viewMode={currentViewMode}
-          featured={topPicks?.has(article.id) ?? false}
-          isOffline={isOffline}
-          onVoted={onVoted}
-        />
-      ))}
+      {articles.map(article => {
+        const card = (
+          <ArticleCard
+            key={article.id}
+            article={article}
+            isActive={article.id === selectedArticleId}
+            onClick={handleCardClick}
+            hideSource={!!selectedFeedId}
+            viewMode={currentViewMode}
+            featured={topPicks?.has(article.id) ?? false}
+            isOffline={isOffline}
+            onVoted={onVoted}
+          />
+        );
+        if (isDesktop || !onRowToggleRead) return card;
+        return (
+          <SwipeRow
+            key={article.id}
+            isRead={!!article.is_read}
+            onToggleRead={() => onRowToggleRead(article.id, article.is_read)}
+            onHide={() => onRowHide?.(article.id)}
+          >
+            {card}
+          </SwipeRow>
+        );
+      })}
       <div ref={loaderRef} className="feed-loader">
         <div className="loader-text">
           {isFetchingMore ? 'Loading more…' : (!hasMore ? '· · ·' : null)}

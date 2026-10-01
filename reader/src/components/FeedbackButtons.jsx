@@ -13,6 +13,7 @@ export default function FeedbackButtons({
   article,
   buttonClassName = 'ranking-btn thumb-btn',
   keyboardShortcuts = false,
+  labels = null,
   onVoted
 }) {
   const [feedback, setFeedback] = useState(article?.vote ?? null);
@@ -73,6 +74,7 @@ export default function FeedbackButtons({
         aria-pressed={feedback === 'show_more'}
       >
         <span className="material-symbols-outlined">thumb_up</span>
+        {labels && <span className="feedback-label">{labels.up}</span>}
       </button>
       <button
         className={`${buttonClassName} thumb-down ${feedback === 'show_less' ? 'active' : ''}`}
@@ -82,6 +84,7 @@ export default function FeedbackButtons({
         aria-pressed={feedback === 'show_less'}
       >
         <span className="material-symbols-outlined">thumb_down</span>
+        {labels && <span className="feedback-label">{labels.down}</span>}
       </button>
     </>
   );

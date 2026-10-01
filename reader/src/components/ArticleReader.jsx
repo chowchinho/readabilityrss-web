@@ -13,7 +13,9 @@ import FeedbackButtons from './FeedbackButtons';
 import ScoreBreakdown, { useScoreBreakdown } from './ScoreBreakdown';
 import { findTopLevelBlocks } from '../utils/readDepth';
 import { useReadCompletion } from '../hooks/useReadCompletion';
-import TranslationBar from './TranslationBar';
+import TranslationBar, { translationDetail } from './TranslationBar';
+import ReaderMobileToolbar from './ReaderMobileToolbar';
+import { Popover } from '@base-ui/react/popover';
 import TextSizeControl from './TextSizeControl';
 import {
   buildTranslationView, providerFromContent,
@@ -27,10 +29,16 @@ const EFFECTIVE_READ_MS = 5000;
 
 // freshIndex marks the block that just arrived, so only it animates in; every
 // earlier block is re-rendered here too but must not replay its entrance.
-function applyBlockSubstitutions(originalHtml, blockMap, freshIndex = null) {
-  if (!originalHtml || Object.keys(blockMap).length === 0) return originalHtml;
+// markPending dims the text blocks still waiting for their translation.
+function applyBlockSubstitutions(originalHtml, blockMap, freshIndex = null, markPending = false) {
+  if (!originalHtml || (!markPending && Object.keys(blockMap).length === 0)) return originalHtml;
   const doc = new DOMParser().parseFromString(originalHtml, 'text/html');
   const topElements = findTopLevelBlocks(doc.body);
+  if (markPending) {
+    topElements.forEach((el, i) => {
+      if (!blockMap[i] && (el.textContent || '').trim()) el.classList.add('rr-pending-block');
+    });
+  }
   for (const [idxStr, replacementHtml] of Object.entries(blockMap)) {
     const idx = parseInt(idxStr, 10);
     const target = topElements[idx];
@@ -52,7 +60,32 @@ function visibleTop(scroller, bar) {
   return scroller.getBoundingClientRect().top + (bar ? bar.offsetHeight : 0);
 }
 
-export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onRetry, isDesktop, articles, isOffline, onVoted }) {
+// What the on-demand stream will send a block for: top-level blocks with text.
+// The stream itself announces no total, so the progress ring counts these.
+function countTranslatableBlocks(html) {
+  if (!html) return 0;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return findTopLevelBlocks(doc.body).filter((el) => (el.textContent || '').trim()).length;
+}
+
+// Identifies one image file across the URL shapes it arrives in: a cached-image
+// path, an image-proxy URL carrying the original, or the original itself.
+function imageKey(src) {
+  if (!src) return null;
+  try {
+    const u = new URL(src, window.location.origin);
+    const original = u.searchParams.get('url');
+    if (original) return imageKey(original);
+    return u.pathname.split('/').pop() || null;
+  } catch {
+    return null;
+  }
+}
+
+// Below this the hero would be an upscale on a phone, so the photo stays in the text.
+const MIN_HERO_WIDTH = 600;
+
+export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onHide, onRetry, isDesktop, articles, isOffline, onVoted }) {
   const containerRef = useRef(null);
   const contentRef = useRef(null);
   const pageRef = useRef(null);
@@ -67,6 +100,12 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
   const [isLeaving, setIsLeaving] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [readRecorded, setReadRecorded] = useState(false);
+  const mobileBarRef = useRef(null);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [translateTotal, setTranslateTotal] = useState(0);
+  // 'pending' keeps the hero's space while it loads, so the text does not jump down
+  // once it arrives; 'none' collapses it when the image is small or fails.
+  const [heroState, setHeroState] = useState('pending');
 
   // On-demand translation state
   const [localArticle, setLocalArticle] = useState(null);
@@ -78,6 +117,18 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
   const activeArticleIdRef = useRef(null);
 
   const effectiveArticle = localArticle || article;
+
+  // Phones show two sets of thumbs (the shortcut at the top and the end card), and
+  // the article object here is not refreshed after a vote, so both read from this.
+  const [localVote, setLocalVote] = useState(undefined);
+  const voteArticle = useMemo(
+    () => (effectiveArticle && localVote !== undefined ? { ...effectiveArticle, vote: localVote } : effectiveArticle),
+    [effectiveArticle, localVote]
+  );
+  const handleVote = (id, vote) => {
+    setLocalVote(vote);
+    if (onVoted) onVoted(id, vote);
+  };
 
   // Reading preferences, not article state: they survive moving between articles
   // and reloads, so they live in this component's state seeded from storage.
@@ -153,11 +204,34 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     return undefined;
   }, [view.html]);
 
+  const heroSrc = !isDesktop && !isOffline && effectiveArticle
+    ? (effectiveArticle.main_image_proxy
+        ? (effectiveArticle.main_image_proxy.startsWith('http') ? effectiveArticle.main_image_proxy : `${API_URL}${effectiveArticle.main_image_proxy}`)
+        : effectiveArticle.main_image)
+    : null;
+  const showHero = Boolean(heroSrc) && heroState !== 'none';
+
+  // The hero is the article's main image; the same file in the text below would
+  // show the photo twice.
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const key = showHero ? imageKey(heroSrc) : null;
+    content.querySelectorAll('img[data-hero-dup]').forEach((img) => img.removeAttribute('data-hero-dup'));
+    if (!key) return;
+    const dup = Array.from(content.querySelectorAll('img')).find((img) => imageKey(img.getAttribute('src')) === key);
+    if (dup) dup.setAttribute('data-hero-dup', '');
+  }, [view.html, heroSrc, showHero]);
+
   useEffect(() => {
     setLocalArticle(null);
     setTranslatedTitle(null);
     setIsTranslating(false);
     setTranslatedBlockCount(0);
+    setTranslateTotal(0);
+    setSwitchOpen(false);
+    setHeroState('pending');
+    setLocalVote(undefined);
     blocksRef.current = {};
     activeArticleIdRef.current = article?.id;
   }, [article?.id]);
@@ -225,11 +299,23 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     const bar = progressRef.current;
     if (!scroller || !bar) return undefined;
     let frame = 0;
+    let lastTop = scroller.scrollTop;
     const update = () => {
       frame = 0;
+      const top = scroller.scrollTop;
       const max = scroller.scrollHeight - scroller.clientHeight;
-      const ratio = max > 0 ? Math.min(1, scroller.scrollTop / max) : 0;
+      const ratio = max > 0 ? Math.min(1, top / max) : 0;
       bar.style.transform = `scaleX(${ratio})`;
+
+      // Phone toolbar: out of the way while reading down, back on any upward
+      // scroll, near the top, and at the end of the article.
+      const mbar = mobileBarRef.current;
+      if (mbar) {
+        const delta = top - lastTop;
+        if (top < 80 || max - top < 120 || delta < -6) mbar.removeAttribute('data-hidden');
+        else if (delta > 6) mbar.setAttribute('data-hidden', '');
+      }
+      lastTop = top;
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
     update();
@@ -433,7 +519,9 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     activeArticleIdRef.current = targetId;
     setIsTranslating(true);
     setTranslatedBlockCount(0);
+    setTranslateTotal(countTranslatableBlocks(baseContentRef.current));
     blocksRef.current = {};
+    setRenderedContent(applyBlockSubstitutions(baseContentRef.current, {}, null, true));
 
     try {
       await translateArticle(targetId, async (event) => {
@@ -441,6 +529,9 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
 
         if (event.type === 'start') {
           setIsTranslating(true);
+        } else if (event.type === 'source') {
+          // The server's own block count replaces the client's estimate.
+          if (event.total > 0) setTranslateTotal(event.total);
         } else if (event.type === 'title') {
           if (event.html) {
             setTranslatedTitle(event.html);
@@ -452,10 +543,11 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           const nextBlocks = { ...blocksRef.current, [event.index]: preparedHtml };
           blocksRef.current = nextBlocks;
           setTranslatedBlockCount(Object.keys(nextBlocks).length);
-          const newBody = applyBlockSubstitutions(baseContentRef.current, nextBlocks, Number(event.index));
+          const newBody = applyBlockSubstitutions(baseContentRef.current, nextBlocks, Number(event.index), true);
           setRenderedContent(newBody);
         } else if (event.type === 'error') {
           setIsTranslating(false);
+          setRenderedContent(applyBlockSubstitutions(baseContentRef.current, blocksRef.current));
           showTranslateError(event.message || 'Translation failed');
         } else if (event.type === 'done') {
           try {
@@ -466,6 +558,9 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
             }
           } catch (e) {
             console.warn('Failed to refetch article on done', e);
+            if (activeArticleIdRef.current === targetId) {
+              setRenderedContent(applyBlockSubstitutions(baseContentRef.current, blocksRef.current));
+            }
           } finally {
             if (activeArticleIdRef.current === targetId) {
               setIsTranslating(false);
@@ -476,6 +571,7 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     } catch (err) {
       if (activeArticleIdRef.current === targetId) {
         setIsTranslating(false);
+        setRenderedContent(applyBlockSubstitutions(baseContentRef.current, blocksRef.current));
         showTranslateError(err.message || 'Translation failed');
       }
     }
@@ -491,6 +587,30 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     effectiveArticle.content.slice(0, 400).includes('Translated by')
   );
   const canTranslate = Boolean(effectiveArticle && !isAlreadyTranslated && !isChineseFeed);
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(effectiveArticle.url);
+      notify('Link copied');
+    } catch {
+      notify('Could not copy the link', { type: 'error' });
+    }
+  };
+
+  const handleWhy = () => {
+    setShowInfo(true);
+    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const nextArticle = swipeIndex >= 0 && articles && swipeIndex < articles.length - 1
+    ? articles[swipeIndex + 1]
+    : null;
+  const nextImage = nextArticle
+    ? (nextArticle.main_image_proxy
+        ? (nextArticle.main_image_proxy.startsWith('http') ? nextArticle.main_image_proxy : `${API_URL}${nextArticle.main_image_proxy}`)
+        : nextArticle.main_image)
+    : null;
+  const detail = translationDetail(sourceLang, provider);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -530,9 +650,36 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
 
   return (
     <div className={`reader-container${isLeaving ? ' reader-leaving' : ''}`}>
+      {!isDesktop && (
+        <>
+          <div className="reader-progress is-phone" aria-hidden="true"><i ref={progressRef} /></div>
+          <button className="reader-float-btn is-back" onClick={handleBack} aria-label="Back" title="Back">
+            <span className="material-symbols-outlined">chevron_left</span>
+          </button>
+          {hasRanking && (
+            <Popover.Root>
+              <Popover.Trigger className="reader-float-btn is-votes" aria-label="Rate this article" title="Rate this article">
+                <span className="material-symbols-outlined">thumbs_up_down</span>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={12} className="mbar-positioner">
+                  <Popover.Popup className="mbar-sheet votes-sheet">
+                    <FeedbackButtons
+                      article={voteArticle}
+                      buttonClassName="end-vote-btn"
+                      onVoted={handleVote}
+                    />
+                  </Popover.Popup>
+                </Popover.Positioner>
+              </Popover.Portal>
+            </Popover.Root>
+          )}
+        </>
+      )}
       <div className="reader-scroll-area" ref={containerRef}>
       {/* Inside the scroller and sticky, so the article passes beneath the bar's
           translucent material and the scrollbar stays clear of it. */}
+      {isDesktop && (
       <div className="reader-actions-wrapper" ref={barRef}>
         <div className="reader-progress" aria-hidden="true"><i ref={progressRef} /></div>
         <div className="reader-actions">
@@ -627,9 +774,27 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           </div>
         </div>
       </div>
+      )}
 
       <div className="reader-page" ref={pageRef}>
-        <div className="reader-header">
+        {showHero && (
+          <div className={`reader-hero${heroState === 'ok' ? ' is-loaded' : ''}`}>
+            <img
+              key={heroSrc}
+              src={heroSrc}
+              alt=""
+              ref={(el) => {
+                if (el && el.complete && el.naturalWidth && heroState === 'pending') {
+                  setHeroState(el.naturalWidth >= MIN_HERO_WIDTH ? 'ok' : 'none');
+                }
+              }}
+              onLoad={(e) => setHeroState(e.currentTarget.naturalWidth >= MIN_HERO_WIDTH ? 'ok' : 'none')}
+              onError={() => setHeroState('none')}
+              style={{ objectPosition: `${effectiveArticle.focal_x ?? 50}% ${effectiveArticle.focal_y ?? 50}%` }}
+            />
+          </div>
+        )}
+        <div className={`reader-header${!isDesktop && !showHero ? ' has-float-chrome' : ''}`}>
           <div className="reader-meta">
             <div className="favicon-wrapper" style={{ marginRight: 0 }}>
               <img
@@ -697,16 +862,37 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
               />
             </div>
           )}
-          {hasPairs ? (
+          {isDesktop && hasPairs && (
             <TranslationBar
               sourceLang={sourceLang}
               provider={provider}
               view={translationView}
               onViewChange={changeTranslationView}
             />
-          ) : (
-            <div className="reader-header-rule" />
           )}
+          {/* Phones: the label stays here and opens the switch in the toolbar. */}
+          {!isDesktop && hasPairs && !isTranslating && (
+            <button type="button" className="reader-attribution" onClick={() => setSwitchOpen(true)}>
+              <span className="material-symbols-outlined" aria-hidden="true">translate</span>
+              <span><b>{detail.lead}</b>{detail.provider && ` · ${detail.provider}`}</span>
+            </button>
+          )}
+          {!isDesktop && isTranslating && (
+            <div className="reader-attribution is-progress" role="status">
+              <span className="material-symbols-outlined" aria-hidden="true">translate</span>
+              <span>
+                Translating · {translateTotal > 0 && translatedBlockCount <= translateTotal
+                  ? `${translatedBlockCount} of ${translateTotal}`
+                  : `${translatedBlockCount} done`}
+              </span>
+              <span className="reader-attribution-bar" aria-hidden="true">
+                <i style={{
+                  transform: `scaleX(${translateTotal > 0 && translatedBlockCount <= translateTotal ? translatedBlockCount / translateTotal : 0.15})`,
+                }} />
+              </span>
+            </div>
+          )}
+          {!hasPairs && !(isTranslating && !isDesktop) && <div className="reader-header-rule" />}
         </div>
 
         <div
@@ -716,8 +902,67 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           style={{ '--reader-scale': TEXT_SCALES[textScaleIndex] }}
           dangerouslySetInnerHTML={{ __html: view.html }}
         />
+
+        {!isDesktop && (hasRanking || nextArticle) && (
+          <div className="reader-end">
+            {hasRanking && (
+              <div className="reader-end-card">
+                <p className="reader-end-question">Worth reading?</p>
+                <div className="reader-end-votes">
+                  <FeedbackButtons
+                    article={voteArticle}
+                    buttonClassName="end-vote-btn"
+                    labels={{ up: 'More like this', down: 'Less like this' }}
+                    onVoted={handleVote}
+                  />
+                </div>
+              </div>
+            )}
+            {nextArticle && (
+              <button type="button" className="reader-end-card reader-next" onClick={onSwipeLeft}>
+                {nextImage && <img src={nextImage} alt="" loading="lazy" />}
+                <span className="reader-next-text">
+                  <span className="reader-next-label">Next · {nextArticle.source_name}</span>
+                  <span className="reader-next-title">{nextArticle.title}</span>
+                </span>
+                <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
       </div>
+
+      {!isDesktop && (
+        <ReaderMobileToolbar
+          ref={mobileBarRef}
+          isRead={Boolean(effectiveArticle.is_read)}
+          onToggleRead={onToggleRead}
+          translate={{
+            canTranslate,
+            isTranslating,
+            done: translatedBlockCount,
+            total: translateTotal,
+            hasPairs,
+            isChinese: isChineseFeed,
+            view: translationView,
+            onViewChange: changeTranslationView,
+            onTranslate: handleTranslate,
+            sourceLang,
+            provider,
+            switchOpen,
+            setSwitchOpen,
+          }}
+          textScaleIndex={textScaleIndex}
+          onTextScale={changeTextScale}
+          onShare={handleShare}
+          onCopyLink={handleCopyLink}
+          originalUrl={effectiveArticle.url}
+          onWhy={handleWhy}
+          showWhy={hasRanking}
+          onHide={onHide}
+        />
+      )}
     </div>
   );
 }

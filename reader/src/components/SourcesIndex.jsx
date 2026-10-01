@@ -441,8 +441,10 @@ export default function SourcesIndex({
   }, [featuredFullTextMap]);
 
   const sortMode = getSortMode();
-  const featuredEyebrow = sortMode === 'smart' ? 'Top story · For you' : sortMode === 'random' ? 'Top story · Shuffled' : 'Top story · Newest';
-  const sortDescription = sortMode === 'smart' ? 'Sorted by relevance' : sortMode === 'random' ? 'Shuffled' : 'Newest first';
+  // Follows the Feed order setting, so the heading says what the page is doing.
+  const feedOrderLabel = sortMode === 'smart' ? 'Personalised' : sortMode === 'random' ? 'Random' : 'Latest';
+  const featuredEyebrow = `Top story · ${feedOrderLabel}`;
+  const feedOrderHint = sortMode === 'smart' ? 'Matched to your interests' : sortMode === 'random' ? 'A fresh mix each visit' : 'Newest at the top';
 
   const renderScrollSentinelOrEnd = (totalCount) => {
     // An empty count used to bail out here, which stranded any view whose matches all
@@ -605,8 +607,8 @@ export default function SourcesIndex({
           {gridArticles.length > 0 && (
             <>
             <div className="monocle-row-title">
-              <h3>Latest</h3>
-              <span>{sortDescription}</span>
+              <h3>{feedOrderLabel}</h3>
+              <span>{feedOrderHint}</span>
             </div>
             <div className="monocle-four-col-grid">
               {gridArticles.map(article => {
@@ -628,14 +630,18 @@ export default function SourcesIndex({
                           focalY={article.focal_y}
                           fallbackIconSize={36}
                         />
-                        <div className="monocle-photo-caption" aria-hidden="true">
+                        <div className="monocle-photo-date" aria-hidden="true">
                           <VoteMark vote={article.vote} />
                           <span className="monocle-card-time">{formatRelativeDate(article.pub_date || article.created_at)}</span>
                           {!article.is_read && <span className="unread-dot" />}
                         </div>
                         {hasRanking && (
-                          <div className="monocle-media-feedback">
+                          <div className="monocle-media-info">
                             <RankingControls article={article} compact showFeedback={false} />
+                          </div>
+                        )}
+                        {hasRanking && (
+                          <div className="monocle-media-feedback">
                             <FeedbackButtons
                               article={article}
                               buttonClassName="monocle-media-feedback-btn"
@@ -839,8 +845,8 @@ export default function SourcesIndex({
         {gridArticles.length > 0 && (
           <>
           <div className="monocle-row-title">
-            <h3>Latest</h3>
-            <span>{sortDescription}</span>
+            <h3>{feedOrderLabel}</h3>
+            <span>{feedOrderHint}</span>
           </div>
           <div className="monocle-four-col-grid">
             {gridArticles.map(article => {
@@ -863,6 +869,11 @@ export default function SourcesIndex({
                         focalY={article.focal_y}
                         fallbackIconSize={32}
                       />
+                      {hasRanking && (
+                        <div className="monocle-media-info">
+                          <RankingControls article={article} compact showFeedback={false} />
+                        </div>
+                      )}
                       {hasRanking && (
                         <div className="monocle-media-feedback">
                           <FeedbackButtons
@@ -890,6 +901,7 @@ export default function SourcesIndex({
                         faviconUrl={favicon}
                         showIdentity
                         compact
+                        showControls={false}
                         isRevealed={revealedMetaId === article.id}
                         onRevealToggle={handleRevealToggle}
                       />

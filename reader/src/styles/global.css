@@ -482,3 +482,139 @@ button {
     display: none;
   }
 }
+
+/* ---------- Phone app bar (mobile redesign, Phase 3) ----------
+   Light, the colour of the list beneath it, instead of the dark slab. The
+   title shows here only once the list's large title has scrolled away, and a
+   hairline marks the edge only while content is passing under it. */
+@media (max-width: 767px) {
+  .mobile-top-bar {
+    grid-template-columns: 1fr auto 1fr;
+    background-color: var(--bg-sunken);
+    color: var(--text-primary);
+    box-shadow: 0 1px 0 transparent;
+    transition: box-shadow 200ms ease;
+  }
+
+  .mobile-top-bar.is-index { background-color: var(--bg-page); }
+  .mobile-top-bar.is-scrolled { box-shadow: 0 1px 0 var(--hair-strong); }
+
+  .mobile-menu-btn,
+  .mobile-top-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+    box-shadow: 0 0 0 0.5px var(--hair-strong), 0 2px 8px -4px rgba(40, 25, 10, 0.2);
+    transition: transform 160ms var(--ease-out);
+  }
+
+  .mobile-menu-btn:active,
+  .mobile-top-btn:active { transform: scale(0.94); }
+
+  .mobile-menu-btn {
+    grid-column: 1;
+    justify-self: start;
+    margin-left: 12px;
+  }
+
+  .mobile-menu-btn .material-symbols-outlined,
+  .mobile-top-btn .material-symbols-outlined { font-size: 1.3125rem; }
+
+  .mobile-top-actions {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    gap: 8px;
+    margin-right: 12px;
+  }
+
+  .mobile-title-group {
+    flex-direction: column;
+    gap: 0;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 200ms ease, transform 200ms var(--ease-out);
+  }
+
+  .mobile-top-bar.has-title .mobile-title-group {
+    opacity: 1;
+    transform: none;
+  }
+
+  .mobile-title-text {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    max-width: 52vw;
+  }
+
+  .mobile-title-sub {
+    font-size: 0.71875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mobile-sync-btn .spinning { animation: ptr-spin 700ms linear infinite; }
+
+  /* "‹ Feeds": the list's way back to the root screen, a text button rather than
+     a glass disc, so it reads as navigation and not as an action. */
+  .mobile-menu-btn {
+    width: auto;
+    height: 44px;
+    margin-left: 4px;
+    padding: 0 10px 0 2px;
+    gap: 0;
+    border-radius: 22px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mobile-menu-btn .material-symbols-outlined { font-size: 1.75rem; }
+
+  .mobile-back-label {
+    font-size: 1.0625rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* Stack movement: pushed from Feeds, the list comes in from the right; popped
+     back to from an article, from the left. Feeds itself is in feeds_screen.css. */
+  .mobile-list-pane[data-enter],
+  .mobile-top-bar[data-enter] {
+    animation: rr-stack-in 320ms var(--ease-out) both;
+  }
+
+  .mobile-list-pane[data-enter="push"],
+  .mobile-top-bar[data-enter="push"] { --rr-stack-from: 100%; --rr-stack-fade: 1; }
+
+  .mobile-list-pane[data-enter="pop"],
+  .mobile-top-bar[data-enter="pop"] { --rr-stack-from: -24%; --rr-stack-fade: 0.4; }
+
+  @keyframes rr-stack-in {
+    from {
+      opacity: var(--rr-stack-fade);
+      transform: translate3d(var(--rr-stack-from), 0, 0);
+    }
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .mobile-title-group { transform: none; }
+
+  .mobile-list-pane[data-enter],
+  .mobile-top-bar[data-enter] { animation-name: rr-stack-fade; }
+
+  @keyframes rr-stack-fade {
+    from { opacity: 0; }
+  }
+}

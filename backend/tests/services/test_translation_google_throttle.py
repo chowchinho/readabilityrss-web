@@ -130,7 +130,9 @@ def test_a_success_clears_the_backoff_escalation():
         with pytest.raises(translation.GoogleError):
             translation._google_call("x", "zh-TW")
 
-    assert translation._google_cooldown_remaining() <= translation.GOOGLE_COOLDOWN_SECONDS
+        # Inside the patch: the real monotonic clock is uptime, and on a machine
+        # booted under ~30 minutes ago it leaves this cooldown looking doubled.
+        assert translation._google_cooldown_remaining() <= translation.GOOGLE_COOLDOWN_SECONDS
 
 
 def test_a_cooled_down_article_is_left_untranslated_not_damaged():

@@ -1,0 +1,294 @@
+/* ---------- Phone Feeds screen (mobile redesign, Phase 3) ----------
+   The root of the phone back stack. Only rendered below 768px (Sidebar.jsx). */
+
+.feeds-screen {
+  --fs-floor: max(env(safe-area-inset-bottom), 32px);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  visibility: hidden;
+}
+
+/* Going back to Feeds: it returns from the left, the way it left. */
+.feeds-screen.is-open {
+  visibility: visible;
+  animation: fs-pop-in 320ms var(--ease-out) both;
+}
+
+@keyframes fs-pop-in {
+  from {
+    opacity: 0.4;
+    transform: translate3d(-24%, 0, 0);
+  }
+}
+
+.fs-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px calc(var(--fs-floor) + 80px);
+}
+
+.fs-top {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 2px;
+}
+
+.fs-round-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  box-shadow: 0 0 0 0.5px var(--hair-strong), 0 2px 8px -4px rgba(40, 25, 10, 0.2);
+}
+
+.fs-round-btn .material-symbols-outlined { font-size: 1.3125rem; }
+
+.fs-title {
+  margin: 0 0 12px;
+  font-family: var(--font-heading);
+  font-size: 2.125rem;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+}
+
+.fs-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-muted);
+}
+
+.fs-search .material-symbols-outlined { font-size: 1.25rem; }
+
+/* 16px keeps the browser from zooming the page on focus. */
+.fs-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.fs-search input::placeholder { color: var(--text-muted); }
+.fs-search input::-webkit-search-cancel-button { filter: grayscale(1); }
+
+.fs-group {
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.fs-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 8px 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+}
+
+/* Inset separator, starting at the label rather than the icon, as grouped lists do. */
+.fs-row + .fs-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 48px;
+  right: 0;
+  height: 1px;
+  background: var(--hair);
+}
+
+.fs-row:active {
+  background: var(--hair-strong);
+  transform: none;
+  transition-duration: 0ms;
+}
+
+.fs-row.is-active { background: var(--accent-soft); }
+
+.fs-row-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--bg-card);
+}
+
+.fs-row-icon .material-symbols-outlined { font-size: 0.9375rem; }
+
+.fs-favicon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  object-fit: contain;
+}
+
+.fs-favicon-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 1.125rem;
+  color: var(--text-muted);
+}
+
+.fs-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fs-row.is-active .fs-row-name { font-weight: 600; }
+
+.fs-row-count {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-row-chevron {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.fs-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 2px 14px;
+}
+
+.fs-section-title {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.fs-section-title.is-active { color: var(--accent-strong); }
+
+.fs-section-count {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-section-toggle {
+  width: 44px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.fs-section-toggle .material-symbols-outlined {
+  font-size: 1.25rem;
+  transition: transform 200ms var(--ease-out);
+}
+
+.fs-section-toggle.is-collapsed .material-symbols-outlined { transform: rotate(-90deg); }
+
+.fs-empty {
+  margin: 32px 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Live status and theme within thumb reach, over the end of the list. */
+.fs-bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--fs-floor) + 14px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.fs-bottom > * { pointer-events: auto; }
+
+.fs-status {
+  min-width: 0;
+  max-width: calc(100% - 52px);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 0 0 0.5px var(--hair-strong), 0 2px 8px -4px rgba(40, 25, 10, 0.2);
+  overflow: hidden;
+}
+
+.fs-status .sync-status-container {
+  min-height: 40px;
+  padding: 6px 14px 6px 10px;
+  border: 0;
+  background: transparent;
+}
+
+.fs-status .status-subtext { display: none; }
+
+.fs-bottom .fs-round-btn {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feeds-screen.is-open { animation-name: fs-fade-in; }
+
+  @keyframes fs-fade-in {
+    from { opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .fs-status,
+  .fs-bottom .fs-round-btn {
+    background: var(--bg-card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

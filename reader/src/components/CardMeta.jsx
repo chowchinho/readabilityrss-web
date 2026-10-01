@@ -19,10 +19,12 @@ export default function CardMeta({
   showIdentity = false,
   compact = false,
   langOnHover = false,
+  // Off on grid cards, whose why button sits on the photo instead.
+  showControls = true,
   isRevealed = false,
   onRevealToggle = null
 }) {
-  const hasRanking = getSortMode() === 'smart';
+  const hasRanking = showControls && getSortMode() === 'smart';
   const langPill = langOnHover ? translationLabel(article) : null;
 
   const handleClick = (e) => {

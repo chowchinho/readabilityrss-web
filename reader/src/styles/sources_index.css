@@ -628,45 +628,50 @@
   margin-bottom: 8px;
 }
 
-/* One feed: no source to name, so the time and unread dot ride on the foot of the
-   photo, as on the full-image cards, and the headline sits straight under it. They
-   step aside on hover, before the photo crops up for the preview. */
-.monocle-photo-caption {
+/* One feed: the photo carries the card's controls, one job per corner. At rest
+   only the time and unread dot show, top right. On hover they give their place to
+   the mark-read button, the why button arrives top left and the thumbs bottom right. */
+.monocle-photo-date {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 16px; /* centred on the 32px mark-read disc it trades places with */
+  right: 12px;
   z-index: 3;
+  height: 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 28px 12px 10px;
-  background: linear-gradient(to top, rgba(12, 8, 4, 0.62), rgba(12, 8, 4, 0));
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: rgba(20, 14, 8, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
   pointer-events: none;
   transition: opacity 150ms ease;
 }
 
-.monocle-photo-caption .monocle-card-time {
+.monocle-photo-date .monocle-card-time {
   margin-left: 0;
-  color: rgba(255, 255, 255, 0.88);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  font-size: inherit;
+  color: inherit;
 }
 
-.monocle-photo-caption .unread-dot {
+.monocle-photo-date .unread-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9);
   flex-shrink: 0;
 }
 
-.monocle-photo-caption .card-vote-mark {
-  margin-right: -4px;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+.monocle-photo-date .card-vote-mark {
+  margin: 0 -2px 0 0;
 }
 
-.monocle-photo-caption .card-vote-mark .material-symbols-outlined {
+.monocle-photo-date .card-vote-mark .material-symbols-outlined {
   font-size: 0.8125rem;
 }
 
@@ -676,20 +681,23 @@
   padding-top: 8px;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .monocle-grid-card:hover .monocle-photo-caption {
-    opacity: 0;
-  }
+.monocle-media-info {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
 }
 
-/* The "why this is here" button, moved up with the thumbs: same 32px disc. */
-.monocle-media-feedback .card-ranking-actions,
-.monocle-media-feedback .card-ranking-actions.is-compact {
+.monocle-media-info .card-ranking-actions,
+.monocle-media-info .card-ranking-actions.is-compact {
   display: flex;
   margin: 0;
 }
 
-.monocle-media-feedback .ranking-btn {
+.monocle-media-info .ranking-btn {
   width: 32px;
   height: 32px;
   padding: 0;
@@ -704,18 +712,63 @@
   transition: background-color 150ms ease, transform 160ms var(--ease-out);
 }
 
-.monocle-media-feedback .ranking-btn .material-symbols-outlined {
+.monocle-media-info .ranking-btn .material-symbols-outlined {
   font-size: 1.125rem !important;
 }
 
-.monocle-media-feedback .ranking-btn:active {
+.monocle-media-info .ranking-btn:active {
   transform: scale(0.92);
 }
 
+/* Grid cards, on every index page: why button top left, thumbs bottom right. When
+   the preview crops the photo up, the thumbs ride its edge on the same delay and
+   curve, so they are never cut off. */
+.monocle-grid-card .monocle-media-feedback {
+  top: auto;
+  left: auto;
+  bottom: 12px;
+  right: 12px;
+  transition: opacity 150ms ease, transform 150ms var(--ease-out);
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .monocle-media-feedback .ranking-btn:hover,
-  .monocle-media-feedback .ranking-btn.active {
+  .monocle-grid-card:hover .monocle-photo-date {
+    opacity: 0;
+  }
+
+  .monocle-grid-card:hover .monocle-media-info {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .monocle-grid-card:hover .monocle-media-feedback {
+    transform: translateY(calc(-1 * var(--preview-rise)));
+    transition: opacity 150ms ease, transform 220ms var(--ease-out) 250ms;
+  }
+
+  .monocle-media-info .ranking-btn:hover,
+  .monocle-media-info .ranking-btn.active {
     background: rgba(20, 14, 8, 0.62);
+  }
+}
+
+/* Touch: the date pill already shows the vote and read state, so the discs that
+   would otherwise stay up to show them are not needed here. */
+@media (hover: none) {
+  .is-feed-index .monocle-grid-card .monocle-media-feedback:has(.active),
+  .is-feed-index .monocle-grid-card .quick-mark-read-btn.is-read {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monocle-grid-card .monocle-media-feedback {
+    transition: opacity 150ms ease, transform 0s;
+  }
+
+  .monocle-grid-card:hover .monocle-media-feedback {
+    transition: opacity 150ms ease, transform 0s linear 250ms;
   }
 }
 

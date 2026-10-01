@@ -1,0 +1,67 @@
+/* Pull to refresh (phones). The root takes the place of the pane wrapper's single
+   child, so the list inside lays out exactly as before. */
+
+.ptr-root {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ptr-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 0.5px var(--hair-strong), 0 4px 12px -4px rgba(40, 25, 10, 0.25);
+  opacity: 0;
+  transform: translate3d(-50%, -18px, 0);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* The arrow turns with the pull, so the in-between frames point at the outcome. */
+.ptr-indicator .material-symbols-outlined {
+  font-size: 1.25rem;
+  transform: rotate(var(--ptr-turn, 0deg));
+  transition: color 150ms ease;
+}
+
+.ptr-indicator[data-armed],
+.ptr-indicator.is-refreshing {
+  color: var(--accent-strong);
+}
+
+/* A fast spin reads as a fast refresh. */
+.ptr-indicator.is-refreshing .material-symbols-outlined {
+  animation: ptr-spin 700ms linear infinite;
+}
+
+@keyframes ptr-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ptr-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-indicator.is-refreshing .material-symbols-outlined {
+    animation-duration: 1600ms;
+  }
+}

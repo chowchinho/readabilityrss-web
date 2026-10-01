@@ -3,6 +3,47 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-01 — Phone reading page and navigation
+
+The rest of the phone redesign that followed 3.0.0. Desktop is unchanged.
+
+### Added
+- **Feeds screen on phones.** The sidebar is now a page of its own rather than an
+  overlay: a large title, a feed search, grouped lists with the unread total for each
+  category, settings in the top corner, and sync status and theme at the bottom. A feed
+  slides its article list in from the right, "‹ Feeds" goes back, and the system back
+  button steps from article to list to Feeds before asking to leave.
+- **Pull to refresh** on the phone article list and index, with rubber-band resistance,
+  a single vibration at the threshold, and a quick flick that also commits. Live mode,
+  which had no refresh control before, reloads feeds and articles.
+- **Swipe rows.** Swipe left on an article to reveal Read and Hide; swipe right past
+  the threshold to flip its read state.
+- **Reading toolbar at the bottom.** The reading page's actions sit in a floating
+  capsule within thumb reach: read state, translate, text size, share and More (open
+  original, copy link, why this is here, hide article). It hides while scrolling down
+  and returns on scroll up and at the end of the article.
+- **One translate button, three states:** it starts an on-demand translation, shows a
+  progress ring while the translation streams, and once translated opens the
+  Original / Side by side / Translation switch.
+- **End-of-article card** asking "Worth reading?", followed by a card for the next
+  article.
+
+### Changed
+- The phone article list has a light app bar: a large title with the unread count that
+  hands over to a compact title as you scroll, and a bottom bar with "Unread only" and
+  "Mark all read" (which asks once more before acting).
+- A main image at least as wide as the column becomes a full-bleed hero on the phone
+  reading page, and the same image is not repeated in the body.
+- Phone card text: headlines take two lines and summaries three, or four when the
+  headline fits on one line.
+- The on-demand translation stream now reports how many blocks it will translate, so
+  progress is exact rather than estimated. Pending paragraphs pulse until translated.
+
+### Fixed
+- The reading toolbar no longer sits under Android's navigation bar.
+- A Google Translate throttle test no longer fails on a machine started less than half
+  an hour earlier.
+
 ## 2026-10-01 — 3.0.0: UI/UX redesign
 
 A full design pass on the reader, built on Base UI and Apple's interface guidelines.

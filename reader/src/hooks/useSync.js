@@ -23,49 +23,57 @@ export function useSync({ enabled = true, onSyncFailure, onSyncSuccess } = {}) {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [error, setError] = useState(null);
   const syncingRef = useRef(false);
+  // A second caller (pull to refresh while the startup or scheduled sync runs) waits
+  // for the sync in flight instead of returning at once, so it knows when it is done.
+  const inflightRef = useRef(null);
 
   const performSync = useCallback(async (options = {}) => {
     if (!enabled) return;
-    if (syncingRef.current) return;
+    if (syncingRef.current) return inflightRef.current;
     syncingRef.current = true;
-    setSyncing(true);
-    setError(null);
-    try {
-      // Pass a callback to track background caching progress
-      await runSync((progress) => {
-        setCacheProgress(progress);
-      }, options.onDataReady);
-      const ts = await getCheckTimestamp();
-      setLastSyncTime(ts);
-      onSyncSuccess?.();
-    } catch (err) {
-      console.error('Sync failed, retrying in 15s...', err);
-      await new Promise(resolve => setTimeout(resolve, 15000));
-
+    const run = (async () => {
+      setSyncing(true);
+      setError(null);
       try {
+        // Pass a callback to track background caching progress
         await runSync((progress) => {
           setCacheProgress(progress);
         }, options.onDataReady);
         const ts = await getCheckTimestamp();
         setLastSyncTime(ts);
         onSyncSuccess?.();
-      } catch (retryErr) {
-        console.error('Sync retry also failed', retryErr);
-        onSyncFailure?.();
-        setError(retryErr.message);
-        setCacheProgress(0);
+      } catch (err) {
+        console.error('Sync failed, retrying in 15s...', err);
+        await new Promise(resolve => setTimeout(resolve, 15000));
 
-        // Register a one-shot background sync so the browser retries when connectivity returns
-        if ('serviceWorker' in navigator && isOfflineCachingEnabled()) {
-          navigator.serviceWorker.ready
-            .then((reg) => 'sync' in reg && reg.sync.register('reader-sync-retry'))
-            .catch(err => console.warn('[useSync] sync.register failed:', err));
+        try {
+          await runSync((progress) => {
+            setCacheProgress(progress);
+          }, options.onDataReady);
+          const ts = await getCheckTimestamp();
+          setLastSyncTime(ts);
+          onSyncSuccess?.();
+        } catch (retryErr) {
+          console.error('Sync retry also failed', retryErr);
+          onSyncFailure?.();
+          setError(retryErr.message);
+          setCacheProgress(0);
+
+          // Register a one-shot background sync so the browser retries when connectivity returns
+          if ('serviceWorker' in navigator && isOfflineCachingEnabled()) {
+            navigator.serviceWorker.ready
+              .then((reg) => 'sync' in reg && reg.sync.register('reader-sync-retry'))
+              .catch(err => console.warn('[useSync] sync.register failed:', err));
+          }
         }
+      } finally {
+        syncingRef.current = false;
+        inflightRef.current = null;
+        setSyncing(false);
       }
-    } finally {
-      syncingRef.current = false;
-      setSyncing(false);
-    }
+    })();
+    inflightRef.current = run;
+    return run;
   }, [enabled, onSyncFailure, onSyncSuccess]);
 
   useEffect(() => {

@@ -114,6 +114,7 @@ def test_source_event_emitted_before_blocks_with_data_tb():
     source_events = [e for e in events if e["type"] == "source"]
     assert len(source_events) == 1
     assert events[0]["type"] == "source"
+    assert source_events[0]["total"] == 3
 
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(source_events[0]["html"], "html.parser")

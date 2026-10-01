@@ -113,9 +113,12 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
   const titleRef = useRef(null);
   const [titleOneLine, setTitleOneLine] = useState(false);
 
+  // Phones measure every standard card: a one-line headline lets the summary run to
+  // four lines instead of three.
+  const measureTitle = inlineMeta || effectiveViewMode === 'standard';
   useLayoutEffect(() => {
     const el = titleRef.current;
-    if (!inlineMeta || !el) return undefined;
+    if (!measureTitle || !el) return undefined;
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 22;
     const measure = () => setTitleOneLine(el.offsetHeight < lineHeight * 1.5);
     measure();
@@ -123,7 +126,7 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [inlineMeta, displayTitle]);
+  }, [measureTitle, displayTitle]);
 
   const score = typeof article.score === 'number' ? article.score.toFixed(2) : null;
   // Nothing to explain or to train under latest/random ordering.
@@ -202,7 +205,7 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
 
   return (
     <div 
-      className={`article-card ${isActive ? 'active' : ''} ${article.is_read ? 'is-read' : ''} ${!imageSrc ? 'no-image' : ''} ${effectiveViewMode === 'full_image' ? 'full-image' : ''} ${inlineMeta ? 'inline-meta' : ''} ${inlineMeta && titleOneLine ? 'title-one-line' : ''} ${isFeature ? 'featured' : ''}`}
+      className={`article-card ${isActive ? 'active' : ''} ${article.is_read ? 'is-read' : ''} ${!imageSrc ? 'no-image' : ''} ${effectiveViewMode === 'full_image' ? 'full-image' : ''} ${inlineMeta ? 'inline-meta' : ''} ${inlineMeta && titleOneLine ? 'title-one-line' : ''} ${titleOneLine && effectiveViewMode === 'standard' ? 'title-single' : ''} ${isFeature ? 'featured' : ''}`}
       onClick={handleClick}
       onMouseLeave={cancelDwellWithGrace}
       data-id={article.id}

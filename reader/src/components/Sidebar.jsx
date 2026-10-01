@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/sidebar.css';
 import SyncStatus from './SyncStatus';
+import FeedsScreen from './FeedsScreen';
 import { displayCategoryName } from '../utils/articleText';
 import { CATEGORY_ORDER_KEY, parseCategoryOrder, sortByCategoryOrder } from '../utils/categoryOrder';
 
@@ -86,7 +87,29 @@ export default function Sidebar({
     return <span className="unread-badge">{count}</span>;
   };
 
-  // On Mobile, we show the full sidebar but it's hidden/shown via 'isOpen'
+  if (!isDesktop) {
+    return (
+      <FeedsScreen
+        feedsData={feedsData}
+        selectedFeedId={selectedFeedId}
+        selectedCategoryId={selectedCategoryId}
+        onSelectFeed={onSelectFeed}
+        onSelectCategory={onSelectCategory}
+        isOpen={isOpen}
+        onOpenSettings={onOpenSettings}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        syncing={syncing}
+        lastSyncTime={lastSyncTime}
+        performSync={performSync}
+        cacheProgress={cacheProgress}
+        isOffline={isOffline}
+        isForcedOffline={isForcedOffline}
+        toggleForcedOffline={toggleForcedOffline}
+      />
+    );
+  }
+
   // On Desktop, we show it always but it can be 'collapsed' into a single icon bar
 
   const effectivelyCollapsed = isSidebarCollapsed && isDesktop;

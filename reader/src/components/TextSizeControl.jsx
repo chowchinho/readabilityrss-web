@@ -4,15 +4,15 @@ import { TEXT_SCALES, isDefaultTextScale, resetTextScaleIndex } from '../utils/t
 
 // Body text size for the reading pane. Steps rather than a slider: five sizes are
 // enough to cover comfortable reading, and each press is a visible, undoable change.
-export default function TextSizeControl({ index, onChange }) {
+export default function TextSizeControl({ index, onChange, triggerClassName = 'action-btn icon-only', side = 'bottom' }) {
   const last = TEXT_SCALES.length - 1;
   return (
     <Popover.Root>
-      <Popover.Trigger className="action-btn icon-only" title="Text size" aria-label="Text size">
-        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>text_fields</span>
+      <Popover.Trigger className={triggerClassName} title="Text size" aria-label="Text size">
+        <span className="material-symbols-outlined">text_fields</span>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8} className="text-size-positioner">
+        <Popover.Positioner side={side} align="end" sideOffset={8} collisionPadding={8} className="text-size-positioner">
           <Popover.Popup className="text-size-popup">
             <div className="text-size-row">
               <button
