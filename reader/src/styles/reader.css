@@ -742,6 +742,10 @@
   pointer-events: none;
 }
 
+.action-btn.is-saved .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1;
+}
+
 /* Below ~650px the Keep Unread label runs into the centred votes, so the read
    toggle goes icon-only to keep the left / centre / right arrangement intact. */
 @container reader-actions (max-width: 660px) {
@@ -1273,6 +1277,15 @@
   .reader-float-btn.is-back { left: 12px; }
   .reader-float-btn.is-back .material-symbols-outlined { font-size: 1.75rem; }
   .reader-float-btn.is-votes { right: 12px; }
+  .reader-float-btn.is-save { right: 60px; }
+  .reader-float-btn.is-save.is-saved .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1;
+  }
+  .reader-float-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
 
   /* The space is kept while the photo loads, so the text does not jump down once
      it arrives; the photo fades in over the sunken placeholder. */
@@ -1687,6 +1700,12 @@
   }
 
   .mbar-menu-item[data-highlighted] { background: var(--hair); }
+  .mbar-menu-item[data-disabled],
+  .mbar-menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
   .mbar-menu-item .material-symbols-outlined { font-size: 1.25rem; color: var(--text-secondary); }
 }
 

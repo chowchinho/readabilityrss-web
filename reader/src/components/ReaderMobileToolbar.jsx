@@ -21,6 +21,9 @@ const ReaderMobileToolbar = forwardRef(function ReaderMobileToolbar({
   onWhy,
   showWhy,
   onHide,
+  isSaved,
+  onToggleSaved,
+  isOffline,
 }, ref) {
   const {
     canTranslate, isTranslating, done, total, hasPairs, isChinese,
@@ -127,6 +130,17 @@ const ReaderMobileToolbar = forwardRef(function ReaderMobileToolbar({
         <Menu.Portal>
           <Menu.Positioner side="top" align="end" sideOffset={12} collisionPadding={12} className="mbar-positioner">
             <Menu.Popup className="mbar-sheet mbar-menu">
+              <Menu.Item
+                className="mbar-menu-item"
+                onClick={isOffline ? undefined : onToggleSaved}
+                disabled={isOffline}
+                title={isOffline ? 'Saving needs a connection' : undefined}
+              >
+                <span>{isSaved ? 'Remove from Saved' : 'Save'}</span>
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  {isSaved ? 'bookmark_remove' : 'bookmark_add'}
+                </span>
+              </Menu.Item>
               <Menu.Item className="mbar-menu-item" onClick={() => window.open(originalUrl, '_blank', 'noopener,noreferrer')}>
                 <span>Open original</span>
                 <span className="material-symbols-outlined" aria-hidden="true">open_in_new</span>

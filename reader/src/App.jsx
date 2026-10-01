@@ -5,9 +5,9 @@ import { makeSlug, parseId } from './utils/slug';
 import { displayLimitCovering } from './utils/displayWindow';
 import { resolveAutoMarkRead } from './utils/autoMarkRead';
 import Login from './components/Login';
-import { getArticle, getArticles, getFeeds, setOnAuthFailure, bulkMarkRead, patchFeedSource, getSortMode, API_URL, SESSION_KEY, isAiEnabled, fetchAiConfig, flushVoteOutbox } from './api';
+import { getArticle, getArticles, getFeeds, setOnAuthFailure, bulkMarkRead, patchFeedSource, getSortMode, API_URL, SESSION_KEY, isAiEnabled, fetchAiConfig, flushVoteOutbox, saveArticle, unsaveArticle } from './api';
 import { notify } from './toast';
-import { getFeedsDataFromDB, getArticlesFromDB, getArticleFromDB, getSettings, saveArticlesToDB, markArticleReadInDB } from './db';
+import { getFeedsDataFromDB, getArticlesFromDB, getArticleFromDB, getSettings, saveArticlesToDB, markArticleReadInDB, markArticleSavedInDB } from './db';
 import { applyLocalCachePolicy } from './sync';
 import Sidebar from './components/Sidebar';
 import ArticleFeed from './components/ArticleFeed';
@@ -53,18 +53,21 @@ function App() {
   // Keep the selected feed visibly active for a beat before mobile navigation.
   // This gives Android predictive back a stable Pane 1 snapshot to return to.
   const MOBILE_FEED_NAV_DELAY_MS = 100;
-  const SYSTEM_VERSION = "2026-10-01 13:44 UTC";
+  const SYSTEM_VERSION = "2026-10-01 15:14 UTC";
   const { feedSlug, articleSlug } = useParams();
   const routeArticleId = articleSlug ? parseId(articleSlug) : null;
-  const routeFeedId = feedSlug ? parseId(feedSlug) : null;
-  const routeContextFeedId = feedSlug === 'all' ? null : routeFeedId;
+  const isSavedRoute = feedSlug === 'saved';
+  const routeFeedId = isSavedRoute ? 'saved' : (feedSlug ? parseId(feedSlug) : null);
+  const routeContextFeedId = isSavedRoute ? 'saved' : (feedSlug === 'all' ? null : routeFeedId);
   const selectedArticleId = articleSlug ? parseId(articleSlug) : null;
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem(SESSION_KEY));
   const [error, setError] = useState('');
 
-  const [feedsData, setFeedsData] = useState({ categories: [], total_unread: 0 });
+  const [feedsData, setFeedsData] = useState({ categories: [], total_unread: 0, total_saved: 0 });
   const [articles, setArticles] = useState([]);
+  const [savedArticles, setSavedArticles] = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
   const [fullArticle, setFullArticle] = useState(null);
   const [articleLoading, setArticleLoading] = useState(false);
   const [articleFetchRevision, setArticleFetchRevision] = useState(0);
@@ -75,9 +78,10 @@ function App() {
   // rather than holding it in state is what makes browser-back out of an article land
   // on the index again instead of on a stream view nothing navigated to.
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
-  const isIndexViewMode = isDesktop && !selectedArticleId;
+  const isIndexViewMode = isDesktop && !selectedArticleId && pane2ContextFeedId !== 'saved';
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(localStorage.getItem('reader_sidebar_collapsed') === 'true');
   const [showSettings, setShowSettings] = useState(false);
+  const [savedRowOnlyWhenNonempty, setSavedRowOnlyWhenNonempty] = useState(() => localStorage.getItem('reader_saved_row_only_when_nonempty') !== 'false');
   const [loading, setLoading] = useState(true);
   const [allArticlesViewMode, setAllArticlesViewMode] = useState(() => localStorage.getItem('reader_all_articles_view_mode') || 'standard');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
@@ -227,15 +231,21 @@ function App() {
 
   const getFeedPath = useCallback((feedId) => {
     if (!feedId) return '/';
+    if (feedId === 'saved') return '/saved/';
 
     const feed = feedsData.categories.flatMap(c => c.feeds).find(f => f.id === feedId);
     return `/${makeSlug(feedId, feed?.name || String(feedId))}/`;
   }, [feedsData]);
 
   const getArticlePath = useCallback((article, contextFeedId = pane2ContextFeedId) => {
-    const contextSlug = contextFeedId
-      ? makeSlug(contextFeedId, feedsData.categories.flatMap(c => c.feeds).find(f => f.id === contextFeedId)?.name || String(contextFeedId))
-      : 'all';
+    let contextSlug;
+    if (contextFeedId === 'saved') {
+      contextSlug = 'saved';
+    } else if (contextFeedId) {
+      contextSlug = makeSlug(contextFeedId, feedsData.categories.flatMap(c => c.feeds).find(f => f.id === contextFeedId)?.name || String(contextFeedId));
+    } else {
+      contextSlug = 'all';
+    }
 
     return `/${contextSlug}/${makeSlug(article.id, article.title)}`;
   }, [feedsData, pane2ContextFeedId]);
@@ -329,16 +339,53 @@ function App() {
     }
   }, []);
 
+  const loadSavedArticles = useCallback(async () => {
+    setSavedLoading(true);
+    try {
+      if (isOffline) {
+        const dbArticles = await getArticlesFromDB();
+        const saved = dbArticles
+          .filter(a => !!a.is_saved)
+          .sort((a, b) => {
+            const timeA = a.saved_at ? new Date(a.saved_at).getTime() : 0;
+            const timeB = b.saved_at ? new Date(b.saved_at).getTime() : 0;
+            if (timeB !== timeA) return timeB - timeA;
+            return getArticleTimestamp(b) - getArticleTimestamp(a);
+          });
+        setSavedArticles(saved);
+      } else {
+        const resp = await getArticles(null, 200, 0, null, null, null, { saved: true });
+        if (resp && resp.articles) {
+          setSavedArticles(resp.articles);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load saved articles', err);
+    } finally {
+      setSavedLoading(false);
+    }
+  }, [isOffline]);
+
+  useEffect(() => {
+    if (isAuthenticated && pane2ContextFeedId === 'saved') {
+      loadSavedArticles();
+    }
+  }, [isAuthenticated, pane2ContextFeedId, loadSavedArticles]);
+
   // Pull to refresh on phones. Live mode has no sync, and no refresh button either,
   // so the pull reloads feeds and articles; with offline caching it runs a sync,
   // whose completion reloads the lists from IndexedDB as usual.
   const handlePullRefresh = useCallback(async () => {
+    if (pane2ContextFeedId === 'saved') {
+      await loadSavedArticles();
+      return;
+    }
     if (isPureLiveMode) {
       await loadLiveData(true);
     } else {
       await performSync();
     }
-  }, [isPureLiveMode, loadLiveData, performSync]);
+  }, [pane2ContextFeedId, loadSavedArticles, isPureLiveMode, loadLiveData, performSync]);
 
   const openMobileSidebar = useCallback(() => {
     if (isDesktopRef.current || routeArticleId) return;
@@ -775,17 +822,80 @@ function App() {
 
     setError('');
 
-    const selected = articles.find(a => a.id === id);
+    const selected = (pane2ContextFeedId === 'saved' ? savedArticles : articles).find(a => a.id === id) || articles.find(a => a.id === id);
     if (selected) {
       navigate(getArticlePath(selected));
     }
-  }, [articles, getArticlePath, selectedArticleId, navigate]);
+  }, [articles, savedArticles, pane2ContextFeedId, getArticlePath, selectedArticleId, navigate]);
+
+  const toggleSaved = useCallback(async (article) => {
+    if (!article || article.id == null) return;
+    if (isOffline) {
+      notify('Saving needs a connection');
+      return;
+    }
+
+    const id = article.id;
+    const wasSaved = !!article.is_saved;
+    const nextSaved = wasSaved ? 0 : 1;
+    const nextSavedAt = nextSaved ? new Date().toISOString() : null;
+
+    // Optimistic update
+    setArticles(prev => prev.map(a => String(a.id) === String(id) ? { ...a, is_saved: nextSaved, saved_at: nextSavedAt } : a));
+    setSavedArticles(prev => {
+      const exists = prev.some(a => String(a.id) === String(id));
+      if (exists) {
+        return prev.map(a => String(a.id) === String(id) ? { ...a, is_saved: nextSaved, saved_at: nextSavedAt } : a);
+      }
+      if (nextSaved) {
+        const artToAdd = { ...(articles.find(a => String(a.id) === String(id)) || article), is_saved: 1, saved_at: nextSavedAt };
+        return [artToAdd, ...prev];
+      }
+      return prev;
+    });
+    setFullArticle(prev => (prev && String(prev.id) === String(id) ? { ...prev, is_saved: nextSaved, saved_at: nextSavedAt } : prev));
+    setFeedsData(prev => ({
+      ...prev,
+      total_saved: Math.max(0, (prev.total_saved || 0) + (nextSaved ? 1 : -1))
+    }));
+    markArticleSavedInDB(id, nextSaved, nextSavedAt).catch(e => console.warn('Failed to update DB is_saved', e));
+
+    try {
+      const resp = nextSaved ? await saveArticle(id) : await unsaveArticle(id);
+      if (!resp || !resp.success) {
+        throw new Error('Save failed');
+      }
+    } catch (err) {
+      // Revert optimistic update
+      setArticles(prev => prev.map(a => String(a.id) === String(id) ? { ...a, is_saved: wasSaved ? 1 : 0, saved_at: article.saved_at } : a));
+      setSavedArticles(prev => {
+        if (wasSaved) {
+          const exists = prev.some(a => String(a.id) === String(id));
+          if (exists) {
+            return prev.map(a => String(a.id) === String(id) ? { ...a, is_saved: 1, saved_at: article.saved_at } : a);
+          }
+          return [article, ...prev];
+        } else {
+          return prev.filter(a => String(a.id) !== String(id));
+        }
+      });
+      setFullArticle(prev => (prev && String(prev.id) === String(id) ? { ...prev, is_saved: wasSaved ? 1 : 0, saved_at: article.saved_at } : prev));
+      setFeedsData(prev => ({
+        ...prev,
+        total_saved: Math.max(0, (prev.total_saved || 0) + (wasSaved ? 1 : -1))
+      }));
+      markArticleSavedInDB(id, wasSaved ? 1 : 0, article.saved_at).catch(() => {});
+      notify('Failed to update saved status', { type: 'error' });
+    }
+  }, [articles, isOffline]);
 
   // Auto-mark on open. This depends on `articles`, so it also re-runs when the user
   // manually marks the open article unread — autoMarkedIdRef keeps it to one mark per
   // opening so that toggle isn't instantly undone.
   useEffect(() => {
-    const activeArticle = articles.find(a => String(a.id) === String(selectedArticleId)) || (fullArticle && String(fullArticle.id) === String(selectedArticleId) ? fullArticle : null);
+    const activeArticle = (pane2ContextFeedId === 'saved' ? savedArticles : articles).find(a => String(a.id) === String(selectedArticleId))
+      || articles.find(a => String(a.id) === String(selectedArticleId))
+      || (fullArticle && String(fullArticle.id) === String(selectedArticleId) ? fullArticle : null);
     const { mark, nextAutoMarkedId } = resolveAutoMarkRead(
       selectedArticleId,
       activeArticle,
@@ -793,7 +903,7 @@ function App() {
     );
     autoMarkedIdRef.current = nextAutoMarkedId;
     if (mark) markArticleRead(selectedArticleId);
-  }, [articles, fullArticle, markArticleRead, selectedArticleId]);
+  }, [articles, savedArticles, pane2ContextFeedId, fullArticle, markArticleRead, selectedArticleId]);
 
   // Fetch full article content when selection changes
   useEffect(() => {
@@ -803,7 +913,7 @@ function App() {
     }
 
     // Check if articles list already has full content for this article
-    const existing = articles.find(a => a.id === selectedArticleId);
+    const existing = (pane2ContextFeedId === 'saved' ? savedArticles : articles).find(a => a.id === selectedArticleId) || articles.find(a => a.id === selectedArticleId);
     if (existing && existing.content) {
       setFullArticle({ ...existing, is_cached: true });
       setArticleLoading(false);
@@ -911,6 +1021,9 @@ function App() {
   }, [selectedArticleId, articleFetchRevision, isPureLiveMode, offlineCachingEnabled, isOffline]);
 
   const filteredArticles = useMemo(() => {
+    if (pane2ContextFeedId === 'saved') {
+      return savedArticles;
+    }
     const cutoff = Date.now() - ((settings.retentionDays || 14) * 24 * 60 * 60 * 1000);
     const sessionIdsArr = Array.from(sessionReadIds).map(String);
     const hiddenIdsArr = Array.from(hiddenReadIds).map(String);
@@ -937,7 +1050,7 @@ function App() {
         return sessionIdsArr.includes(idStr) && !hiddenIdsArr.includes(idStr);
       });
     return sortForMode(kept);
-  }, [articles, pane2ContextFeedId, showReadArticles, selectedArticleId, sessionReadIds, hiddenReadIds, settings.retentionDays, isOffline]);
+  }, [articles, pane2ContextFeedId, showReadArticles, selectedArticleId, sessionReadIds, hiddenReadIds, settings.retentionDays, isOffline, savedArticles]);
 
   useAdjacentPrefetch({ filteredArticles, selectedArticleId, isOffline, enabled: offlineCachingEnabled });
 
@@ -1077,6 +1190,9 @@ function App() {
       return;
     }
 
+    // loadSavedArticles fetches the whole Saved list; "saved" is no source_id the server knows.
+    if (pane2ContextFeedId === 'saved') return;
+
     // If we've reached the end of local articles, but server count says more, fetch from server
     // For now, let's keep it simple and just increase the limit if possible, 
     // but the user wants to avoid overloading the server.
@@ -1152,11 +1268,13 @@ function App() {
     if (selectedArticleIndex < 0) return;
     setDisplayLimit(prev => displayLimitCovering(prev, selectedArticleIndex));
   }, [selectedArticleIndex]);
-  const hasRemoteMore = pane2ContextFeedId
-    ? filteredArticles.length < selectedFeedServerUnreadCount
-    : activeCategoryId
-      ? loadedInScopeCount < activeCategoryServerUnreadCount
-      : filteredArticles.length < (feedsData?.total_unread || 0);
+  const hasRemoteMore = pane2ContextFeedId === 'saved'
+    ? false
+    : (pane2ContextFeedId
+      ? filteredArticles.length < selectedFeedServerUnreadCount
+      : activeCategoryId
+        ? loadedInScopeCount < activeCategoryServerUnreadCount
+        : filteredArticles.length < (feedsData?.total_unread || 0));
   const hasMoreForFeed = displayLimit < filteredArticles.length || (!isOffline && hasRemoteMore);
 
   // Stable identity: the index's IntersectionObserver re-subscribes on every change
@@ -1170,7 +1288,7 @@ function App() {
 
     let feedUnreadCount;
     let needsInitialFeedBackfill;
-    if (pane2ContextFeedId) {
+    if (pane2ContextFeedId && pane2ContextFeedId !== 'saved') {
       feedUnreadCount = feedsData.categories.flatMap(c => c.feeds).find(f => f.id === pane2ContextFeedId)?.unread_count || 0;
       needsInitialFeedBackfill = filteredArticles.length < Math.min(feedUnreadCount, 50);
     } else if (activeCategoryId) {
@@ -1344,11 +1462,17 @@ function App() {
     return <Login onAuth={handleLoginSuccess} />;
   }
 
-  const selectedFeed = liveFeedsData?.categories?.flatMap(c => c?.feeds || [])?.find(f => f?.id === pane2ContextFeedId);
-  const unreadCount = pane2ContextFeedId ? selectedFeed?.unread_count : liveFeedsData?.total_unread;
-  const listTitle = pane2ContextFeedId ? (selectedFeed?.name || 'Articles') : activeCategoryName;
-  const unreadLabel = unreadCount > 0 ? `${unreadCount.toLocaleString()} unread` : null;
-  const currentViewMode = pane2ContextFeedId
+  const selectedFeed = pane2ContextFeedId === 'saved' ? null : liveFeedsData?.categories?.flatMap(c => c?.feeds || [])?.find(f => f?.id === pane2ContextFeedId);
+  const unreadCount = pane2ContextFeedId === 'saved'
+    ? (liveFeedsData?.total_saved || 0)
+    : (pane2ContextFeedId ? selectedFeed?.unread_count : liveFeedsData?.total_unread);
+  const listTitle = pane2ContextFeedId === 'saved'
+    ? 'Saved'
+    : (pane2ContextFeedId ? (selectedFeed?.name || 'Articles') : activeCategoryName);
+  const unreadLabel = pane2ContextFeedId === 'saved'
+    ? (unreadCount > 0 ? `${unreadCount.toLocaleString()} saved` : null)
+    : (unreadCount > 0 ? `${unreadCount.toLocaleString()} unread` : null);
+  const currentViewMode = pane2ContextFeedId && pane2ContextFeedId !== 'saved'
     ? (isDesktop ? selectedFeed?.desktop_view_mode : selectedFeed?.mobile_view_mode) || 'standard'
     : allArticlesViewMode;
 
@@ -1436,6 +1560,7 @@ function App() {
         isOffline={isOffline}
         isForcedOffline={isForcedOffline}
         toggleForcedOffline={toggleForcedOffline}
+        savedRowOnlyWhenNonempty={savedRowOnlyWhenNonempty}
       />
       
       {!isSidebarCollapsed && isDesktop && <Resizer varName="--sidebar-width" defaultWidth={256} minWidth={150} maxWidth={400} />}
@@ -1487,7 +1612,7 @@ function App() {
               onLoadMore={handleLoadMore}
               selectedArticleId={selectedArticleId}
               onSelectArticle={handleSelectArticle}
-              loading={loading && !articles.length}
+              loading={pane2ContextFeedId === 'saved' ? (savedLoading && !savedArticles.length) : (loading && !articles.length)}
               isFetchingMore={isFetchingMore}
               selectedFeedId={pane2ContextFeedId}
               feedsData={liveFeedsData}
@@ -1505,7 +1630,7 @@ function App() {
               onRowHide={(id) => { markArticleRead(id); handleHideArticle(id); }}
             />
             </PullToRefresh>
-            {!isDesktop && (
+            {!isDesktop && pane2ContextFeedId !== 'saved' && (
               <ListBottomBar
                 showRead={showReadArticles}
                 onToggleShowRead={(next) => {
@@ -1539,6 +1664,10 @@ function App() {
                 const target = (fullArticle && String(fullArticle.id) === String(selectedArticleId)) ? fullArticle : selectedArticleMeta;
                 if (target) toggleReadManual(target.id, target.is_read);
               }}
+              onToggleSaved={() => {
+                const target = (fullArticle && String(fullArticle.id) === String(selectedArticleId)) ? fullArticle : selectedArticleMeta;
+                if (target) toggleSaved(target);
+              }}
               onHide={() => {
                 // Read, then out of the list, then back to it: a finished article
                 // the reader wants gone from this session's list.
@@ -1563,6 +1692,7 @@ function App() {
         setShowSettings(false);
         setOfflineCachingEnabled(nextOfflineCachingEnabled);
         setShowReadArticles(localStorage.getItem('reader_show_read') === 'true');
+        setSavedRowOnlyWhenNonempty(localStorage.getItem('reader_saved_row_only_when_nonempty') !== 'false');
         setHideEmptySources(localStorage.getItem('reader_hide_empty_sources') === 'true');
         if (nextOfflineCachingEnabled) {
           performSync();

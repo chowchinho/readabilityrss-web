@@ -13,7 +13,6 @@ export default function Sidebar({
   selectedCategoryId = 'all',
   onSelectCategory,
   isOpen,
-  onClose,
   onOpenSettings,
   syncing,
   lastSyncTime,
@@ -26,6 +25,7 @@ export default function Sidebar({
   isOffline,
   isForcedOffline,
   toggleForcedOffline,
+  savedRowOnlyWhenNonempty,
 }) {
   const [collapsedCats, setCollapsedCats] = useState({});
   const [theme, setTheme] = useState(localStorage.getItem('reader_theme') || 'light');
@@ -106,6 +106,7 @@ export default function Sidebar({
         isOffline={isOffline}
         isForcedOffline={isForcedOffline}
         toggleForcedOffline={toggleForcedOffline}
+        savedRowOnlyWhenNonempty={savedRowOnlyWhenNonempty}
       />
     );
   }
@@ -116,9 +117,7 @@ export default function Sidebar({
 
   return (
     <>
-      <div className={`sidebar-overlay ${isOpen ? 'visible' : ''}`} onClick={isOpen ? onClose : undefined}></div>
-
-      <div className={`sidebar ${isOpen ? 'open' : ''} ${effectivelyCollapsed ? 'collapsed' : ''}`}>
+      <div className={`sidebar ${effectivelyCollapsed ? 'collapsed' : ''}`}>
         {!effectivelyCollapsed && (
           <div className="sidebar-top-row">
             <Link to="/" className="nav-brand">
@@ -135,16 +134,6 @@ export default function Sidebar({
                 aria-label="Collapse sidebar"
               >
                 <span className="material-symbols-outlined">left_panel_close</span>
-              </button>
-            )}
-            {!isDesktop && (
-              <button
-                type="button"
-                className="sidebar-mobile-close-btn"
-                onClick={onClose}
-                title="Close Sidebar"
-              >
-                <span className="material-symbols-outlined">close</span>
               </button>
             )}
           </div>
@@ -183,6 +172,24 @@ export default function Sidebar({
           </div>
           {!effectivelyCollapsed && renderBadge('all', feedsData.total_unread)}
         </div>
+
+        {!effectivelyCollapsed && (!savedRowOnlyWhenNonempty || (feedsData?.total_saved || 0) > 0) && (
+          <div
+            className={`feed-item saved-row ${selectedFeedId === 'saved' ? 'active' : ''}`}
+            onClick={() => onSelectFeed('saved')}
+            style={{ margin: '2px 0 6px' }}
+          >
+            <div className="favicon-wrapper">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>
+                bookmark
+              </span>
+            </div>
+            <span className="feed-name">Saved</span>
+            {(feedsData?.total_saved || 0) > 0 && (
+              <span className="unread-badge">{feedsData.total_saved}</span>
+            )}
+          </div>
+        )}
 
         {!effectivelyCollapsed && (() => {
           const savedOrder = parseCategoryOrder(localStorage.getItem(CATEGORY_ORDER_KEY));

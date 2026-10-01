@@ -93,10 +93,6 @@
   transform: scale(0.94);
 }
 
-.sidebar-mobile-close-btn {
-  display: none;
-}
-
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -564,83 +560,8 @@
 }
 
 @media (max-width: 767px) {
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100dvh;
-    z-index: 1000;
-    display: flex;
-    visibility: hidden;
-    overflow: visible;
-    padding: 0 12px;
-  }
-
-  .sidebar.open {
-    visibility: visible;
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Same two columns as the 22px row icons and their labels at this size. */
-  .sidebar-top-row {
-    padding: 18px 8px 14px 9px;
-  }
-
-  .nav-brand {
-    font-size: 1.125rem;
-    gap: 11px;
-  }
-
-  .nav-logo {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-  }
-
-  .sidebar-mobile-close-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background-color: var(--bg-card);
-    box-shadow: var(--shadow-sm);
-    color: var(--text-primary);
-    flex-shrink: 0;
-    transition: transform 160ms var(--ease-out);
-  }
-
-  .sidebar-mobile-close-btn:active {
-    transform: scale(0.95);
-  }
-
-  .sidebar-mobile-close-btn span {
-    font-size: 1.375rem;
-  }
-
-  .sidebar-header {
-    padding: 12px !important;
-    font-size: 0.9375rem !important;
-    min-height: 50px !important;
-  }
-
-  .sidebar-header .unread-badge {
-    font-size: 0.75rem !important;
-  }
-
-  .category-header {
-    padding: 16px 12px 6px !important;
-    font-size: 0.75rem !important;
-  }
-
-  .feed-item {
-    padding: 12px;
-    font-size: 1rem;
-    min-height: 48px;
-  }
-
+  /* The phone sidebar is FeedsScreen.jsx now; these still style the article
+     cards, the reader and the Feeds screen's status pill. */
   .favicon-wrapper {
     width: 22px;
     height: 22px;
@@ -656,11 +577,6 @@
     min-width: 32px;
   }
 
-  .settings-row {
-    padding: 12px;
-    min-height: 52px;
-  }
-
   .sync-status-container {
     padding: 12px;
     min-height: 52px;
@@ -670,21 +586,5 @@
     font-size: 1.125rem;
     padding: 0 6px;
   }
-
-  .sidebar-overlay {
-    display: none;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 999;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.25s ease, visibility 0s linear 0.25s;
-  }
-
-  .sidebar-overlay.visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transition: opacity 0.25s ease, visibility 0s linear 0s;
-  }
 }
+

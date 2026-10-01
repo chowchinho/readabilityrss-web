@@ -39,6 +39,7 @@ export default function FeedsScreen({
   isOffline,
   isForcedOffline,
   toggleForcedOffline,
+  savedRowOnlyWhenNonempty,
 }) {
   const [query, setQuery] = useState('');
   const [collapsedCats, setCollapsedCats] = useState({});
@@ -64,6 +65,8 @@ export default function FeedsScreen({
   const pickFeed = (id) => { setQuery(''); onSelectFeed(id); };
   const pickCategory = (id) => { setQuery(''); onSelectCategory(id); };
   const allActive = selectedFeedId === null && (!selectedCategoryId || selectedCategoryId === 'all');
+  const savedActive = selectedFeedId === 'saved';
+  const showSavedRow = !savedRowOnlyWhenNonempty || (feedsData?.total_saved || 0) > 0;
 
   return (
     <div
@@ -112,6 +115,22 @@ export default function FeedsScreen({
               )}
               <span className="material-symbols-outlined fs-row-chevron" aria-hidden="true">chevron_right</span>
             </button>
+            {showSavedRow && (
+              <button
+                type="button"
+                className={`fs-row${savedActive ? ' is-active' : ''}`}
+                onClick={() => pickFeed('saved')}
+              >
+                <span className="fs-row-icon" aria-hidden="true">
+                  <span className="material-symbols-outlined">bookmark</span>
+                </span>
+                <span className="fs-row-name">Saved</span>
+                {Boolean(feedsData?.total_saved > 0) && (
+                  <span className="fs-row-count">{feedsData.total_saved.toLocaleString()}</span>
+                )}
+                <span className="material-symbols-outlined fs-row-chevron" aria-hidden="true">chevron_right</span>
+              </button>
+            )}
           </div>
         )}
 

@@ -17,6 +17,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
     maxStorageMB: 2000,
     syncOnStartup: localStorage.getItem('reader_sync_on_startup') !== 'false',
     showReadArticles: localStorage.getItem('reader_show_read') === 'true',
+    savedRowOnlyWhenNonempty: localStorage.getItem('reader_saved_row_only_when_nonempty') !== 'false',
     hideEmptySources: localStorage.getItem('reader_hide_empty_sources') === 'true',
     offlineCaching: localStorage.getItem('offlineCaching') === 'true',
     adjacentPrefetch: localStorage.getItem('adjacentPrefetch') !== 'false',
@@ -70,6 +71,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
 
       localStorage.setItem('reader_sync_on_startup', String(settings.syncOnStartup));
       localStorage.setItem('reader_show_read', String(settings.showReadArticles));
+      localStorage.setItem('reader_saved_row_only_when_nonempty', String(settings.savedRowOnlyWhenNonempty));
       localStorage.setItem('reader_hide_empty_sources', String(settings.hideEmptySources));
       localStorage.setItem('adjacentPrefetch', String(settings.adjacentPrefetch));
       localStorage.setItem(SORT_KEY, settings.sortMode);
@@ -240,6 +242,17 @@ export default function Settings({ onClose, version, showInstallButton = false, 
           <span>
             Show read articles in feed
             <span className="settings-option-help">Display already-read articles in pane 2.</span>
+          </span>
+        </label>
+        <label className="settings-option" style={{ marginTop: 12 }}>
+          <input
+            type="checkbox"
+            checked={settings.savedRowOnlyWhenNonempty}
+            onChange={() => handleToggle('savedRowOnlyWhenNonempty')}
+          />
+          <span>
+            Show Saved only when something is saved
+            <span className="settings-option-help">Hide the Saved row from the sidebar and feeds list when no articles are saved.</span>
           </span>
         </label>
         <label className="settings-option" style={{ marginTop: 12 }}>

@@ -155,6 +155,18 @@ export async function markArticleReadInDB(id, isRead) {
   await tx.done;
 }
 
+export async function markArticleSavedInDB(id, isSaved, savedAt = null) {
+  const db = await initDB();
+  const tx = db.transaction('articles', 'readwrite');
+  const article = await tx.store.get(id);
+  if (article) {
+    article.is_saved = isSaved ? 1 : 0;
+    article.saved_at = isSaved ? (savedAt || new Date().toISOString()) : null;
+    tx.store.put(article);
+  }
+  await tx.done;
+}
+
 export async function setArticleOfflineCacheState(id, isComplete) {
   const db = await initDB();
   const tx = db.transaction('articles', 'readwrite');
@@ -176,7 +188,7 @@ export async function saveFeedsDataToDB(feedsData) {
 export async function getFeedsDataFromDB() {
   const db = await initDB();
   const result = await db.get('feeds', 'feedsData');
-  return result ? result.data : { categories: [], total_unread: 0 };
+  return result ? result.data : { categories: [], total_unread: 0, total_saved: 0 };
 }
 
 // Sync State

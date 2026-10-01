@@ -195,10 +195,17 @@ async def get_reader_feeds(since: Optional[str] = Query(None)):
             cats_dict[None]["feeds"].append(feed_data)
             
     result_cats = [c for c in cats_dict.values() if c["feeds"]]
-    
+
+    cursor = await conn.execute(
+        "SELECT COUNT(*) FROM feed_articles WHERE parse_status = 'success' AND is_saved = 1"
+    )
+    saved_row = await cursor.fetchone()
+    total_saved = saved_row[0] if saved_row else 0
+
     return {
         "categories": result_cats,
-        "total_unread": total_unread
+        "total_unread": total_unread,
+        "total_saved": total_saved,
     }
 
 def _translated_from(original_title, title, detected_language):
@@ -223,7 +230,8 @@ async def get_reader_articles(
     category_id: Optional[str] = None,
     sort: str = "smart",
     limit: int = Query(200, ge=1, le=1000),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    saved: bool = False,
 ):
     """Returns article metadata for the feed list (no content — use /articles/{id} for full content)."""
     conn = await db._get_db()
@@ -237,7 +245,7 @@ async def get_reader_articles(
     query = """
         SELECT a.id, a.source_id, f.name as source_name, a.url, a.title,
                a.snippet, a.featured_snippet,
-               a.pub_date, a.main_image, a.is_read, a.is_saved, a.created_at, a.updated_at,
+               a.pub_date, a.main_image, a.is_read, a.is_saved, a.saved_at, a.created_at, a.updated_at,
                a.primary_topic, a.secondary_topics, a.region, a.article_type, a.ai_summary,
                a.original_title, f.detected_language,
                av.vote AS vote
@@ -248,7 +256,9 @@ async def get_reader_articles(
     """
     params = []
 
-    if since:
+    if saved:
+        query += " AND a.is_saved = 1"
+    elif since:
         query += " AND a.updated_at >= ?"
         params.append(since)
     else:
@@ -272,7 +282,10 @@ async def get_reader_articles(
             raise HTTPException(status_code=422, detail="category_id must be an integer or 'uncat'")
         query += " AND f.category_id = ?"
 
-    query += " ORDER BY COALESCE(NULLIF(a.pub_date, ''), a.created_at) DESC, a.created_at DESC LIMIT ? OFFSET ?"
+    if saved:
+        query += " ORDER BY a.saved_at DESC, a.created_at DESC LIMIT ? OFFSET ?"
+    else:
+        query += " ORDER BY COALESCE(NULLIF(a.pub_date, ''), a.created_at) DESC, a.created_at DESC LIMIT ? OFFSET ?"
     params.append(limit)
     params.append(offset)
 
@@ -362,6 +375,7 @@ async def get_reader_articles(
             "vote": r["vote"],
             "is_read": r["is_read"],
             "is_saved": r["is_saved"],
+            "saved_at": r["saved_at"] + "Z" if r["saved_at"] and "Z" not in str(r["saved_at"]) else r["saved_at"],
             "created_at": r["created_at"] + "Z" if r["created_at"] and "Z" not in str(r["created_at"]) else r["created_at"],
             "updated_at": r["updated_at"] + "Z" if r["updated_at"] and "Z" not in str(r["updated_at"]) else r["updated_at"],
             "topics": tags_dict,
@@ -373,18 +387,19 @@ async def get_reader_articles(
         })
 
     # The SQL already returns newest-first, so "latest" needs no work here.
-    if sort == "smart":
-        articles = calibrated_rerank(articles, lambda_=0.3, label_weights=label_weights,
-                                     floor=float(vote_settings.get("rerank_target_floor", 0.02)))
-        # With the master switch off there are no scores, so every tail article looks
-        # equally unseen and the slot would promote arbitrarily.
-        if ai_on:
-            articles = promote_exploration_slots(articles, exposure=exposure_map,
-                                                 label_weights=label_weights)
-    elif sort == "random":
-        # Seeded per request so paging through offsets does not reshuffle underneath
-        # the reader and show the same article twice.
-        random.Random(f"{offset}:{limit}:{source_id}:{category_id}").shuffle(articles)
+    if not saved:
+        if sort == "smart":
+            articles = calibrated_rerank(articles, lambda_=0.3, label_weights=label_weights,
+                                         floor=float(vote_settings.get("rerank_target_floor", 0.02)))
+            # With the master switch off there are no scores, so every tail article looks
+            # equally unseen and the slot would promote arbitrarily.
+            if ai_on:
+                articles = promote_exploration_slots(articles, exposure=exposure_map,
+                                                     label_weights=label_weights)
+        elif sort == "random":
+            # Seeded per request so paging through offsets does not reshuffle underneath
+            # the reader and show the same article twice.
+            random.Random(f"{offset}:{limit}:{source_id}:{category_id}").shuffle(articles)
 
     return {
         "articles": articles,
@@ -396,7 +411,7 @@ async def get_reader_article(id: int):
     """Returns full article content for the reader pane."""
     conn = await db._get_db()
     cursor = await conn.execute("""
-        SELECT a.id, a.source_id, f.name as source_name, a.url, a.title, a.content, a.pub_date, a.main_image, a.is_read, a.is_saved, a.created_at, a.updated_at,
+        SELECT a.id, a.source_id, f.name as source_name, a.url, a.title, a.content, a.pub_date, a.main_image, a.is_read, a.is_saved, a.saved_at, a.created_at, a.updated_at,
                a.primary_topic, a.secondary_topics, a.region, a.article_type, a.ai_summary,
                a.original_title, f.detected_language,
                av.vote AS vote
@@ -457,6 +472,7 @@ async def get_reader_article(id: int):
         "vote": r["vote"],
         "is_read": r["is_read"],
         "is_saved": r["is_saved"],
+        "saved_at": r["saved_at"] + "Z" if r["saved_at"] and "Z" not in str(r["saved_at"]) else r["saved_at"],
         "created_at": r["created_at"] + "Z" if r["created_at"] and "Z" not in str(r["created_at"]) else r["created_at"],
         "updated_at": r["updated_at"] + "Z" if r["updated_at"] and "Z" not in str(r["updated_at"]) else r["updated_at"],
         "topics": tags_dict,
@@ -612,6 +628,26 @@ async def mark_article_unread(id: int):
     await conn.execute('UPDATE feed_articles SET is_read = 0 WHERE id = ?', (id,))
     await conn.commit()
     return {"success": True}
+
+
+@router.post("/api/reader/articles/{id}/save")
+async def mark_article_saved(id: int):
+    conn = await db._get_db()
+    cursor = await conn.execute('SELECT id FROM feed_articles WHERE id = ?', (id,))
+    if not await cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Article not found")
+    await db.mark_item_saved(id)
+    return {"success": True, "is_saved": 1}
+
+
+@router.post("/api/reader/articles/{id}/unsave")
+async def mark_article_unsaved(id: int):
+    conn = await db._get_db()
+    cursor = await conn.execute('SELECT id FROM feed_articles WHERE id = ?', (id,))
+    if not await cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Article not found")
+    await db.mark_item_unsaved(id)
+    return {"success": True, "is_saved": 0}
 
 
 class VoteRequest(BaseModel):

@@ -1,9 +1,10 @@
+import asyncio
 import hashlib
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 
+from app.database import Database
 from app.main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -337,4 +338,45 @@ def test_fever_malformed_int_parameters_does_not_500(mock_db):
     resp2 = _fever_post("?api&items&since_id=abc&with_ids=1,bad,2", extra_data={})
     assert resp2.status_code == 200
     assert resp2.json()["auth"] == 1
+
+
+def test_fever_mark_item_saved_sets_saved_at(tmp_path):
+    database = Database(db_path=str(tmp_path / "test_fever_saved.db"))
+    asyncio.run(database.init())
+    with patch('app.routes.fever.db', database):
+        async def _seed():
+            await database.set_fever_auth(TEST_USER, TEST_API_KEY)
+            sid = await database.create_feed_source({"name": "Fever Feed", "url": "http://example.com/fever/rss"})
+            await database.insert_feed_articles(sid, [{"url": "http://example.com/fever/1"}])
+            conn = await database._get_db()
+            cursor = await conn.execute("SELECT id FROM feed_articles WHERE source_id = ?", (sid,))
+            row = await cursor.fetchone()
+            return row["id"]
+
+        aid = asyncio.run(_seed())
+
+        resp = _fever_post("?api", extra_data={"mark": "item", "as": "saved", "id": str(aid)})
+        assert resp.status_code == 200
+        assert resp.json()["auth"] == 1
+
+        async def _check_saved():
+            conn = await database._get_db()
+            cursor = await conn.execute("SELECT is_saved, saved_at FROM feed_articles WHERE id = ?", (aid,))
+            return await cursor.fetchone()
+
+        row = asyncio.run(_check_saved())
+        assert row["is_saved"] == 1
+        assert row["saved_at"] is not None
+
+        # Unsave clears saved_at
+        resp = _fever_post("?api", extra_data={"mark": "item", "as": "unsaved", "id": str(aid)})
+        assert resp.status_code == 200
+        assert resp.json()["auth"] == 1
+
+        row = asyncio.run(_check_saved())
+        assert row["is_saved"] == 0
+        assert row["saved_at"] is None
+
+    asyncio.run(database.close())
+
 

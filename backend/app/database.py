@@ -6,6 +6,7 @@ import os
 import weakref
 
 from .services.snippets import build_snippets
+from .utils.timeutil import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -383,6 +384,7 @@ class Database:
             "ALTER TABLE feed_articles ADD COLUMN translation_note TEXT DEFAULT NULL",
             """CREATE INDEX IF NOT EXISTS idx_articles_translation_pending
                ON feed_articles(translation_pending) WHERE translation_pending = 1""",
+            'ALTER TABLE feed_articles ADD COLUMN saved_at TIMESTAMP DEFAULT NULL',
         ]
         for migration in migrations:
             try:
@@ -964,7 +966,7 @@ class Database:
         """Get articles that would be pruned beyond the keep limit."""
         db = await self._get_db()
         cursor = await db.execute(
-            "SELECT * FROM feed_articles WHERE source_id = ? AND id NOT IN (SELECT id FROM feed_articles WHERE source_id = ? ORDER BY created_at DESC LIMIT ?)",
+            "SELECT * FROM feed_articles WHERE source_id = ? AND is_saved = 0 AND id NOT IN (SELECT id FROM feed_articles WHERE source_id = ? AND is_saved = 0 ORDER BY created_at DESC LIMIT ?)",
             (source_id, source_id, keep)
         )
         rows = await cursor.fetchall()
@@ -974,7 +976,7 @@ class Database:
         """Prune articles beyond the keep limit."""
         db = await self._get_db()
         await db.execute(
-            "DELETE FROM feed_articles WHERE source_id = ? AND id NOT IN (SELECT id FROM feed_articles WHERE source_id = ? ORDER BY created_at DESC LIMIT ?)",
+            "DELETE FROM feed_articles WHERE source_id = ? AND is_saved = 0 AND id NOT IN (SELECT id FROM feed_articles WHERE source_id = ? AND is_saved = 0 ORDER BY created_at DESC LIMIT ?)",
             (source_id, source_id, keep)
         )
         await db.commit()
@@ -1109,15 +1111,16 @@ class Database:
 
     async def mark_item_saved(self, item_id: int):
         db = await self._get_db()
+        now = utcnow().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute(
-            'UPDATE feed_articles SET is_saved = 1 WHERE id = ?', (item_id,)
+            'UPDATE feed_articles SET is_saved = 1, saved_at = ? WHERE id = ?', (now, item_id)
         )
         await db.commit()
 
     async def mark_item_unsaved(self, item_id: int):
         db = await self._get_db()
         await db.execute(
-            'UPDATE feed_articles SET is_saved = 0 WHERE id = ?', (item_id,)
+            'UPDATE feed_articles SET is_saved = 0, saved_at = NULL WHERE id = ?', (item_id,)
         )
         await db.commit()
 

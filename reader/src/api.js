@@ -190,8 +190,10 @@ export function getSortMode() {
   return getStoredSortMode();
 }
 
-export const getArticles = (since, limit = 200, offset = 0, source_id = null, sort = null, category_id = null) => {
+export const getArticles = (since, limit = 200, offset = 0, source_id = null, sort = null, category_id = null, options = {}) => {
+  const isSaved = typeof options === 'boolean' ? options : !!options?.saved;
   let url = `/api/reader/articles?limit=${limit}&offset=${offset}`;
+  if (isSaved) url += '&saved=true';
   if (since) url += `&since=${encodeURIComponent(since)}`;
   if (source_id) url += `&source_id=${source_id}`;
   if (category_id && category_id !== 'all') url += `&category_id=${encodeURIComponent(category_id)}`;
@@ -202,6 +204,8 @@ export const getArticle = (id) => authFetch(`/api/reader/articles/${id}`);
 export const getArticleImages = (id) => authFetch(`/api/reader/article-images/${id}`);
 export const markRead = (id) => authFetch(`/api/reader/articles/${id}/read`, { method: 'POST' });
 export const markUnread = (id) => authFetch(`/api/reader/articles/${id}/unread`, { method: 'POST' });
+export const saveArticle = (id) => authFetch(`/api/reader/articles/${id}/save`, { method: 'POST' });
+export const unsaveArticle = (id) => authFetch(`/api/reader/articles/${id}/unsave`, { method: 'POST' });
 export const bulkMarkRead = (payload) => authFetch('/api/reader/mark-read', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

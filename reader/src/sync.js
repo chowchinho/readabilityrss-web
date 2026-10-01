@@ -275,6 +275,9 @@ export async function applyLocalCachePolicy(settingsOverride = null, feedsDataOv
 
   let allLocalArticles = await getArticlesFromDB();
   for (const article of allLocalArticles) {
+    if (article.is_saved) {
+      continue;
+    }
     const articleTime = getArticleTimestamp(article);
     if (articleTime < cutoffTime) {
       await deleteArticleFromDB(article.id);
@@ -282,9 +285,15 @@ export async function applyLocalCachePolicy(settingsOverride = null, feedsDataOv
   }
 
   let retainedArticles = (await getArticlesFromDB()).filter(
-    (article) => getArticleTimestamp(article) >= cutoffTime
+    (article) => article.is_saved || getArticleTimestamp(article) >= cutoffTime
   );
-  retainedArticles = await enforceOfflineStorageBudget(retainedArticles, settings.maxStorageMB, protectedArticleIds);
+  const effectiveProtectedIds = new Set(protectedArticleIds || []);
+  for (const article of retainedArticles) {
+    if (article.is_saved) {
+      effectiveProtectedIds.add(article.id);
+    }
+  }
+  retainedArticles = await enforceOfflineStorageBudget(retainedArticles, settings.maxStorageMB, effectiveProtectedIds);
   await pruneImageCache(retainedArticles);
 
   const isCachingEnabled = localStorage.getItem('offlineCaching') === 'true';
@@ -340,7 +349,7 @@ export async function runSync(onProgress, onDataReady) {
   const retentionMs = settings.retentionDays * 24 * 60 * 60 * 1000;
   const cutoffTime = Date.now() - retentionMs;
   const allLocalArticles = (await getArticlesFromDB()).filter(
-    (article) => getArticleTimestamp(article) >= cutoffTime
+    (article) => article.is_saved || getArticleTimestamp(article) >= cutoffTime
   );
 
   await setSyncTimestamp(articlesResp.sync_timestamp);

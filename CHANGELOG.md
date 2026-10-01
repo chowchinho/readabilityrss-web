@@ -3,6 +3,24 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-01 — Saved articles
+
+### Added
+- **Save articles to read later.** A bookmark on the reading page saves or unsaves the
+  article: in the toolbar on desktop, and on phones as a button beside the rating shortcut
+  and as the first item of the More menu.
+- **Saved list.** A "Saved" row under All Articles, in the sidebar and on the phone Feeds
+  screen, lists saved articles with the most recently saved first, read or unread and
+  however old. It appears only once something is saved; a new setting, "Show Saved only
+  when something is saved", can keep it visible with an empty state instead.
+- API: `POST /api/reader/articles/{id}/save` and `/unsave`, a `saved=true` option on
+  `GET /api/reader/articles`, `saved_at` on articles, and `total_saved` on
+  `GET /api/reader/feeds`. Saving through the Fever API also records `saved_at`.
+
+### Fixed
+- Saved articles are no longer deleted when their feed grows past the per-feed article
+  limit, and the offline cache keeps them past the retention window.
+
 ## 2026-10-01 — Phone reading page and navigation
 
 The rest of the phone redesign that followed 3.0.0. Desktop is unchanged.

@@ -40,8 +40,8 @@ export default function ArticleFeed({
   const sortMode = getSortMode();
   // Phones only, and only under smart sort: the other orders have no score to rank by.
   const topPicks = useMemo(
-    () => (!isDesktop && sortMode === 'smart' ? selectTopPicks(articles, rankPool) : null),
-    [articles, rankPool, isDesktop, sortMode]
+    () => (!isDesktop && sortMode === 'smart' && selectedFeedId !== 'saved' ? selectTopPicks(articles, rankPool) : null),
+    [articles, rankPool, isDesktop, sortMode, selectedFeedId]
   );
 
   // Phones: the large title scrolls away with the list, and the app bar shows the
@@ -145,9 +145,14 @@ export default function ArticleFeed({
   }
 
   if (articles.length === 0) {
+    const emptyMsg = selectedFeedId === 'saved'
+      ? (isDesktop
+          ? 'Nothing saved yet. Save an article from the bookmark in the article toolbar.'
+          : 'Nothing saved yet. Save an article from its More menu, or the bookmark at the top of the reading page.')
+      : 'No articles found.';
     return (
       <div className="feed-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--text-muted)' }}>No articles found.</p>
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '0 24px' }}>{emptyMsg}</p>
       </div>
     );
   }
@@ -169,7 +174,14 @@ export default function ArticleFeed({
   return (
     <div className="feed-container" ref={containerRef}>
       <div className="feed-header">
-        {selectedFeedId ? (
+        {selectedFeedId === 'saved' ? (
+          <>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--text-secondary)' }}>
+              bookmark
+            </span>
+            <h2>Saved</h2>
+          </>
+        ) : selectedFeedId ? (
           <>
             {/* Opening an article by URL renders this before the feed list arrives. An
                 unconditional img requested ".../undefined", failed, and onError then
@@ -197,7 +209,11 @@ export default function ArticleFeed({
         ) : (
           <h2>All articles</h2>
         )}
-        {unreadCount > 0 && <div className="header-unread-badge">{unreadCount}</div>}
+        {selectedFeedId === 'saved' ? (
+          (feedsData?.total_saved || 0) > 0 && <div className="header-unread-badge">{feedsData.total_saved}</div>
+        ) : (
+          unreadCount > 0 && <div className="header-unread-badge">{unreadCount}</div>
+        )}
       </div>
       {!isDesktop && largeTitle && (
         <div className="feed-large-title" ref={largeTitleRef}>
@@ -213,7 +229,7 @@ export default function ArticleFeed({
             article={article}
             isActive={article.id === selectedArticleId}
             onClick={handleCardClick}
-            hideSource={!!selectedFeedId}
+            hideSource={!!selectedFeedId && selectedFeedId !== 'saved'}
             viewMode={currentViewMode}
             featured={topPicks?.has(article.id) ?? false}
             isOffline={isOffline}

@@ -85,7 +85,7 @@ function imageKey(src) {
 // Below this the hero would be an upscale on a phone, so the photo stays in the text.
 const MIN_HERO_WIDTH = 600;
 
-export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onHide, onRetry, isDesktop, articles, isOffline, onVoted }) {
+export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onToggleSaved, onHide, onRetry, isDesktop, articles, isOffline, onVoted }) {
   const containerRef = useRef(null);
   const contentRef = useRef(null);
   const pageRef = useRef(null);
@@ -117,6 +117,7 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
   const activeArticleIdRef = useRef(null);
 
   const effectiveArticle = localArticle || article;
+  const isSaved = Boolean(effectiveArticle?.is_saved);
 
   // Phones show two sets of thumbs (the shortcut at the top and the end card), and
   // the article object here is not refreshed after a vote, so both read from this.
@@ -656,6 +657,17 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           <button className="reader-float-btn is-back" onClick={handleBack} aria-label="Back" title="Back">
             <span className="material-symbols-outlined">chevron_left</span>
           </button>
+          <button
+            className={`reader-float-btn is-save${isSaved ? ' is-saved' : ''}`}
+            style={!hasRanking ? { right: 12 } : undefined}
+            onClick={isOffline ? undefined : onToggleSaved}
+            disabled={isOffline}
+            aria-label={isSaved ? 'Remove from Saved' : 'Save'}
+            title={isOffline ? 'Saving needs a connection' : (isSaved ? 'Remove from Saved' : 'Save')}
+            aria-pressed={isSaved}
+          >
+            <span className="material-symbols-outlined">bookmark</span>
+          </button>
           {hasRanking && (
             <Popover.Root>
               <Popover.Trigger className="reader-float-btn is-votes" aria-label="Rate this article" title="Rate this article">
@@ -767,6 +779,17 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
             <a href={effectiveArticle.url} target="_blank" rel="noopener noreferrer" className="action-btn icon-only" title="Open Original" aria-label="Open Original">
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
             </a>
+
+            <button
+              onClick={isOffline ? undefined : onToggleSaved}
+              disabled={isOffline}
+              className={`action-btn icon-only${isSaved ? ' is-saved is-active' : ''}`}
+              title={isOffline ? 'Saving needs a connection' : (isSaved ? 'Remove from Saved' : 'Save')}
+              aria-label={isSaved ? 'Remove from Saved' : 'Save'}
+              aria-pressed={isSaved}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>bookmark</span>
+            </button>
 
             <button onClick={handleShare} className="action-btn icon-only" title="Share" aria-label="Share">
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>share</span>
@@ -961,6 +984,9 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           onWhy={handleWhy}
           showWhy={hasRanking}
           onHide={onHide}
+          isSaved={isSaved}
+          onToggleSaved={onToggleSaved}
+          isOffline={isOffline}
         />
       )}
     </div>
