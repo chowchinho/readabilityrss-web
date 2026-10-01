@@ -551,6 +551,25 @@ button {
     letter-spacing: -0.01em;
     color: var(--text-primary);
     max-width: 52vw;
+    min-width: 0;
+  }
+
+  /* A single feed's name carries its icon, as the large title it replaces does. */
+  .mobile-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 52vw;
+  }
+
+  .mobile-title-favicon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    object-fit: contain;
   }
 
   .mobile-title-sub {

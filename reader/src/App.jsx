@@ -53,7 +53,7 @@ function App() {
   // Keep the selected feed visibly active for a beat before mobile navigation.
   // This gives Android predictive back a stable Pane 1 snapshot to return to.
   const MOBILE_FEED_NAV_DELAY_MS = 100;
-  const SYSTEM_VERSION = "2026-10-01 20:21 UTC";
+  const SYSTEM_VERSION = "2026-10-01 20:32 UTC";
   const { feedSlug, articleSlug } = useParams();
   const routeArticleId = articleSlug ? parseId(articleSlug) : null;
   const isSavedRoute = feedSlug === 'saved';
@@ -1507,12 +1507,23 @@ function App() {
           </button>
 
           <div className="mobile-title-group">
-            <span className="mobile-title-text">
-              {isIndexViewMode
-                ? (pane2ContextFeedId ? (selectedFeed?.name || 'Feed Index') : activeCategoryName)
-                : listTitle}
-              {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
-            </span>
+            <div className="mobile-title-row">
+              {selectedFeed?.favicon_url && (
+                <img
+                  key={selectedFeed.favicon_url}
+                  src={`${API_URL}${selectedFeed.favicon_url}`}
+                  alt=""
+                  className="mobile-title-favicon"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
+              <span className="mobile-title-text">
+                {isIndexViewMode
+                  ? (pane2ContextFeedId ? (selectedFeed?.name || 'Feed Index') : activeCategoryName)
+                  : listTitle}
+                {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
+              </span>
+            </div>
             {unreadCount > 0 && <span className="mobile-title-sub">{unreadLabel}</span>}
           </div>
 
