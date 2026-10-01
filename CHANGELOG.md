@@ -3,6 +3,47 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-01 — 3.0.0: UI/UX redesign
+
+A full design pass on the reader, built on Base UI and Apple's interface guidelines.
+This is the first release with a version number; earlier entries stay named by date.
+
+### Added
+- **Translation view switch.** A translated article shows "Translated from {language} ·
+  {provider}" under the title, with an Original / Side by side / Translation switch.
+  All three views are built in the browser from the stored text, so no new API call is
+  needed. The choice is saved per device, carries across articles, and switching keeps
+  the same passage at the same height on screen.
+- **Text size control** in the reading toolbar: five steps on top of the base size,
+  saved per device, phones included.
+- **Top picks on phones.** In smart sort, the top 10% of loaded articles by score get a
+  full-width 16:9 card with a "Top pick" label, at least four rows apart. A card keeps
+  its size for the session, so the list never reshuffles under your thumb, and an image
+  under 600px wide falls back to the square layout instead of being upscaled.
+- `GET /api/reader/articles` and `GET /api/reader/articles/{id}` return
+  `translated_from` and `translated_to`.
+
+### Changed
+- **Base UI** powers the Settings drawer, the category order dialog, the ranking info
+  popover, toasts and the exit prompt on Android, with focus trapping and enter/exit
+  animations that leave the way they came.
+- **Phone article list:** square thumbnails at 30% of the screen width (up from 88px)
+  sit beside the source line, headlines get three lines for CJK titles, and the unread
+  dot moves to the leading edge.
+- **Reading pane:** an icon-only toolbar that the article scrolls beneath, a reading
+  progress hairline, wide photos that break out of the text column on larger panes,
+  and 44px touch targets. A swiped-to article enters from the side the last one left.
+- **Index grid:** hovering a card raises the headline into the foot of the photo and
+  shows the start of the article beneath it. Single-feed cards carry the time on the
+  photo, and the "why this is here" button sits with the thumbs.
+- Spacing, type scale and press feedback were reworked across the sidebar, grid and
+  reader. Hover effects are limited to devices with a fine pointer, and reduced
+  motion, reduced transparency and increased contrast are respected throughout.
+
+### Fixed
+- Sharing without the system share sheet shows a toast instead of a browser alert.
+- The card slideshow no longer logs a React style warning.
+
 ## 2026-09-26
 
 ### Fixed

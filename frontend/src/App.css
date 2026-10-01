@@ -1,25 +1,42 @@
+/* Same palette and motion as the reader, so the two feel like one product. */
 :root {
-  --bg-page:        #f5efe6;
-  --bg-nav:         #1c1510;
-  --bg-card:        #faf7f2;
-  --bg-hover:       #fff3e0;
-  --bg-drawer:      #2a2018;
+  --bg-page:        #f6f1e9;
+  --bg-nav:         #f6f1e9;
+  --bg-card:        #fffdf9;
+  --bg-sunken:      #efe8dd;
+  --bg-hover:       rgba(60, 40, 20, 0.05);
+  --bg-drawer:      #211b15;
 
-  --text-primary:   #1c1208;
-  --text-secondary: #6b5a4e;
-  --text-muted:     #a0897c;
-  --text-nav:       #e8ddd0;
+  --text-primary:   #231910;
+  --text-secondary: #5e5143;
+  --text-muted:     #8f806f;
+  --text-nav:       #5e5143;
 
-  --accent:         #c97d2e;
-  --accent-hover:   #a8641e;
-  --border:         #d4c4b0;
-  --border-hover:   #b8a490;
+  --accent:         #b5661c;
+  --accent-hover:   #9c5614;
+  --accent-strong:  #985812;
+  --accent-soft:    rgba(181, 102, 28, 0.10);
+  --border:         #e4d9c9;
+  --border-hover:   #cdbfa9;
+  --hair:           rgba(60, 40, 20, 0.09);
+  --hair-strong:    rgba(60, 40, 20, 0.15);
 
-  --status-active:  #5a8a5a;
+  --status-active:  #5f8f4e;
   --status-error:   #b85c38;
   --status-pending: #a0897c;
 
-  --font-serif: 'Lora', Georgia, serif;
+  --shadow-sm: 0 1px 2px rgba(40, 25, 10, 0.05), 0 0 0 1px rgba(40, 25, 10, 0.06);
+  --shadow-md: 0 1px 1px rgba(40, 25, 10, 0.04), 0 6px 16px -4px rgba(40, 25, 10, 0.10), 0 0 0 1px rgba(40, 25, 10, 0.05);
+  --shadow-lg: 0 2px 4px rgba(40, 25, 10, 0.04), 0 16px 40px -8px rgba(40, 25, 10, 0.18), 0 0 0 1px rgba(40, 25, 10, 0.05);
+
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --font-serif: 'Lora', 'Noto Serif TC', 'Songti TC', Georgia, serif;
   --font-sans:  'Source Sans 3', system-ui, sans-serif;
   --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
 
@@ -33,13 +50,21 @@
 }
 
 html {
-  scroll-behavior: smooth;
   background: var(--bg-page);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-page);
@@ -49,91 +74,102 @@ body {
 
 /* ── NAV ── */
 .nav {
-  background: var(--bg-nav);
   position: sticky;
   top: 0;
   z-index: 100;
-  border-top: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--bg-page) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--hair);
 }
 
 .nav-inner {
   display: flex;
   align-items: center;
-  height: 36px;
-  padding: 0 16px;
-  gap: 16px;
+  height: 56px;
+  max-width: 1600px;
+  margin: 0 auto;
+  /* Same 32px gutter as .App, so the logo and the Activity log button line up with
+     the page title and the right edge of the cards below. */
+  padding: 0 32px;
+  gap: 20px;
 }
 
 .nav-brand {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
   cursor: pointer;
-  letter-spacing: 0.04em;
   border: none;
   background: transparent;
   padding: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
 }
 
 .nav-logo {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   display: block;
+  border-radius: 6px;
 }
 
 .nav-links {
   display: flex;
+  align-items: center;
   gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--hair);
 }
 
 .nav-button {
   background: transparent;
   border: none;
-  color: var(--text-nav);
+  color: var(--text-secondary);
   font-family: var(--font-sans);
-  font-size: 12px;
-  padding: 4px 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 6px 14px;
   cursor: pointer;
-  border-radius: 2px;
-  opacity: 0.65;
-  transition: opacity 0.15s, background 0.15s;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, transform 160ms var(--ease-out);
 }
 
-.nav-button:hover {
-  opacity: 1;
-  background: rgba(255,255,255,0.08);
+.nav-button:active {
+  transform: scale(0.97);
 }
 
 .nav-button.active {
-  opacity: 1;
-  color: var(--accent);
-  background: rgba(255,255,255,0.06);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
 }
 
+/* Leaves the tab group: it goes somewhere else rather than switching a view. */
 .nav-button-reader {
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #7ec4a5;
-  background: rgba(126, 196, 165, 0.12);
-  border: 1px solid rgba(126, 196, 165, 0.35);
-  border-radius: 3px;
-  margin-left: 6px;
-  opacity: 0.9;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  gap: 6px;
 }
 
-.nav-button-reader:hover {
-  opacity: 1;
-  background: rgba(126, 196, 165, 0.25);
-  border-color: #7ec4a5;
-  color: #a4ebd0;
+.nav-links .nav-button-reader {
+  margin-left: 10px;
+  position: relative;
+}
+
+.nav-links .nav-button-reader::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--hair-strong);
 }
 
 .nav-spacer {
@@ -142,49 +178,78 @@ body {
 
 .nav-version {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: rgba(232,221,208,0.3);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .nav-log-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
-  color: var(--text-nav);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  border-radius: 2px;
-  opacity: 0.65;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+  transition: color 150ms ease, box-shadow 150ms ease, transform 160ms var(--ease-out);
 }
 
-.nav-log-btn:hover,
+.nav-log-btn:active {
+  transform: scale(0.97);
+}
+
 .nav-log-btn.active {
-  opacity: 1;
-  border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-button:not(.active):hover {
+    color: var(--text-primary);
+  }
+
+  .nav-log-btn:hover {
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 .dev-badge {
   font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 0.625rem;
+  font-weight: 600;
   background: #4a7c44;
   color: #fff;
   padding: 1px 4px;
-  border-radius: 2px;
-  margin-left: 6px;
-  vertical-align: middle;
+  border-radius: 3px;
+  margin-left: 2px;
   letter-spacing: 0.05em;
-  opacity: 0.9;
+}
+
+/* Every button gives a little under the pointer, so the interface feels like it
+   heard the click. Disabled ones stay still. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active { transform: none; }
 }
 
 /* ── PAGE WRAPPER ── */
 .App {
   width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
   min-height: 100vh;
-  padding: 20px 24px;
+  padding: 28px 32px 64px;
 }
 
 /* ── ERROR MESSAGE ── */
@@ -192,10 +257,10 @@ body {
   background: rgba(184,92,56,0.08);
   color: var(--status-error);
   padding: 10px 14px;
-  border: 1px solid rgba(184,92,56,0.3);
-  border-radius: 2px;
+  border: none;
+  border-radius: var(--radius-md);
   margin: 16px 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -216,7 +281,7 @@ body {
   color: white;
   border-radius: 50%;
   font-weight: 900;
-  font-size: 10px;
+  font-size: 0.625rem;
   flex-shrink: 0;
 }
 
@@ -224,15 +289,17 @@ body {
   background: none;
   border: none;
   color: var(--status-error);
-  font-size: 18px;
+  font-size: 1.125rem;
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
   opacity: 0.6;
   flex-shrink: 0;
 }
-.error-close-btn:hover {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .error-close-btn:hover {
+    opacity: 1;
+  }
 }
 
 /* ── PARSER TWO-COLUMN LAYOUT ── */
@@ -258,8 +325,38 @@ body {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.25);
+  background: rgba(20, 12, 4, 0.28);
   z-index: 200;
+  animation: app-fade 200ms ease both;
+}
+
+@keyframes app-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes app-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes app-drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes app-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Exits retrace the entrance, faster. */
+.drawer-overlay.is-closing {
+  animation: app-fade-out 200ms ease forwards;
+}
+
+.drawer-overlay.is-closing .drawer {
+  animation: app-drawer-out 200ms var(--ease-out) forwards;
 }
 
 .drawer {
@@ -267,11 +364,16 @@ body {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 300px;
+  width: 360px;
   background: var(--bg-drawer);
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-lg);
+  animation: app-drawer-in 300ms var(--ease-drawer) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer { animation: app-fade 200ms ease both; }
 }
 
 .drawer-header {
@@ -285,7 +387,7 @@ body {
 
 .drawer-title {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: #c8b9a8;
@@ -295,13 +397,15 @@ body {
   background: transparent;
   border: none;
   color: #7a6a5a;
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
   padding: 2px 6px;
   transition: color 0.12s;
 }
 
-.drawer-close:hover { color: #c8b9a8; }
+@media (hover: hover) and (pointer: fine) {
+  .drawer-close:hover { color: #c8b9a8; }
+}
 
 .drawer-body {
   flex: 1;
@@ -312,5 +416,37 @@ body {
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--hair-strong); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* Translucent top bar (apple-design): solid under reduced transparency, and firmer
+   hairlines when more contrast is requested. */
+@media (prefers-reduced-transparency: reduce) {
+  .nav {
+    background: var(--bg-page);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --hair: rgba(60, 40, 20, 0.28);
+    --hair-strong: rgba(60, 40, 20, 0.45);
+    --text-muted: #6b5d4f;
+  }
+}
+
+/* Scroll edge effect: the nav's divider appears only once the page scrolls under it. */
+@supports (animation-timeline: scroll()) {
+  .nav {
+    animation: app-scroll-edge linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 24px;
+  }
+
+  @keyframes app-scroll-edge {
+    from { border-bottom-color: transparent; }
+    to { border-bottom-color: var(--hair); }
+  }
+}

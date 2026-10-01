@@ -201,6 +201,21 @@ async def get_reader_feeds(since: Optional[str] = Query(None)):
         "total_unread": total_unread
     }
 
+def _translated_from(original_title, title, detected_language):
+    """Base language code of an article the pipeline translated, else None.
+
+    The pipeline keeps the pre-translation headline in original_title, so a value
+    that differs from the title marks a translated article. Chinese sources are
+    excluded: their only change is a script conversion, not a translation.
+    """
+    if not original_title or original_title == title:
+        return None
+    lang = (detected_language or "").strip().lower()
+    if not lang or lang.startswith("zh"):
+        return None
+    return lang.split("-")[0]
+
+
 @router.get("/api/reader/articles")
 async def get_reader_articles(
     since: Optional[str] = None,
@@ -224,6 +239,7 @@ async def get_reader_articles(
                a.snippet, a.featured_snippet,
                a.pub_date, a.main_image, a.is_read, a.is_saved, a.created_at, a.updated_at,
                a.primary_topic, a.secondary_topics, a.region, a.article_type, a.ai_summary,
+               a.original_title, f.detected_language,
                av.vote AS vote
         FROM feed_articles a
         JOIN feed_sources f ON a.source_id = f.id
@@ -286,6 +302,7 @@ async def get_reader_articles(
     exposure_map = await db.get_article_exposure([r["id"] for r in rows]) if ai_on else {}
     label_weights = await get_effective_weights(db_instance=db) if ai_on else None
     vote_settings = db.get_system_settings_sync()
+    target_language = vote_settings.get("target_language") or "zh-TW"
 
     articles = []
     for r in rows:
@@ -350,7 +367,9 @@ async def get_reader_articles(
             "topics": tags_dict,
             "ai_summary": r["ai_summary"] or "",
             "recommendation_reason": reason,
-            "score": score_val
+            "score": score_val,
+            "translated_from": _translated_from(r["original_title"], r["title"], r["detected_language"]),
+            "translated_to": target_language,
         })
 
     # The SQL already returns newest-first, so "latest" needs no work here.
@@ -379,6 +398,7 @@ async def get_reader_article(id: int):
     cursor = await conn.execute("""
         SELECT a.id, a.source_id, f.name as source_name, a.url, a.title, a.content, a.pub_date, a.main_image, a.is_read, a.is_saved, a.created_at, a.updated_at,
                a.primary_topic, a.secondary_topics, a.region, a.article_type, a.ai_summary,
+               a.original_title, f.detected_language,
                av.vote AS vote
         FROM feed_articles a
         JOIN feed_sources f ON a.source_id = f.id
@@ -442,7 +462,10 @@ async def get_reader_article(id: int):
         "topics": tags_dict,
         "ai_summary": r["ai_summary"] or "",
         "recommendation_reason": reason,
-        "score": score_val
+        "score": score_val,
+        "original_title": r["original_title"] if _translated_from(r["original_title"], r["title"], r["detected_language"]) else None,
+        "translated_from": _translated_from(r["original_title"], r["title"], r["detected_language"]),
+        "translated_to": db.get_system_settings_sync().get("target_language") or "zh-TW",
     }
 
 

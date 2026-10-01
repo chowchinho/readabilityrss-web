@@ -51,6 +51,8 @@ export default function ArticleCardSlideshow({
   focalX = 50,
   focalY = 50,
   fallbackIconSize = 36,
+  showDots = false,
+  maxSlides = 0,
   className = "",
   style = {}
 }) {
@@ -178,9 +180,11 @@ export default function ArticleCardSlideshow({
     };
   }, [isVisible, article, mainImage, focalX, focalY]);
 
-  const baseSlide = slides[0] || (mainImage ? { src: mainImage, focalX, focalY } : null);
-  const totalDuration = slides.length * 4;
-  const fadeKeyframeName = `monocleOverlayFade_${slides.length}`;
+  // Dots stop being countable past a handful, so a capped slideshow keeps them legible.
+  const shown = maxSlides > 0 ? slides.slice(0, maxSlides) : slides;
+  const baseSlide = shown[0] || (mainImage ? { src: mainImage, focalX, focalY } : null);
+  const totalDuration = shown.length * 4;
+  const fadeKeyframeName = `monocleOverlayFade_${shown.length}`;
 
   // Fixed 1.2s cross-fade transition regardless of number of slides
   const fadeInPct = ((1.2 / totalDuration) * 100).toFixed(1);
@@ -188,6 +192,25 @@ export default function ArticleCardSlideshow({
   const fadeOutPct = (((4.0 + 1.2) / totalDuration) * 100).toFixed(1);
 
   const dynamicKeyframeCSS = `@keyframes ${fadeKeyframeName} { 0% { opacity: 0; } ${fadeInPct}% { opacity: 1; } ${holdPct}% { opacity: 1; } ${fadeOutPct}% { opacity: 0; } 100% { opacity: 0; } }`;
+  // Same timeline as the slides, so each dot stretches into a pill while its image
+  // is on screen. The pill is clipped rather than resized and its neighbours are
+  // translated, so nothing here touches layout. One dot shrinks over the same
+  // window and curve as the next one grows, which keeps the row's width constant.
+  const dots = showDots && shown.length > 1;
+  const pct = (seconds) => ((seconds / totalDuration) * 100).toFixed(2);
+  const DOT_MORPH = 0.6;
+  const DOT_REST = 'clip-path: inset(0 12px 0 0 round 3px); opacity: 0.45;';
+  const DOT_ON = 'clip-path: inset(0 0 0 0 round 3px); opacity: 1;';
+  const pillKeyframeName = `monocleDotPill_${shown.length}`;
+  const shiftKeyframeName = (idx) => `monocleDotShift_${shown.length}_${idx}`;
+  const dotKeyframeCSS = dots ? [
+    `@keyframes ${pillKeyframeName} { 0% { ${DOT_REST} } ${pct(DOT_MORPH)}% { ${DOT_ON} } ${pct(4)}% { ${DOT_ON} } ${pct(4 + DOT_MORPH)}% { ${DOT_REST} } 100% { ${DOT_REST} } }`,
+    // Every dot after the active one sits 12px right, making room for the pill.
+    ...shown.slice(1).map((_, i) => {
+      const start = (i + 1) * 4;
+      return `@keyframes ${shiftKeyframeName(i + 1)} { 0% { transform: translateX(0); } ${pct(DOT_MORPH)}% { transform: translateX(12px); } ${pct(start)}% { transform: translateX(12px); } ${pct(start + DOT_MORPH)}% { transform: translateX(0); } 100% { transform: translateX(0); } }`;
+    })
+  ].join(' ') : '';
 
   return (
     <div
@@ -195,7 +218,7 @@ export default function ArticleCardSlideshow({
       className={`monocle-slideshow-wrap ${className}`}
       style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...style }}
     >
-      {slides.length > 1 && <style>{dynamicKeyframeCSS}</style>}
+      {shown.length > 1 && <style>{dynamicKeyframeCSS}{dotKeyframeCSS}</style>}
 
       {/* Base main image: always rendered statically at opacity 1 on first load */}
       {baseSlide ? (
@@ -217,7 +240,7 @@ export default function ArticleCardSlideshow({
       )}
 
       {/* Subsequent overlay slides (idx >= 1): fade in over base image starting after 4.0s */}
-      {slides.length > 1 && slides.slice(1).map((slide, idx) => {
+      {shown.length > 1 && shown.slice(1).map((slide, idx) => {
         const slideIndex = idx + 1;
         return (
           <div
@@ -229,8 +252,7 @@ export default function ArticleCardSlideshow({
               left: 0,
               width: '100%',
               height: '100%',
-              animation: isVisible ? `${fadeKeyframeName} ${totalDuration}s infinite linear` : 'none',
-              animationDelay: `${slideIndex * 4}s`,
+              animation: isVisible ? `${fadeKeyframeName} ${totalDuration}s linear ${slideIndex * 4}s infinite` : 'none',
               opacity: 0,
               pointerEvents: 'none',
             }}
@@ -245,6 +267,24 @@ export default function ArticleCardSlideshow({
           </div>
         );
       })}
+      {dots && (
+        <div className="slideshow-dots" aria-hidden="true">
+          {shown.map((slide, idx) => (
+            <i
+              key={slide.src + idx}
+              style={{
+                animation: isVisible && idx > 0 ? `${shiftKeyframeName(idx)} ${totalDuration}s var(--ease-in-out) infinite` : 'none',
+              }}
+            >
+              <b
+                style={{
+                  animation: isVisible ? `${pillKeyframeName} ${totalDuration}s var(--ease-in-out) ${idx * 4}s infinite` : 'none',
+                }}
+              />
+            </i>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

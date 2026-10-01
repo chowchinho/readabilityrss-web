@@ -1,11 +1,13 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import ArticleCard from './ArticleCard';
-import { API_URL } from '../api';
+import { API_URL, getSortMode } from '../api';
+import { selectTopPicks } from '../utils/topPicks';
 import { useImpressions } from '../hooks/useImpressions';
 import '../styles/feed.css';
 
 export default function ArticleFeed({ 
   articles, 
+  rankPool,
   selectedArticleId, 
   onSelectArticle, 
   loading, 
@@ -28,6 +30,13 @@ export default function ArticleFeed({
   const timersRef = useRef(new Map()); // id -> timeoutId
   const isFetchingMoreRef = useRef(isFetchingMore);
   useEffect(() => { isFetchingMoreRef.current = isFetchingMore; }, [isFetchingMore]);
+
+  const sortMode = getSortMode();
+  // Phones only, and only under smart sort: the other orders have no score to rank by.
+  const topPicks = useMemo(
+    () => (!isDesktop && sortMode === 'smart' ? selectTopPicks(articles, rankPool) : null),
+    [articles, rankPool, isDesktop, sortMode]
+  );
 
   const handleCardClick = useCallback((id) => {
     onSelectArticle(id);
@@ -140,12 +149,18 @@ export default function ArticleFeed({
       <div className="feed-header">
         {selectedFeedId ? (
           <>
-            <img 
-              src={`${API_URL}${selectedFeed?.favicon_url}`} 
-              alt="" 
-              className="feed-header-favicon" 
-              onError={(e) => e.target.style.display='none'}
-            />
+            {/* Opening an article by URL renders this before the feed list arrives. An
+                unconditional img requested ".../undefined", failed, and onError then
+                hid the element for good. */}
+            {selectedFeed?.favicon_url && (
+              <img
+                key={selectedFeed.favicon_url}
+                src={`${API_URL}${selectedFeed.favicon_url}`}
+                alt=""
+                className="feed-header-favicon"
+                onError={(e) => e.target.style.display='none'}
+              />
+            )}
             <h2>{selectedFeed?.name}</h2>
             <button 
               className="view-mode-btn" 
@@ -158,7 +173,7 @@ export default function ArticleFeed({
             </button>
           </>
         ) : (
-          <h2>ALL ARTICLES</h2>
+          <h2>All articles</h2>
         )}
         {unreadCount > 0 && <div className="header-unread-badge">{unreadCount}</div>}
       </div>
@@ -171,6 +186,7 @@ export default function ArticleFeed({
           onClick={handleCardClick}
           hideSource={!!selectedFeedId}
           viewMode={currentViewMode}
+          featured={topPicks?.has(article.id) ?? false}
           isOffline={isOffline}
           onVoted={onVoted}
         />

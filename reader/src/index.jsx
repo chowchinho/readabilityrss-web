@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
+import { Toast } from '@base-ui/react/toast';
+import Toaster from './components/Toaster';
+import { toastManager } from './toast';
 import { isOfflineCachingEnabled, notifyServiceWorkerCachingPreference } from './offlinePreferences';
 import { API_URL } from './api';
 import { IMAGES_CACHE, FAVICONS_CACHE } from './constants/caches';
@@ -128,6 +131,7 @@ window.addEventListener('error', (event) => {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
+      <Toast.Provider toastManager={toastManager} limit={3}>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />
@@ -135,6 +139,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/:feedSlug/:articleSlug" element={<App />} />
         </Routes>
       </BrowserRouter>
+      <Toaster />
+      </Toast.Provider>
     </ErrorBoundary>
   </React.StrictMode>
 );

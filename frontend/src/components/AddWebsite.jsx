@@ -288,7 +288,7 @@ function AddWebsite({ onCancel, onSave, initialSource, initialStep }) {
 
   return (
     <div className={`add-website-container ${step === 3 ? 'add-website-fullwidth' : ''}`}>
-      <h2 className="add-website-title">{editMode ? 'Edit Source' : 'Add New Website'}</h2>
+      <h2 className="add-website-title">{editMode ? 'Edit source' : 'Add a website'}</h2>
 
       <div className="step-indicator">
         {stepLabels.map((label, i) => {
@@ -324,7 +324,7 @@ function AddWebsite({ onCancel, onSave, initialSource, initialStep }) {
           <div className="form-actions">
             <button type="button" onClick={onCancel} className="cancel-btn" disabled={loading}>Cancel</button>
             <button type="submit" className="primary-btn" disabled={loading}>
-              {loading ? 'Discovering...' : 'Discover Links'}
+              {loading ? 'Discovering…' : 'Discover links'}
             </button>
           </div>
         </form>

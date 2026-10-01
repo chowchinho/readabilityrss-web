@@ -4,13 +4,13 @@
   margin: 40px auto;
   padding: 32px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
 }
 
 .bulk-import-title {
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 4px;
@@ -18,7 +18,7 @@
 
 .bulk-import-desc {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin: 0 0 16px;
 }
@@ -26,11 +26,12 @@
 .bulk-import-textarea {
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-primary);
   background: var(--bg-page);
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  border: none;
+  box-shadow: var(--shadow-sm);
+  border-radius: 7px;
   padding: 12px;
   resize: vertical;
   line-height: 1.7;
@@ -39,12 +40,12 @@
 
 .bulk-import-textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft);
 }
 
 .bulk-import-count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   margin-top: 6px;
   text-align: right;
@@ -68,7 +69,7 @@
   gap: 10px;
   padding: 10px 20px;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hair);
   position: sticky;
   top: 48px;
   z-index: 10;
@@ -76,43 +77,45 @@
 
 .bulk-import-progress-text {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.045em;
 }
 
 .bulk-import-progress-bar {
   flex: 1;
   height: 3px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 7px;
   overflow: hidden;
 }
 
 .bulk-import-progress-fill {
   height: 100%;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: 7px;
   transition: width 0.3s ease;
 }
 
 .bulk-import-skip {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-muted);
   background: none;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 3px 10px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
+  padding: 4px 10px;
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.06em;
 }
 
-.bulk-import-skip:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .bulk-import-skip:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }

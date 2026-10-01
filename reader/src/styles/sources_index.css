@@ -1,4 +1,6 @@
-/* Sources Index Hub & Single Feed Index Styles — Monocle Collection Inspired Layout */
+/* Index views: All articles, category, and single feed.
+   Every card leads with the same four things, in this order: favicon, feed name,
+   headline, content. Everything else is quieter or appears on demand. */
 
 .sources-index-container {
   display: flex;
@@ -10,458 +12,365 @@
   overflow-y: auto;
   overflow-x: hidden;
   font-family: var(--font-body);
-  scroll-behavior: smooth;
 }
 
-/* Header Section */
+/* ---------- Sticky header ---------- */
+
 .sources-index-header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(245, 239, 230, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  /* No padding here: the pills bar must reach the header's full width so its whole
-     span is draggable. Each child below re-applies the inset it used to inherit. */
+  background: color-mix(in srgb, var(--bg-page) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--hair);
   padding: 0;
-  transition: background-color 0.3s ease;
-}
-
-[data-theme="dark"] .sources-index-header {
-  background: rgba(26, 22, 18, 0.88);
 }
 
 .sources-header-top {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  padding: 26px 36px 0;
 }
 
 .sources-header-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 0 0 28px;
-}
-
-.sources-header-title-group .material-symbols-outlined {
-  font-size: 30px;
-  color: var(--accent-strong);
-  background: rgba(201, 125, 46, 0.12);
-  padding: 8px;
-  border-radius: 10px;
+  min-width: 0;
 }
 
 .sources-header-title {
   font-family: var(--font-heading);
-  font-size: 1.65rem;
-  font-weight: 700;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: -0.01em;
 }
 
 .sources-header-subtitle {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
-  margin-top: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+
+.sources-header-subtitle b {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .sources-header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 20px 28px 0 0;
+  gap: 8px;
 }
 
-/* Search and Filters Bar */
+/* ---------- Controls ---------- */
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--hair);
+}
+
+.segmented button {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.segmented button.is-on {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.sources-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease, box-shadow 150ms ease, transform 160ms var(--ease-out);
+}
+
+.sources-toggle-btn .material-symbols-outlined {
+  font-size: 1.0625rem !important;
+}
+
+.sources-toggle-btn:active,
+.segmented button:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sources-toggle-btn:hover {
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .segmented button:not(.is-on):hover {
+    color: var(--text-primary);
+  }
+}
+
+/* ---------- Category tabs ---------- */
+
 .sources-filter-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
-.sources-search-box {
-  position: relative;
-  flex: 1;
-  min-width: 240px;
-  max-width: 440px;
-}
-
-.sources-search-box .material-symbols-outlined {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  font-size: 18px;
-  pointer-events: none;
-}
-
-.sources-search-input {
-  width: 100%;
-  padding: 8px 36px 8px 38px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 0.88rem;
-  font-family: var(--font-body);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.sources-search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(201, 125, 46, 0.15);
-}
-
-.sources-search-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-}
-
-/* Category Filter Pills */
 .category-pills-scroll {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 24px;
   overflow-x: auto;
-  /* Padding, not margin: it belongs to the element, so the inset is draggable too.
-     Bottom absorbs the header's old 16px so the gap above the border is unchanged. */
-  padding: 4px 28px 24px 28px;
+  padding: 18px 36px 0;
   margin: 0;
   scrollbar-width: none;
   cursor: grab;
   user-select: none;
-  /* Edge fades are driven by scroll position: 0px collapses the gradient stop, so an
-     edge with nothing to scroll toward shows no fade at all. */
   --pill-fade-start: 0px;
   --pill-fade-end: 0px;
   mask-image: linear-gradient(to right, transparent 0, #000 var(--pill-fade-start), #000 calc(100% - var(--pill-fade-end)), transparent 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--pill-fade-start), #000 calc(100% - var(--pill-fade-end)), transparent 100%);
-  /* Span the whole filter bar so the run-out space past the last pill is still
-     part of the drag surface — as a default flex item it stopped at its pills. */
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.category-pills-scroll.fade-start {
-  --pill-fade-start: 24px;
-}
-
-.category-pills-scroll.fade-end {
-  --pill-fade-end: 24px;
-}
-
-.category-pills-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.category-pills-scroll:active {
-  cursor: grabbing;
-}
+.category-pills-scroll.fade-start { --pill-fade-start: 32px; }
+.category-pills-scroll.fade-end { --pill-fade-end: 32px; }
+.category-pills-scroll::-webkit-scrollbar { display: none; }
+.category-pills-scroll:active { cursor: grabbing; }
 
 .category-pill-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 5px 14px;
-  border-radius: 16px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
-}
-
-.category-pill-btn:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
+  padding: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 -2px 0 transparent;
+  transition: color 150ms ease, box-shadow 200ms var(--ease-out);
 }
 
 .category-pill-btn.active {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent);
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--text-primary);
 }
 
 .category-pill-badge {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  opacity: 0.85;
-  background: rgba(0, 0, 0, 0.1);
-  padding: 1px 5px;
-  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 
-.category-pill-btn.active .category-pill-badge {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .category-pill-btn:not(.active):hover {
+    color: var(--text-secondary);
+  }
 }
 
-.sources-toggle-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-
-.sources-toggle-btn:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
-}
-
-.sources-toggle-btn.active {
-  background: rgba(201, 125, 46, 0.12);
-  border-color: var(--accent);
-  color: var(--accent-strong);
-}
-
-/* ========================================================= */
-/* MONOCLE CONTENT COLLECTION LAYOUT (.c-content-collection)  */
-/* ========================================================= */
+/* ---------- Collection ---------- */
 
 .monocle-content-collection {
-  padding: 32px 28px 48px 28px;
-  max-width: 1440px;
+  padding: 28px 36px 64px;
+  max-width: 1480px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-}
-
-/* Section Eyebrow Header */
-.monocle-collection-header {
-  border-bottom: 2px solid var(--text-primary);
-  padding-bottom: 10px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-
-.monocle-collection-title {
-  font-family: var(--font-heading);
-  font-size: 1.4rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.monocle-collection-subtitle {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-/* Row 1: Featured Highlight Item (.c-content-item--featured) */
-.monocle-featured-row {
-  width: 100%;
-}
-
-.monocle-featured-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  height: 440px;
-  cursor: pointer;
-  transition: box-shadow 0.25s ease, border-color 0.25s ease;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
-
-.monocle-featured-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.monocle-featured-media {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: var(--border);
-  overflow: hidden;
-}
-
-.monocle-featured-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* object-position is deliberately not transitioned. It used to be, because the
-     browser computed the focal point asynchronously and easing the shift hid the
-     pop. The server now sends focal_x/focal_y with the article, so the value is
-     right on first paint — animating it only makes a rare late correction, such
-     as a stale IndexedDB record being replaced by a sync, slide visibly. */
-  transition: transform 0.4s ease;
-}
-
-/* Zoom-in animation replaced by ArticleCardSlideshow */
-
-.monocle-featured-body {
-  padding: 28px 32px 16px 32px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  height: 100%;
-  overflow: hidden;
-}
-
-.monocle-featured-card .monocle-card-meta {
-  margin-top: auto;
-  padding-top: 12px;
-  padding-bottom: 2px;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  flex: 0 0 auto;
-  width: 100%;
-  height: 36px;
+  gap: 40px;
   box-sizing: border-box;
 }
 
-[data-theme="dark"] .monocle-featured-card .monocle-card-meta {
-  border-top-color: rgba(255, 255, 255, 0.05);
-}
+/* ---------- Meta row: favicon, feed name, time ---------- */
 
-.monocle-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent-strong);
-  margin-bottom: 12px;
-}
-
-.monocle-featured-title {
-  font-family: var(--font-heading);
-  font-size: 1.6rem;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--text-primary);
-  margin: 0 0 12px 0;
-  letter-spacing: -0.01em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  /* 2 lines is 2.5em at this line-height; 0.1em is subpixel headroom. */
-  max-height: 2.6em;
-  flex-shrink: 0;
-  transition: max-height 0.2s ease-out;
-}
-
-.monocle-featured-excerpt {
-  font-size: 0.92rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin: 0 0 16px 0;
-  display: -webkit-box;
-  /* Rest truncates at 4 lines; hover reveals the rest. Clamp is one line beyond
-     what max-height reveals, so the ellipsis lands on a clipped line and the
-     last visible line is always complete. */
-  -webkit-line-clamp: 5;
-  max-height: calc(4 * 1.5em);
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  transition: max-height 0.2s ease-out;
-}
-
-/* Not overflow:hidden — the ranking panel escapes this box and would be clipped.
-   The truncation that needed it now lives on .monocle-meta-identity. */
+/* Not overflow:hidden: the ranking panel escapes this box and would be clipped. */
 .monocle-card-meta {
   position: relative;
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   min-width: 0;
-  flex: 1;
-}
-
-.monocle-card-footer .monocle-card-meta {
-  font-size: 0.72rem;
+  min-height: 20px;
 }
 
 .monocle-meta-identity {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 1 1 auto;
+  gap: 8px;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  transition: opacity 0.18s ease;
+  transition: opacity 150ms ease;
 }
 
-/* Out of flow so revealing it cannot shift .monocle-card-time off the right edge.
-   Stretched with the row's own padding inherited rather than centred on 50%:
-   absolute insets resolve against the padding box, but .monocle-card-time centres
-   in the content box, and the featured row's padding is asymmetric (12px/2px).
-   Inheriting it makes both share one content box, so they sit on the same line. */
+.monocle-meta-favicon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.monocle-source-wrap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monocle-source-name {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.lang-pill {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 5px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  flex-shrink: 0;
+}
+
+.monocle-card-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.monocle-card-meta .card-vote-mark {
+  margin-left: auto;
+  margin-right: -3px;
+}
+
+.monocle-card-meta .card-vote-mark + .monocle-card-time,
+.monocle-card-meta .card-vote-mark + .monocle-time-swap {
+  margin-left: 0;
+}
+
+/* Top story only: on hover the time gives its place to the translation badge. The
+   badge is out of flow and pinned to the time's right edge, so nothing shifts. */
+.monocle-time-swap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.monocle-time-swap .monocle-card-time,
+.monocle-card-meta .card-vote-mark:has(+ .monocle-time-swap) {
+  transition: opacity 150ms ease;
+}
+
+.monocle-time-swap .lang-pill {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .monocle-featured-card:hover .monocle-time-swap .monocle-card-time,
+  .monocle-featured-card:hover .card-vote-mark:has(+ .monocle-time-swap) {
+    opacity: 0;
+  }
+
+  .monocle-featured-card:hover .monocle-time-swap .lang-pill {
+    opacity: 1;
+  }
+}
+
+.monocle-card-meta .card-vote-mark .material-symbols-outlined {
+  font-size: 0.8125rem;
+}
+
+.monocle-card-meta .unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Ranking controls replace the identity only while the pointer is on this row, so
+   hovering a card never hides which feed it came from. Touch uses the tap toggle. */
 .monocle-meta-controls {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  padding: inherit;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s ease;
+  transition: opacity 150ms ease;
   z-index: 5;
 }
 
-/* The info glyph stands in for the favicon, so its box has to start where the
-   favicon's does. The actions row carries a left margin and every button 3px of
-   left padding; both are cancelled here rather than in ranking_controls.css,
-   which also dresses the always-on controls in ArticleCard and ArticleReader. */
 .monocle-card-meta .monocle-meta-controls .card-ranking-actions,
 .monocle-card-meta .monocle-meta-controls .card-ranking-actions.is-compact {
   margin-left: 0;
 }
 
+/* Same spec as pane 2: the 16px info glyph lands exactly on the 16px favicon it
+   replaces, in a 24px target pulled out 4px. */
+.monocle-card-meta .monocle-meta-controls .ranking-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.monocle-card-meta .monocle-meta-controls .ranking-btn::before {
+  inset: 0;
+}
+
+.monocle-card-meta .monocle-meta-controls .ranking-btn .material-symbols-outlined {
+  font-size: 1rem;
+}
+
 .monocle-card-meta .monocle-meta-controls .ranking-btn:first-child {
-  margin-left: -3px;
+  margin-left: -4px;
 }
 
 .monocle-card-meta.has-ranking.is-revealed .monocle-meta-identity {
@@ -473,282 +382,592 @@
   pointer-events: auto;
 }
 
-/* Triggered from the card, not the meta row. A grid card grows to 150% height on
-   hover, which slides the bottom-anchored row ~185px down and out from under the
-   cursor at 0.26s — the row would lose :hover and cancel the info dwell before the
-   1s is up, making the panel unreachable. */
-@media (hover: hover) {
-  .monocle-grid-card:hover .monocle-card-meta.has-ranking .monocle-meta-identity,
-  .monocle-featured-card:hover .monocle-card-meta.has-ranking .monocle-meta-identity {
+@media (hover: hover) and (pointer: fine) {
+  .monocle-card-meta.has-ranking:hover .monocle-meta-identity {
     opacity: 0;
   }
 
-  .monocle-grid-card:hover .monocle-card-meta.has-ranking .monocle-meta-controls,
-  .monocle-featured-card:hover .monocle-card-meta.has-ranking .monocle-meta-controls {
+  .monocle-card-meta.has-ranking:hover .monocle-meta-controls {
     opacity: 1;
     pointer-events: auto;
   }
 }
 
-.monocle-card-meta .monocle-card-time {
-  margin-left: auto;
-}
+/* ---------- Featured story ---------- */
 
-/* Takes the auto margin off the time so the two stay paired at the right edge —
-   the same handoff .card-footer makes in feed.css. This row's gap is 6px, so the
-   glyph only needs a 2px pull to sit tight against the timestamp. The mark is one
-   size down here: this meta strip runs at 0.72rem against the feed card's 11px. */
-.monocle-card-meta .card-vote-mark {
-  margin-left: auto;
-  margin-right: -2px;
-}
-
-.monocle-card-meta .card-vote-mark + .monocle-card-time {
-  margin-left: 0;
-}
-
-.monocle-card-meta .card-vote-mark .material-symbols-outlined {
-  font-size: 12px;
-}
-
-.monocle-source-wrap {
-  display: block;
-  flex: 1;
+.monocle-featured-row {
+  position: relative;
+  width: 100%;
   min-width: 0;
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+}
+
+.monocle-featured-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  white-space: nowrap;
-  margin-right: 10px;
-  mask-image: linear-gradient(to right, #000 0%, #000 75%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 75%, transparent 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  height: 400px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 200ms ease, transform 160ms var(--ease-out);
 }
 
-.monocle-source-name {
-  display: inline-block;
-  white-space: nowrap;
-  color: var(--text-muted);
+.monocle-featured-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-sunken);
+  overflow: hidden;
 }
 
-.monocle-card-time {
+.monocle-featured-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.monocle-featured-body {
+  padding: 30px 32px 26px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.monocle-featured-card .monocle-card-meta {
+  margin-top: auto;
+  padding-top: 16px;
+  flex: 0 0 auto;
+}
+
+/* The row's top padding is spacing, not row: keep the controls centred on the favicon. */
+.monocle-featured-card .monocle-card-meta .monocle-meta-controls {
+  top: 16px;
+}
+
+.monocle-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  white-space: nowrap;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  margin-bottom: 14px;
   flex-shrink: 0;
 }
 
-.monocle-meta-favicon {
-  width: 14px;
-  height: 14px;
-  object-fit: contain;
+.monocle-featured-title {
+  font-family: var(--font-heading);
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1.36;
+  letter-spacing: -0.012em;
+  color: var(--text-primary);
+  margin: 0 0 14px;
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.monocle-featured-excerpt {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* Side by side, the excerpt takes whatever height the headline leaves and fades out
+   at the foot instead of stopping at a fixed line count. Stacked (1020px and below)
+   the card is auto height, so there is nothing to fill and the clamp stays. */
+@media (min-width: 1021px) {
+  .monocle-featured-excerpt {
+    display: block;
+    flex: 1 1 0;
+    -webkit-line-clamp: none;
+    line-clamp: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 2.6em), transparent);
+  }
+}
+
+.slideshow-dots {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* Each dot holds a 6px slot; the pill inside is 18px wide and clipped back to a
+   dot until its slide is up. A box-shadow would be clipped with it, hence the
+   drop-shadow on the row (see .slideshow-dots). */
+.slideshow-dots i {
+  position: relative;
+  flex: 0 0 6px;
+  height: 6px;
+}
+
+.slideshow-dots b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 18px;
   border-radius: 3px;
+  background: #fff;
+  opacity: 0.45;
+  clip-path: inset(0 12px 0 0 round 3px);
 }
 
-/* Rows 2 & 3: 4 Items Grid (4 content items in a row) */
+/* ---------- Grid ---------- */
+
+.monocle-row-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: -14px 0 -22px;
+}
+
+.monocle-row-title h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.monocle-row-title span {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
 .monocle-four-col-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  gap: 34px 22px;
 }
 
-/* Monocle Grid Item Card (.c-content-item) */
+.monocle-grid-card-cell {
+  position: relative;
+  min-width: 0;
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+}
+
 .monocle-grid-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   position: relative;
-  width: 100%;
   min-width: 0;
-  max-width: 100%;
   height: 100%;
-  box-sizing: border-box;
-  transition: height 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+  transition: transform 160ms var(--ease-out);
 }
 
 .monocle-card-image-wrap {
-  width: 100%;
-  height: 180px;
-  flex-shrink: 0;
-  flex-grow: 0;
-  background: var(--border);
-  overflow: hidden;
   position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-sunken);
+}
+
+/* A hairline drawn over the photo, so light images keep an edge on the light page. */
+.monocle-card-image-wrap::after,
+.monocle-featured-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .monocle-card-image-wrap img,
 .monocle-card-image-fallback {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.monocle-card-image-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(201, 125, 46, 0.06);
-  color: var(--accent);
-  transition: transform 0.3s ease;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
 }
 
-/* Zoom-in animation replaced by ArticleCardSlideshow */
-
 .monocle-card-content {
-  padding: 16px 18px 16px 18px;
+  padding: 14px 2px 0;
   display: flex;
   flex-direction: column;
   flex: 1;
-  box-sizing: border-box;
-  overflow: hidden;
+  min-width: 0;
+}
+
+.monocle-grid-card .monocle-card-meta {
+  margin-bottom: 8px;
+}
+
+/* One feed: no source to name, so the time and unread dot ride on the foot of the
+   photo, as on the full-image cards, and the headline sits straight under it. They
+   step aside on hover, before the photo crops up for the preview. */
+.monocle-photo-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 12px 10px;
+  background: linear-gradient(to top, rgba(12, 8, 4, 0.62), rgba(12, 8, 4, 0));
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.monocle-photo-caption .monocle-card-time {
+  margin-left: 0;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.monocle-photo-caption .unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
+}
+
+.monocle-photo-caption .card-vote-mark {
+  margin-right: -4px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.monocle-photo-caption .card-vote-mark .material-symbols-outlined {
+  font-size: 0.8125rem;
+}
+
+/* With nothing between them, the headline sits close enough to read as the
+   photo's caption: 8px, about 12px to the glyphs once the line's leading is added. */
+.is-feed-index .monocle-grid-card .monocle-card-content {
+  padding-top: 8px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .monocle-grid-card:hover .monocle-photo-caption {
+    opacity: 0;
+  }
+}
+
+/* The "why this is here" button, moved up with the thumbs: same 32px disc. */
+.monocle-media-feedback .card-ranking-actions,
+.monocle-media-feedback .card-ranking-actions.is-compact {
+  display: flex;
+  margin: 0;
+}
+
+.monocle-media-feedback .ranking-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(20, 14, 8, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background-color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.monocle-media-feedback .ranking-btn .material-symbols-outlined {
+  font-size: 1.125rem !important;
+}
+
+.monocle-media-feedback .ranking-btn:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .monocle-media-feedback .ranking-btn:hover,
+  .monocle-media-feedback .ranking-btn.active {
+    background: rgba(20, 14, 8, 0.62);
+  }
 }
 
 .monocle-grid-card-title {
   font-family: var(--font-heading);
-  font-size: 1.12rem;
-  font-weight: 700;
-  line-height: 1.3;
-  max-height: 2.7em;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
   color: var(--text-primary);
-  margin: 0 0 8px 0;
+  margin: 0;
+  text-wrap: pretty;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-  transition: max-height 0.2s ease-out;
+  transition: color 150ms ease;
 }
 
-.monocle-grid-card-snippet {
-  font-size: 0.86rem;
+/* The grid is for scanning: headline only. Resting on a card lifts the source line
+   and headline into the foot of the photo, which crops away beneath them, and the
+   opening lines appear under the headline. Reading order stays source, headline,
+   preview, and the card keeps its footprint: the preview hangs invisible below the
+   card until then, so no neighbour moves. Delayed on the way in so sweeping the
+   pointer across the grid shows nothing; out at once. */
+.monocle-grid-card {
+  --preview-rise: 86px;
+}
+
+.monocle-card-image-wrap {
+  clip-path: inset(0 0 0 0 round var(--radius-md));
+  transition: clip-path 150ms var(--ease-out);
+}
+
+.monocle-card-content {
+  position: relative;
+  z-index: 3;
+  transition: transform 150ms var(--ease-out);
+}
+
+/* Zero height so the preview never adds to the card; the paragraph hangs below. */
+.monocle-card-preview {
+  position: relative;
+  height: 0;
+}
+
+.monocle-card-preview p {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
   color: var(--text-secondary);
-  line-height: 1.45;
-  min-height: 4.35em;
-  max-height: 4.85em;
-  margin: 0 0 10px 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
   word-break: break-word;
-  transition: max-height 0.2s ease-out;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
 }
 
-.monocle-card-footer {
-  margin-top: auto;
-  padding-top: 10px;
-  flex-shrink: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+.monocle-grid-card.is-read .monocle-card-preview p {
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .monocle-grid-card:hover .monocle-card-image-wrap {
+    clip-path: inset(0 0 var(--preview-rise) 0 round var(--radius-md));
+    transition: clip-path 220ms var(--ease-out) 250ms;
+  }
+
+  .monocle-grid-card:hover .monocle-card-content {
+    transform: translateY(calc(-1 * var(--preview-rise)));
+    transition: transform 220ms var(--ease-out) 250ms;
+  }
+
+  /* 40ms behind the rise, so the text arrives once there is room for it. */
+  .monocle-grid-card:hover .monocle-card-preview p {
+    opacity: 1;
+    transition: opacity 180ms ease 290ms;
+  }
+}
+
+/* Same result without the travel: the headline and crop switch in place after the
+   same pause, and only the preview fades. */
+@media (prefers-reduced-motion: reduce) {
+  .monocle-card-image-wrap,
+  .monocle-card-content {
+    transition-duration: 0s !important;
+  }
+}
+
+/* Hover is seen dozens of times a session, so it only warms the headline. Press
+   gets the physical feedback instead: the card gives a little under the pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .monocle-featured-card:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .monocle-featured-card:hover .monocle-featured-title,
+  .monocle-grid-card:hover .monocle-grid-card-title {
+    color: var(--accent-strong);
+  }
+}
+
+.monocle-featured-card:active {
+  transform: scale(0.995);
+}
+
+.monocle-grid-card:active {
+  transform: scale(0.985);
+}
+
+/* Read: the headline steps back, the photo fades. No filter, which repaints. */
+.monocle-grid-card.is-read .monocle-grid-card-title,
+.monocle-featured-card.is-read .monocle-featured-title {
+  color: var(--text-muted);
+}
+
+.monocle-featured-card.is-read .monocle-featured-excerpt {
+  color: var(--text-muted);
+}
+
+.monocle-grid-card.is-read .monocle-card-image-wrap .monocle-slideshow-wrap,
+.monocle-featured-card.is-read .monocle-featured-media .monocle-slideshow-wrap {
+  opacity: 0.6;
+  transition: opacity 200ms ease;
+}
+
+/* Marked read from the index: leave quickly, a touch smaller, never from nothing. */
+.monocle-grid-card-cell.is-animating-out,
+.monocle-featured-row.is-animating-out {
+  opacity: 0 !important;
+  transform: scale(0.96) !important;
+  pointer-events: none !important;
+}
+
+/* ---------- Photo overlay controls (vote, mark read) ---------- */
+
+.monocle-media-feedback,
+.quick-mark-read-btn {
+  position: absolute;
+  top: 12px;
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.monocle-media-feedback {
+  left: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.quick-mark-read-btn {
+  right: 12px;
+}
+
+.monocle-media-feedback-btn,
+.quick-mark-read-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  color: #fff;
+  background: rgba(20, 14, 8, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
 }
 
-[data-theme="dark"] .monocle-card-footer {
-  border-top-color: rgba(255, 255, 255, 0.05);
+.monocle-media-feedback-btn {
+  transition: background-color 150ms ease, transform 160ms var(--ease-out);
 }
 
-/* Single Feed Header Banner */
+.quick-mark-read-btn {
+  transition: opacity 150ms ease, background-color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.monocle-media-feedback-btn .material-symbols-outlined,
+.quick-mark-read-btn .material-symbols-outlined {
+  font-size: 1.125rem !important;
+  font-variation-settings: 'FILL' 0, 'wght' 400;
+}
+
+.monocle-media-feedback-btn:active,
+.quick-mark-read-btn:active {
+  transform: scale(0.92);
+}
+
+.monocle-media-feedback-btn.active .material-symbols-outlined,
+.quick-mark-read-btn.is-read .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 500;
+}
+
+.monocle-media-feedback-btn.thumb-up.active { background: #4f7f45; }
+.monocle-media-feedback-btn.thumb-down.active { background: #9a4a3a; }
+.quick-mark-read-btn.is-read { background: #4f7f45; }
+
+@media (hover: hover) and (pointer: fine) {
+  .monocle-grid-card:hover .monocle-media-feedback,
+  .monocle-featured-card:hover .monocle-media-feedback,
+  .monocle-grid-card:hover .quick-mark-read-btn,
+  .monocle-featured-card:hover .quick-mark-read-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .monocle-media-feedback-btn:hover,
+  .quick-mark-read-btn:hover {
+    background: rgba(20, 14, 8, 0.62);
+  }
+}
+
+/* Touch has no hover: keep an active vote or read mark visible so state isn't hidden. */
+@media (hover: none) {
+  .monocle-media-feedback:has(.active),
+  .quick-mark-read-btn.is-read {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ---------- Single feed header ---------- */
+
 .feed-hero-banner {
-  background: linear-gradient(135deg, rgba(201, 125, 46, 0.12) 0%, rgba(28, 21, 16, 0.04) 100%);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  margin: 20px 28px 16px 28px;
-  padding: 24px 32px;
+  padding: 26px 36px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  position: relative;
-  overflow: hidden;
-  z-index: 0;
-}
-
-[data-theme="dark"] .feed-hero-banner {
-  background: linear-gradient(135deg, rgba(212, 148, 62, 0.18) 0%, rgba(15, 13, 10, 0.3) 100%);
-}
-
-/* Blurred article image background */
-.feed-hero-banner-bg {
-  position: absolute;
-  inset: -40px;
-  width: calc(100% + 80px);
-  height: calc(100% + 80px);
-  object-fit: cover;
-  filter: blur(10px) saturate(1.4);
-  opacity: 0.55;
-  z-index: -1;
-  pointer-events: none;
-  user-select: none;
-}
-
-[data-theme="dark"] .feed-hero-banner-bg {
-  opacity: 0.45;
-  filter: blur(10px) saturate(1.1) brightness(0.7);
-}
-
-/* Scrim overlay for text readability on top of blurred image */
-.feed-hero-banner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%);
-  z-index: -1;
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-[data-theme="dark"] .feed-hero-banner::after {
-  background: linear-gradient(135deg, rgba(15,13,10,0.35) 0%, rgba(15,13,10,0.12) 100%);
-}
-
-/* Banner unread pill doubles as a two-step Read All control. The min-width
-   transition is what makes the label swap grow rather than snap. */
-.feed-banner-readall {
-  font-size: 0.85rem;
-  padding: 6px 14px;
-  min-width: 104px;
-  justify-content: center;
-  transition: min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease;
-}
-
-button.feed-banner-readall:hover {
-  min-width: 118px;
-  background: var(--status-error);
-  color: #ffffff;
-  border-color: var(--status-error);
-}
-
-button.feed-banner-readall.is-confirming,
-button.feed-banner-readall.is-confirming:hover {
-  background: #ff4d4f;
-  color: #000000;
-  border-color: #000000;
-  font-weight: 800;
-  min-width: 118px;
 }
 
 .feed-banner-info {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
+  min-width: 0;
 }
 
 .feed-banner-icon {
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -756,67 +975,67 @@ button.feed-banner-readall.is-confirming:hover {
 }
 
 .feed-banner-icon img {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
+  border-radius: 4px;
 }
 
 .feed-banner-title {
   font-family: var(--font-heading);
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin: 0 0 4px 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  margin: 0 0 6px;
   color: var(--text-primary);
 }
 
 .feed-banner-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--text-secondary);
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 
-/* Responsive Grid Breakpoints */
-@media (max-width: 1120px) {
-  .monocle-four-col-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .monocle-featured-card {
-    grid-template-columns: 1fr;
-  }
-  .monocle-featured-media {
-    max-height: 280px;
-  }
+.feed-banner-category-link {
+  color: var(--accent-strong);
+  font-weight: 500;
 }
 
-/* 767, not 768: isDesktop is `innerWidth >= 768`, so a 768px rule would strip the
-   header off the desktop hub at exactly 768px (iPad portrait). */
-@media (max-width: 767px) {
-  .sources-header-top {
-    display: none;
-  }
-  .sources-index-container.is-feed-index .sources-index-header {
-    display: none;
+@media (hover: hover) and (pointer: fine) {
+  .feed-banner-category-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 }
 
-@media (max-width: 640px) {
-  .monocle-four-col-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .monocle-content-collection {
-    padding: 16px;
-  }
-  .monocle-featured-body {
-    padding: 20px;
+/* Unread count doubles as a two-step Read All control. */
+.feed-banner-readall {
+  min-width: 104px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.feed-banner-readall:hover {
+    color: var(--status-error);
   }
 }
 
-/* ========================================================= */
-/* MONOCLE INFINITE SCROLL & END OF PAGE MARKER               */
-/* ========================================================= */
+button.feed-banner-readall {
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, transform 160ms var(--ease-out);
+}
+
+button.feed-banner-readall.is-confirming,
+button.feed-banner-readall.is-confirming:hover {
+  background: var(--status-error);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* ---------- Infinite scroll and end marker ---------- */
 
 .monocle-infinite-sentinel {
   padding: 36px 0;
@@ -830,15 +1049,12 @@ button.feed-banner-readall.is-confirming:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .spinning-icon {
-  animation: monocle-spin 1s linear infinite;
+  animation: monocle-spin 0.9s linear infinite;
   color: var(--accent);
 }
 
@@ -848,8 +1064,8 @@ button.feed-banner-readall.is-confirming:hover {
 }
 
 .monocle-end-of-page {
-  margin-top: 40px;
-  padding: 24px 0 16px 0;
+  margin-top: 24px;
+  padding: 24px 0 8px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -859,263 +1075,87 @@ button.feed-banner-readall.is-confirming:hover {
 .monocle-end-line {
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--hair);
 }
 
 .monocle-end-badge {
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
-.monocle-grid-card-cell {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  min-height: 370px;
-  box-sizing: border-box;
-  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
+/* ---------- Responsive ---------- */
 
-.monocle-featured-row {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.monocle-grid-card-cell.is-animating-out,
-.monocle-featured-row.is-animating-out {
-  opacity: 0 !important;
-  transform: scale(0.9) translateY(-10px) !important;
-  pointer-events: none !important;
-}
-
-@media (hover: hover) and (min-width: 768px) {
-  /* Featured card keeps its 440px height; only the title grows, and the
-     flex-filled excerpt gives up the line it takes. */
-  .monocle-featured-card:hover .monocle-featured-title {
-    max-height: 3.85em;
-    -webkit-line-clamp: 3;
-    transition: max-height 0.34s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: 0.26s;
-  }
-
-  /* Fills whatever the title leaves. A fixed line count can't do this: the
-     title's max-height is a cap, so a 2-line headline frees ~32px more than a
-     3-line one. max-height animates the reveal (so the hover delay applies)
-     while flex caps it at the space that actually exists. */
-  .monocle-featured-card:hover .monocle-featured-excerpt {
-    max-height: calc(13 * 1.5em);
-    -webkit-line-clamp: 99;
-    flex: 1 1 auto;
-    min-height: 0;
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1em), transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 1em), transparent 100%);
-    transition: max-height 0.34s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: 0.26s;
-  }
-
-  .monocle-grid-card-cell:hover {
-    z-index: 50;
-  }
-
-  .monocle-grid-card-cell:hover .monocle-grid-card {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 150%;
-    z-index: 50;
-    border-color: var(--accent);
-    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.18);
-    /* Non-overshooting curve. A springy ease (y > 1) makes the card grow past
-       its final height and settle back, which gains then drops a line of text. */
-    transition: height 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease, border-color 0.28s ease;
-    transition-delay: 0.26s;
-  }
-
-  [data-theme="dark"] .monocle-grid-card-cell:hover .monocle-grid-card {
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
-  }
-
-  .monocle-grid-card-cell:hover .monocle-grid-card-title {
-    /* 3 lines is 3.9em exactly; the extra 0.1em is subpixel headroom so the
-       third line isn't rounded away. The clamp caps the count, so the spare
-       height can't reveal a fourth line. */
-    min-height: 0;
-    max-height: 4em;
-    -webkit-line-clamp: 3;
-    flex-shrink: 0;
-    transition: max-height 0.34s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: 0.26s;
-  }
-
-  .monocle-grid-card-cell:hover .monocle-grid-card-snippet {
-    /* No fixed height while expanded. A hard line count fights the flex layout:
-       when it lands, the total overflows the card and flex shrinks the snippet
-       (the only shrinkable item), re-cropping it mid-animation. Filling the
-       leftover space instead means it can never overflow, and it tracks the
-       card's height transition for free. */
-    min-height: 0;
-    max-height: none;
-    -webkit-line-clamp: 99;
-    flex: 1 1 auto;
-    overflow: hidden;
-    margin-bottom: 8px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1em), transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 1em), transparent 100%);
+@media (max-width: 1280px) {
+  .monocle-four-col-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-/* ========================================================= */
-/* MEDIA-OVERLAY FEEDBACK BUTTONS                            */
-/* ========================================================= */
+@media (max-width: 1020px) {
+  .monocle-four-col-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-/* The mirror image of .quick-mark-read-btn on the opposite corner: same 10px
-   inset, same reveal, same 22px glyph, so the two corners read as a pair. */
-.monocle-media-feedback {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 25;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  .monocle-featured-card {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .monocle-featured-media {
+    height: 280px;
+  }
+
+  .monocle-featured-excerpt {
+    max-height: 7em;
+  }
 }
 
-.monocle-grid-card:hover .monocle-media-feedback,
-.monocle-featured-card:hover .monocle-media-feedback {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+/* 767, not 768: isDesktop is `innerWidth >= 768`. */
+@media (max-width: 767px) {
+  .sources-header-top {
+    display: none;
+  }
+
+  .sources-index-container.is-feed-index .sources-index-header {
+    display: none;
+  }
+
+  .category-pills-scroll {
+    padding: 12px 16px 0;
+    gap: 20px;
+  }
 }
 
-.monocle-media-feedback-btn {
-  background: transparent;
-  border: none;
-  padding: 4px;
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
-  transition: color 0.2s ease, transform 0.2s ease;
+@media (max-width: 640px) {
+  .monocle-four-col-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .monocle-content-collection {
+    padding: 16px;
+    gap: 28px;
+  }
+
+  .monocle-row-title {
+    margin-top: -8px;
+  }
+
+  .monocle-featured-body {
+    padding: 20px;
+  }
+
+  .monocle-featured-title {
+    font-size: 1.375rem;
+  }
 }
 
-.monocle-media-feedback-btn .material-symbols-outlined {
-  font-size: 22px;
-  font-variation-settings: 'FILL' 0, 'wght' 500;
-  transition: font-variation-settings 0.2s ease, color 0.2s ease;
+@media (prefers-reduced-motion: reduce) {
+  .monocle-grid-card:active,
+  .monocle-featured-card:active,
+  .monocle-grid-card-cell.is-animating-out,
+  .monocle-featured-row.is-animating-out {
+    transform: none !important;
+  }
 }
-
-/* Dashboard traffic-light palette (--status-active / --status-error), taken in
-   their lighter ActivityLog variants because these sit on top of photographs. */
-.monocle-media-feedback-btn.thumb-up:hover,
-.monocle-media-feedback-btn.thumb-up.active {
-  color: #6aaa6a;
-  transform: scale(1.15);
-}
-
-.monocle-media-feedback-btn.thumb-down:hover,
-.monocle-media-feedback-btn.thumb-down.active {
-  color: #c07060;
-  transform: scale(1.15);
-}
-
-.monocle-media-feedback-btn.active .material-symbols-outlined {
-  font-variation-settings: 'FILL' 1, 'wght' 600;
-}
-
-/* ========================================================= */
-/* QUICK MARK READ BUTTON & DIMMED READ CARD STYLES          */
-/* ========================================================= */
-
-.quick-mark-read-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 25;
-  background: transparent;
-  border: none;
-  padding: 4px;
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
-  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease, color 0.2s ease;
-}
-
-.monocle-grid-card:hover .quick-mark-read-btn,
-.monocle-featured-card:hover .quick-mark-read-btn {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.quick-mark-read-btn .material-symbols-outlined {
-  font-size: 22px !important;
-  font-variation-settings: 'FILL' 0, 'wght' 500;
-  transition: font-variation-settings 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-.quick-mark-read-btn:hover {
-  background: transparent;
-  color: var(--accent);
-  transform: scale(1.15);
-}
-
-.quick-mark-read-btn.is-read {
-  background: transparent;
-  border: none;
-  color: #28a745;
-}
-
-.quick-mark-read-btn.is-read .material-symbols-outlined {
-  font-variation-settings: 'FILL' 1, 'wght' 600;
-}
-
-.quick-mark-read-btn.is-read:hover {
-  background: transparent;
-  color: #dc3545;
-}
-
-.monocle-grid-card.is-read,
-.monocle-featured-card.is-read {
-  opacity: 0.52;
-  filter: grayscale(0.25);
-  transition: opacity 0.3s ease, filter 0.3s ease;
-}
-
-.monocle-grid-card.is-read:hover,
-.monocle-featured-card.is-read:hover {
-  opacity: 0.88;
-  filter: grayscale(0);
-}
-
-@keyframes monocleOverlayFade {
-  0% { opacity: 0; }
-  12.5% { opacity: 1; }
-  33.3% { opacity: 1; }
-  45.8% { opacity: 0; }
-  100% { opacity: 0; }
-}
-
-

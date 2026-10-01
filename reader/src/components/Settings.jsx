@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Drawer } from '@base-ui/react/drawer';
 import { getSettings, saveSettings, clearAllData } from '../db';
 import { notifyServiceWorkerCachingPreference } from '../offlinePreferences';
 import { applyLocalCachePolicy } from '../sync';
@@ -27,6 +28,11 @@ export default function Settings({ onClose, version, showInstallButton = false, 
   const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
   const [saveStatusMsg, setSaveStatusMsg] = useState('');
   const [clearState, setClearState] = useState('idle'); // 'idle' | 'confirm' | 'clearing' | 'cleared'
+  // Base UI's Drawer owns Escape, outside clicks, focus trapping, scroll locking and
+  // swipe-to-dismiss. Closing only flips `open`; the parent unmounts this component
+  // once the exit transition has finished (onOpenChangeComplete).
+  const [open, setOpen] = useState(true);
+  const requestClose = () => setOpen(false);
 
   useEffect(() => {
     getSettings().then(s => {
@@ -101,7 +107,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
           setSaveState('saved');
           setTimeout(() => {
             setSaveState('idle');
-            onClose();
+            requestClose();
           }, 1500);
           return;
         }
@@ -131,7 +137,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
       const sortChanged = settings.sortMode !== initialSettings.sortMode;
       setTimeout(() => {
         setSaveState('idle');
-        onClose();
+        requestClose();
         if (sortChanged) window.location.reload();
       }, 1500);
     } catch (err) {
@@ -156,20 +162,33 @@ export default function Settings({ onClose, version, showInstallButton = false, 
     setTimeout(() => setClearState('idle'), 2000);
   };
 
-  const saveLabel = saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? '✓ Saved' : 'SAVE CHANGES';
+  const saveLabel = saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save changes';
 
   return (
-    <div className="settings-container">
+    <Drawer.Root
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(isOpen) => { if (!isOpen) onClose(); }}
+      swipeDirection="right"
+    >
+    <Drawer.Portal>
+    <Drawer.Backdrop className="settings-backdrop" />
+    <Drawer.Viewport className="settings-viewport">
+    <Drawer.Popup className="settings-container">
       <div className="settings-header">
-        <h2>Settings</h2>
-        <button onClick={onClose}><span className="material-symbols-outlined">close</span></button>
+        <Drawer.Title className="settings-title">Settings</Drawer.Title>
+        <Drawer.Close className="settings-close" aria-label="Close settings"><span className="material-symbols-outlined">close</span></Drawer.Close>
       </div>
 
       {!Capacitor.isNativePlatform() && (
         <div className="settings-section settings-manage-section">
           <a href="/manage/" className="settings-manage-link">
             <span className="material-symbols-outlined">rss_feed</span>
-            Feed Management
+            <span className="settings-manage-text">
+              Feed management
+              <span className="settings-option-help">Sources, categories, parsing and translation</span>
+            </span>
+            <span className="material-symbols-outlined settings-manage-arrow">arrow_forward</span>
           </a>
         </div>
       )}
@@ -384,7 +403,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
           )}
           {clearState === 'confirm' && (
             <div className="clear-confirm">
-              <span className="clear-confirm-warning">⚠ Delete all offline data?</span>
+              <span className="clear-confirm-warning">Delete all offline data?</span>
               <div className="clear-confirm-actions">
                 <button className="btn-danger-sm" onClick={handleClearConfirm}>Yes, Clear</button>
                 <button className="btn-cancel-sm" onClick={() => setClearState('idle')}>Cancel</button>
@@ -398,7 +417,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
           )}
           {clearState === 'cleared' && (
             <button className="btn-success" disabled style={{ cursor: 'default' }}>
-              ✓ Cleared
+              Cleared
             </button>
           )}
         </div>
@@ -419,7 +438,7 @@ export default function Settings({ onClose, version, showInstallButton = false, 
         )}
       </div>
 
-      <div style={{ marginTop: '20px', padding: '20px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', opacity: 0.6 }}>
+      <div className="settings-colophon">
         SYSTEM_VERSION: {version || 'Unknown'}
         <br />
         BACKEND: {API_URL || window.location.origin}
@@ -435,6 +454,9 @@ export default function Settings({ onClose, version, showInstallButton = false, 
           onClose={() => setShowCategoryModal(false)}
         />
       )}
-    </div>
+    </Drawer.Popup>
+    </Drawer.Viewport>
+    </Drawer.Portal>
+    </Drawer.Root>
   );
 }

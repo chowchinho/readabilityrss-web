@@ -1,15 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { API_URL, getSortMode } from '../api';
 import { IMAGES_CACHE } from '../constants/caches';
-import { formatRelativeDate, cleanTranslationTag, stripHtml } from '../utils/articleText';
+import { formatRelativeDate, cleanTranslationTag, stripBreadcrumb, stripHtml } from '../utils/articleText';
 import useHoverDwellPanel from '../hooks/useHoverDwellPanel';
 import ArticleCardSlideshow from './ArticleCardSlideshow';
 import FeedbackButtons from './FeedbackButtons';
 import FloatingInfoPanel from './FloatingInfoPanel';
 import ScoreBreakdown, { useScoreBreakdown } from './ScoreBreakdown';
 import VoteMark from './VoteMark';
+import { MIN_FEATURE_IMAGE_WIDTH, isSmallFeatureImage, markSmallFeatureImage } from '../utils/topPicks';
 
-function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'standard', isOffline = false, onVoted }) {
+function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'standard', featured = false, isOffline = false, onVoted }) {
   const baseImageSrc = article.main_image_proxy
     ? (article.main_image_proxy.startsWith('http') ? article.main_image_proxy : `${API_URL}${article.main_image_proxy}`)
     : article.main_image;
@@ -75,8 +76,55 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
   }, [baseImageSrc, isOffline]);
 
   const effectiveViewMode = (viewMode === 'full_image' && imageSrc) ? 'full_image' : 'standard';
+
+  // The list has no image sizes, so a small one is only found once it loads. The card
+  // then drops back to the square layout, and the verdict is kept for the session.
+  const [smallImage, setSmallImage] = useState(() => isSmallFeatureImage(article.id));
+  const isFeature = featured && !smallImage && effectiveViewMode === 'standard' && Boolean(imageSrc);
+
+  useEffect(() => {
+    if (!featured || !imageSrc || smallImage) return undefined;
+    let cancelled = false;
+    const probe = new Image();
+    probe.onload = () => {
+      if (!cancelled && probe.naturalWidth < MIN_FEATURE_IMAGE_WIDTH) {
+        markSmallFeatureImage(article.id);
+        setSmallImage(true);
+      }
+    };
+    probe.src = imageSrc;
+    return () => { cancelled = true; };
+  }, [featured, imageSrc, smallImage, article.id]);
+
+  const topPickLabel = isFeature && (
+    <span className="card-top-pick">
+      <span className="material-symbols-outlined" aria-hidden="true">star</span>
+      Top pick
+    </span>
+  );
+  // A single-feed list has no source to name, so the identity row would hold the
+  // time alone. The time moves to the end of the snippet and the row is dropped.
+  const inlineMeta = hideSource && effectiveViewMode === 'standard';
   const displayTitle = cleanTranslationTag(article.title);
-  const displaySnippet = cleanTranslationTag(article.snippet) || stripHtml(article.description || article.content).substring(0, 160).trim();
+  const displaySnippet = stripBreadcrumb(cleanTranslationTag(article.snippet)) || stripHtml(article.description || article.content).substring(0, 160).trim();
+  // The thumbnail fixes the card's height, so a headline that fits on one line leaves
+  // a line free for the snippet. CSS cannot count wrapped lines, hence the measuring;
+  // the observer catches the pane being dragged wider or narrower.
+  const titleRef = useRef(null);
+  const [titleOneLine, setTitleOneLine] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!inlineMeta || !el) return undefined;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 22;
+    const measure = () => setTitleOneLine(el.offsetHeight < lineHeight * 1.5);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [inlineMeta, displayTitle]);
+
   const score = typeof article.score === 'number' ? article.score.toFixed(2) : null;
   // Nothing to explain or to train under latest/random ordering.
   const hasRanking = getSortMode() === 'smart';
@@ -110,6 +158,16 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
     if (onClick) onClick(article.id, e);
   };
 
+  const timeAndState = (
+    <>
+      {/* Not gated on hasRanking: a vote cast under smart sort is still a fact about
+          the article, and hiding it under latest/random would read as a lost vote. */}
+      <VoteMark vote={article.vote} />
+      <span className="card-timestamp">{formatRelativeDate(article.pub_date || article.created_at, { short: true })}</span>
+      {!article.is_read && <span className="unread-dot" />}
+    </>
+  );
+
   const footerContent = (
     <div className="card-footer">
       {!hideSource && (
@@ -132,10 +190,8 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
           <span className="card-source-name">{article.source_name}</span>
         </div>
       )}
-      {/* Not gated on hasRanking: a vote cast under smart sort is still a fact about
-          the article, and hiding it under latest/random would read as a lost vote. */}
-      <VoteMark vote={article.vote} />
-      <span className="card-timestamp">{formatRelativeDate(article.pub_date || article.created_at, { short: true })}</span>
+      {timeAndState}
+      {topPickLabel}
       {/* The !showInfo guards are gone with the in-card panel: it used to cover
           .card-content and hide these, so they were duplicated inside it. The panel
           floats now, so the real controls stay put and stay usable while it is open. */}
@@ -146,11 +202,16 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
 
   return (
     <div 
-      className={`article-card ${isActive ? 'active' : ''} ${article.is_read ? 'is-read' : ''} ${!imageSrc ? 'no-image' : ''} ${effectiveViewMode === 'full_image' ? 'full-image' : ''}`}
+      className={`article-card ${isActive ? 'active' : ''} ${article.is_read ? 'is-read' : ''} ${!imageSrc ? 'no-image' : ''} ${effectiveViewMode === 'full_image' ? 'full-image' : ''} ${inlineMeta ? 'inline-meta' : ''} ${inlineMeta && titleOneLine ? 'title-one-line' : ''} ${isFeature ? 'featured' : ''}`}
       onClick={handleClick}
       onMouseLeave={cancelDwellWithGrace}
       data-id={article.id}
     >
+      {/* Standard cards lay the identity row across the full width, so the timestamp
+          ends on the thumbnail's right edge and the thumbnail starts level with the
+          headline. The full-image card keeps it inside the scrim with the headline. */}
+      {effectiveViewMode === 'standard' && !inlineMeta && footerContent}
+
       {imageSrc && (
         <div className="card-image-container">
           <ArticleCardSlideshow
@@ -159,14 +220,15 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
             focalX={article.focal_x}
             focalY={article.focal_y}
             fallbackIconSize={28}
+            showDots={isFeature}
           />
         </div>
       )}
 
       {/* Hung off the card, not .card-content — that overlay is pinned to the
           bottom, so a slot inside it could not reach the artwork's top corners. */}
-      {hasRanking && effectiveViewMode === 'full_image' && infoSlot}
-      {hasRanking && effectiveViewMode === 'full_image' && feedbackSlot}
+      {hasRanking && (effectiveViewMode === 'full_image' || inlineMeta) && infoSlot}
+      {hasRanking && (effectiveViewMode === 'full_image' || inlineMeta) && feedbackSlot}
 
       <div className="card-content">
         {effectiveViewMode === 'full_image' ? (
@@ -176,9 +238,17 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
           </>
         ) : (
           <>
-            <h3 className="card-title">{displayTitle}</h3>
-            {displaySnippet ? <p className="card-snippet">{displaySnippet}...</p> : null}
-            {footerContent}
+            {inlineMeta && topPickLabel}
+            <h3 className="card-title" ref={titleRef}>{displayTitle}</h3>
+            {inlineMeta ? (
+              // .card-when floats, so it has to come before the text it sits at the end of.
+              <p className="card-snippet">
+                <span className="card-when">{timeAndState}</span>
+                {displaySnippet ? `${displaySnippet}…` : null}
+              </p>
+            ) : (
+              displaySnippet ? <p className="card-snippet">{displaySnippet}…</p> : null
+            )}
           </>
         )}
         

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/sidebar.css';
 import SyncStatus from './SyncStatus';
+import { displayCategoryName } from '../utils/articleText';
 import { CATEGORY_ORDER_KEY, parseCategoryOrder, sortByCategoryOrder } from '../utils/categoryOrder';
 
 export default function Sidebar({
@@ -39,8 +40,15 @@ export default function Sidebar({
     setCollapsedCats(prev => ({ ...prev, [catId]: !prev[catId] }));
   };
 
+  // Eases the light/dark swap instead of flashing the whole screen at once. The class
+  // is on only for the swap, so ordinary interactions keep their own timings.
   const toggleTheme = (e) => {
     e.stopPropagation();
+    const root = document.documentElement;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      root.classList.add('theme-switching');
+      window.setTimeout(() => root.classList.remove('theme-switching'), 320);
+    }
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
@@ -95,6 +103,17 @@ export default function Sidebar({
               ReadabilityRSS
               {window.location.hostname === 'localhost' && <span className="dev-badge">LOCAL</span>}
             </Link>
+            {isDesktop && (
+              <button
+                type="button"
+                className="sidebar-toggle-btn"
+                onClick={onToggleSidebar}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <span className="material-symbols-outlined">left_panel_close</span>
+              </button>
+            )}
             {!isDesktop && (
               <button
                 type="button"
@@ -114,7 +133,7 @@ export default function Sidebar({
           style={!effectivelyCollapsed ? { cursor: 'pointer' } : undefined}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {isDesktop && (
+            {effectivelyCollapsed ? (
               <button
                 type="button"
                 className="sidebar-toggle-btn"
@@ -122,19 +141,20 @@ export default function Sidebar({
                   e.stopPropagation();
                   onToggleSidebar();
                 }}
-                title={effectivelyCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-                  {effectivelyCollapsed ? 'menu' : 'menu_open'}
-                </span>
+                <span className="material-symbols-outlined">left_panel_open</span>
               </button>
+            ) : (
+              <span className="material-symbols-outlined sidebar-header-icon" aria-hidden="true">inbox</span>
             )}
             {!effectivelyCollapsed && (
               <span
                 className={selectedFeedId === null && (selectedCategoryId === 'all' || !selectedCategoryId) ? 'all-sources-active' : ''}
                 style={{ cursor: 'pointer' }}
               >
-                ALL ARTICLES
+                All articles
               </span>
             )}
           </div>
@@ -156,10 +176,10 @@ export default function Sidebar({
                       onSelectCategory && onSelectCategory(cat.id);
                     }}
                   >
-                    {cat.name}
+                    {displayCategoryName(cat.name)}
                   </span>
                   <span
-                    className="category-toggle-icon material-symbols-outlined"
+                    className={`category-toggle-icon material-symbols-outlined ${collapsedCats[cat.id] ? 'is-collapsed' : ''}`}
                     style={{ fontSize: 16 }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -167,10 +187,17 @@ export default function Sidebar({
                     }}
                     title={collapsedCats[cat.id] ? "Expand category" : "Collapse category"}
                   >
-                    {collapsedCats[cat.id] ? 'expand_more' : 'expand_less'}
+                    expand_less
                   </span>
                 </div>
-                {!collapsedCats[cat.id] && cat.feeds.map(feed => (
+                {/* Always rendered so the fold can animate; inert keeps collapsed
+                    feeds out of the tab order and away from clicks. */}
+                <div
+                  className={`category-feeds ${collapsedCats[cat.id] ? 'is-collapsed' : ''}`}
+                  inert={collapsedCats[cat.id] ? '' : undefined}
+                >
+                <div className="category-feeds-inner">
+                {cat.feeds.map(feed => (
                   <div
                     key={feed.id}
                     className={`feed-item ${selectedFeedId === feed.id ? 'active' : ''}`}
@@ -195,32 +222,15 @@ export default function Sidebar({
                     {renderBadge(feed.id, feed.unread_count)}
                   </div>
                 ))}
+                </div>
+                </div>
               </div>
             ))}
           </div>
           );
         })()}
 
-        <div className="sidebar-footer">
-          <div className="settings-row" onClick={onOpenSettings}>
-            <div className="settings-row-content">
-              <span className="material-symbols-outlined icon">settings</span>
-              {!effectivelyCollapsed && <span className="label">Settings</span>}
-            </div>
-
-            {!effectivelyCollapsed && (
-              <button
-                onClick={toggleTheme}
-                className="theme-toggle"
-                title="Toggle Theme"
-              >
-                <span className="material-symbols-outlined icon">
-                  {theme === 'dark' ? 'light_mode' : 'dark_mode'}
-                </span>
-              </button>
-            )}
-          </div>
-
+        <div className={`sidebar-footer ${effectivelyCollapsed ? 'is-collapsed' : ''}`}>
           <SyncStatus
             syncing={syncing}
             lastSyncTime={lastSyncTime}
@@ -231,6 +241,28 @@ export default function Sidebar({
             isForcedOffline={isForcedOffline}
             toggleForcedOffline={toggleForcedOffline}
           />
+          <div className="sidebar-footer-icons">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="theme-toggle"
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            >
+              <span className="material-symbols-outlined">
+                {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="theme-toggle settings-btn"
+              title="Settings"
+              aria-label="Settings"
+            >
+              <span className="material-symbols-outlined">settings</span>
+            </button>
+          </div>
         </div>
       </div>
     </>

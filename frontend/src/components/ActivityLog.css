@@ -15,13 +15,13 @@
 
 .activity-log-body::-webkit-scrollbar { width: 4px; }
 .activity-log-body::-webkit-scrollbar-track { background: transparent; }
-.activity-log-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.activity-log-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 7px; }
 
 /* Empty state */
 .activity-log-empty {
   padding: 20px 14px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #6a5a4a;
   line-height: 1.7;
 }
@@ -33,15 +33,17 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 3px 6px;
+  gap: 4px 6px;
   padding: 4px 14px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   animation: log-appear 0.15s ease-out;
 }
 
-.log-entry:hover { background: rgba(255,255,255,0.04); }
+@media (hover: hover) and (pointer: fine) {
+  .log-entry:hover { background: rgba(255,255,255,0.04); }
+}
 
 @keyframes log-appear {
   from { opacity: 0; transform: translateY(3px); }
@@ -51,14 +53,14 @@
 /* Timestamp */
 .log-ts {
   color: #6a5a4a;
-  font-size: 10px;
+  font-size: 0.625rem;
   flex-shrink: 0;
 }
 
 /* Level icons */
 .log-level-icon {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   width: 1.2ch;
   text-align: center;
 }
@@ -70,7 +72,7 @@
 /* Source tag */
 .log-source {
   color: #c8a06a;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   flex-shrink: 0;
   max-width: 14ch;
@@ -85,7 +87,7 @@
   flex-basis: 100%;
   padding-left: 1.6rem;
   word-break: break-word;
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 .log-ok .log-msg    { color: #8ab888; }

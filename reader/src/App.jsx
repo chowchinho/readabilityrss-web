@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import { flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { makeSlug, parseId } from './utils/slug';
@@ -6,13 +6,21 @@ import { displayLimitCovering } from './utils/displayWindow';
 import { resolveAutoMarkRead } from './utils/autoMarkRead';
 import Login from './components/Login';
 import { getArticle, getArticles, getFeeds, setOnAuthFailure, bulkMarkRead, patchFeedSource, getSortMode, API_URL, SESSION_KEY, isAiEnabled, fetchAiConfig, flushVoteOutbox } from './api';
+import { notify } from './toast';
 import { getFeedsDataFromDB, getArticlesFromDB, getArticleFromDB, getSettings, saveArticlesToDB, markArticleReadInDB } from './db';
 import { applyLocalCachePolicy } from './sync';
 import Sidebar from './components/Sidebar';
 import ArticleFeed from './components/ArticleFeed';
 import ArticleReader from './components/ArticleReader';
 import SourcesIndex from './components/SourcesIndex';
-import Settings from './components/Settings';
+// Settings (and the category dialog inside it) carry Base UI's Drawer and Dialog;
+// they load on demand so they stay out of the startup bundle. loadSettings is also
+// called once the app is idle, so the file is already in the service worker cache
+// if the reader goes offline before Settings is ever opened.
+const loadSettings = () => import('./components/Settings');
+const Settings = lazy(loadSettings);
+// Only phones ever show it, and it shares Base UI's dialog code with the Settings chunk.
+const ExitConfirm = lazy(() => import('./components/ExitConfirm'));
 import Resizer from './components/Resizer';
 import { useReadState } from './hooks/useReadState';
 import { useSync } from './hooks/useSync';
@@ -43,7 +51,7 @@ function App() {
   // Keep the selected feed visibly active for a beat before mobile navigation.
   // This gives Android predictive back a stable Pane 1 snapshot to return to.
   const MOBILE_FEED_NAV_DELAY_MS = 100;
-  const SYSTEM_VERSION = "2026-08-11 17:06 UTC";
+  const SYSTEM_VERSION = "2026-09-30 01:37 UTC";
   const { feedSlug, articleSlug } = useParams();
   const routeArticleId = articleSlug ? parseId(articleSlug) : null;
   const routeFeedId = feedSlug ? parseId(feedSlug) : null;
@@ -95,11 +103,9 @@ function App() {
   const [sessionReadIds, setSessionReadIds] = useState(new Set());
   const [hiddenReadIds, setHiddenReadIds] = useState(new Set());
   const [readStateOverrides, setReadStateOverrides] = useState(new Map());
-  const [toastMsg, setToastMsg] = useState(null);
   const isLeavingRef = useRef(false);
   const skipNextPopRef = useRef(false);
   const isMobileSidebarOpenRef = useRef(false);
-  const toastTimerRef = useRef(null);
   const feedNavigationTimerRef = useRef(null);
   const readStateBaselineRef = useRef(new Map());
   const isPureLiveMode = !offlineCachingEnabled;
@@ -110,9 +116,14 @@ function App() {
   }, [articles]);
 
   const showToast = useCallback((msg) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToastMsg(msg);
-    toastTimerRef.current = setTimeout(() => setToastMsg(null), 1500);
+    notify(msg, { timeout: 1500 });
+  }, []);
+
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((cb) => window.setTimeout(cb, 2000));
+    const cancel = window.cancelIdleCallback || window.clearTimeout;
+    const id = idle(() => { loadSettings().catch(() => {}); });
+    return () => cancel(id);
   }, []);
 
   const handleReadStatusChange = useCallback((id, isRead, previousIsRead) => {
@@ -1432,6 +1443,7 @@ function App() {
           }}>
             <ArticleFeed
               articles={displayedArticles}
+              rankPool={filteredArticles}
               hasMore={hasMoreForFeed}
               onLoadMore={handleLoadMore}
               selectedArticleId={selectedArticleId}
@@ -1467,8 +1479,6 @@ function App() {
               }}
               onSwipeLeft={navigateToNext}
               onSwipeRight={navigateToPrev}
-              toastMsg={toastMsg}
-              onToastDismiss={() => setToastMsg(null)}
               onToggleRead={() => {
                 const target = (fullArticle && String(fullArticle.id) === String(selectedArticleId)) ? fullArticle : selectedArticleMeta;
                 if (target) toggleReadManual(target.id, target.is_read);
@@ -1483,7 +1493,7 @@ function App() {
         </>
       )}
 
-      {showSettings && <Settings version={SYSTEM_VERSION} onClose={() => { 
+      {showSettings && <Suspense fallback={null}><Settings version={SYSTEM_VERSION} onClose={() => { 
         const nextOfflineCachingEnabled = isOfflineCachingEnabled();
         setShowSettings(false);
         setOfflineCachingEnabled(nextOfflineCachingEnabled);
@@ -1500,29 +1510,19 @@ function App() {
       installPending={isInstallPromptPending}
       categories={feedsData?.categories || []}
       aiEnabled={aiEnabled}
-      />}
+      /></Suspense>}
 
       </div>
 
 
-      {toastMsg && <div className="app-toast">{toastMsg}</div>}
-      {exitConfirmVisible && !isDesktop && (
-        <div className="exit-confirm-backdrop" onClick={() => setExitConfirmVisible(false)}>
-          <div className="exit-confirm-card" onClick={(e) => e.stopPropagation()}>
-            <div className="exit-confirm-content">
-              <h3>Leave Reader?</h3>
-              <p>Use Stay to keep browsing, or Leave to exit the reader.</p>
-            </div>
-            <div className="exit-confirm-actions">
-              <button className="exit-confirm-btn stay" onClick={() => setExitConfirmVisible(false)}>
-                Stay
-              </button>
-              <button className="exit-confirm-btn leave" onClick={handleExitConfirmLeave}>
-                Leave
-              </button>
-            </div>
-          </div>
-        </div>
+      {!isDesktop && (
+        <Suspense fallback={null}>
+          <ExitConfirm
+            open={exitConfirmVisible}
+            onOpenChange={setExitConfirmVisible}
+            onLeave={handleExitConfirmLeave}
+          />
+        </Suspense>
       )}
     </>
   );

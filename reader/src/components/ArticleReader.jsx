@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import Typed from 'typed.js';
 import { useNavigate } from 'react-router-dom';
 import '../styles/reader.css';
@@ -7,16 +7,27 @@ import { API_URL, sendEvents, getSortMode, translateArticle, getArticle } from '
 import { saveArticlesToDB } from '../db';
 import { IMAGES_CACHE, FAVICONS_CACHE } from '../constants/caches';
 import { makeSlug } from '../utils/slug';
+import { translationLabel, estimateReadingMinutes } from '../utils/articleText';
+import { notify } from '../toast';
 import FeedbackButtons from './FeedbackButtons';
 import ScoreBreakdown, { useScoreBreakdown } from './ScoreBreakdown';
 import { findTopLevelBlocks } from '../utils/readDepth';
 import { useReadCompletion } from '../hooks/useReadCompletion';
+import TranslationBar from './TranslationBar';
+import TextSizeControl from './TextSizeControl';
+import {
+  buildTranslationView, providerFromContent,
+  loadTranslationView, saveTranslationView,
+  loadTextScaleIndex, saveTextScaleIndex, TEXT_SCALES,
+} from '../utils/translationView';
 
 // >5s is the threshold the dwell-time literature uses to separate an effective click
 // from noise; below it, a click says more about navigation than about interest.
 const EFFECTIVE_READ_MS = 5000;
 
-function applyBlockSubstitutions(originalHtml, blockMap) {
+// freshIndex marks the block that just arrived, so only it animates in; every
+// earlier block is re-rendered here too but must not replay its entrance.
+function applyBlockSubstitutions(originalHtml, blockMap, freshIndex = null) {
   if (!originalHtml || Object.keys(blockMap).length === 0) return originalHtml;
   const doc = new DOMParser().parseFromString(originalHtml, 'text/html');
   const topElements = findTopLevelBlocks(doc.body);
@@ -26,15 +37,27 @@ function applyBlockSubstitutions(originalHtml, blockMap) {
     if (target && replacementHtml) {
       const template = doc.createElement('template');
       template.innerHTML = replacementHtml;
+      if (idx === freshIndex) {
+        template.content.querySelectorAll(':scope > *').forEach(el => el.classList.add('rr-fresh-block'));
+      }
       target.replaceWith(...Array.from(template.content.childNodes));
     }
   }
   return doc.body.innerHTML;
 }
 
-export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onRetry, isDesktop, articles, toastMsg, onToastDismiss, isOffline, onVoted }) {
+// The toolbar floats over the top of the scroller, so text is only readable from
+// its lower edge down.
+function visibleTop(scroller, bar) {
+  return scroller.getBoundingClientRect().top + (bar ? bar.offsetHeight : 0);
+}
+
+export default function ArticleReader({ article, loading, error, onBack, onSwipeLeft, onSwipeRight, onToggleRead, onRetry, isDesktop, articles, isOffline, onVoted }) {
   const containerRef = useRef(null);
   const contentRef = useRef(null);
+  const pageRef = useRef(null);
+  const barRef = useRef(null);
+  const progressRef = useRef(null);
   const navigate = useNavigate();
   const typedElement = useRef(null);
   const typedInstance = useRef(null);
@@ -50,29 +73,95 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
   const [translatedTitle, setTranslatedTitle] = useState(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedBlockCount, setTranslatedBlockCount] = useState(0);
-  const [translateError, setTranslateError] = useState(null);
   const blocksRef = useRef({});
   const baseContentRef = useRef('');
   const activeArticleIdRef = useRef(null);
-  const errorTimerRef = useRef(null);
 
   const effectiveArticle = localArticle || article;
+
+  // Reading preferences, not article state: they survive moving between articles
+  // and reloads, so they live in this component's state seeded from storage.
+  const [translationView, setTranslationView] = useState(loadTranslationView);
+  const [textScaleIndex, setTextScaleIndex] = useState(loadTextScaleIndex);
+  const viewAnchorRef = useRef(null);
+
+  const sourceLang = effectiveArticle?.translated_from || effectiveArticle?.detected_language || null;
+  const view = useMemo(
+    () => buildTranslationView(renderedContent, translationView, sourceLang),
+    [renderedContent, translationView, sourceLang]
+  );
+  const hasPairs = view.pairCount > 0;
+  const provider = useMemo(() => providerFromContent(effectiveArticle?.content), [effectiveArticle?.content]);
+
+  // Changing view reflows the whole article. Remember which passage is at the top
+  // of the pane, then put that same passage back at the same height afterwards,
+  // so the reader keeps their place instead of being thrown up or down the page.
+  const changeTranslationView = (next) => {
+    if (next === translationView) return;
+    const scroller = containerRef.current;
+    const content = contentRef.current;
+    if (scroller && content) {
+      const top = visibleTop(scroller, barRef.current);
+      const anchor = Array.from(content.querySelectorAll('[data-pair]'))
+        .find((el) => el.getBoundingClientRect().bottom > top + 8);
+      viewAnchorRef.current = anchor
+        ? { pair: anchor.getAttribute('data-pair'), offset: anchor.getBoundingClientRect().top - top }
+        : { pair: null };
+    }
+    setTranslationView(next);
+    saveTranslationView(next);
+  };
+
+  useLayoutEffect(() => {
+    const anchor = viewAnchorRef.current;
+    viewAnchorRef.current = null;
+    const scroller = containerRef.current;
+    const content = contentRef.current;
+    // Only a user's change animates; the first render of an article does not.
+    if (!anchor || !scroller || !content) return;
+    if (anchor.pair !== null) {
+      const el = content.querySelector(`[data-pair="${anchor.pair}"]`);
+      if (el) {
+        const top = visibleTop(scroller, barRef.current);
+        scroller.scrollTop += (el.getBoundingClientRect().top - top) - anchor.offset;
+      }
+    }
+    // A short fade bridges the swap; opacity only, so it is safe with reduced motion.
+    content.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+  }, [translationView]);
+
+  const changeTextScale = (index) => {
+    setTextScaleIndex(index);
+    saveTextScaleIndex(index);
+  };
+
+  // Photos at least as wide as the text column break out of it to the pane's
+  // reading edges (see .article-content img[data-wide]). Decided per image once it
+  // has loaded, because a small inline graphic must never be stretched.
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return undefined;
+    const mark = (img) => {
+      const column = content.clientWidth;
+      if (img.naturalWidth >= Math.min(column * 0.8, 600)) img.setAttribute('data-wide', '');
+    };
+    const imgs = Array.from(content.querySelectorAll('img'));
+    imgs.forEach((img) => {
+      if (img.complete && img.naturalWidth) mark(img);
+      else img.addEventListener('load', () => mark(img), { once: true });
+    });
+    return undefined;
+  }, [view.html]);
 
   useEffect(() => {
     setLocalArticle(null);
     setTranslatedTitle(null);
     setIsTranslating(false);
     setTranslatedBlockCount(0);
-    setTranslateError(null);
     blocksRef.current = {};
     activeArticleIdRef.current = article?.id;
   }, [article?.id]);
 
-  useEffect(() => {
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    };
-  }, []);
 
   // Fetched on demand, exactly as the card popovers do - not shipped with the article.
   const { breakdown, breakdownError } = useScoreBreakdown(effectiveArticle?.id, showInfo);
@@ -129,17 +218,46 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     };
   }, [effectiveArticle?.id]);
 
+  // Written straight to the element's transform: a state update per scroll event
+  // would re-render the whole article.
+  useEffect(() => {
+    const scroller = containerRef.current;
+    const bar = progressRef.current;
+    if (!scroller || !bar) return undefined;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      const ratio = max > 0 ? Math.min(1, scroller.scrollTop / max) : 0;
+      bar.style.transform = `scaleX(${ratio})`;
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [article?.id, renderedContent]);
+
   useReadCompletion({
     article: effectiveArticle,
     scrollRef: containerRef,
     contentRef,
-    contentKey: renderedContent,
+    contentKey: view.html,
   });
+
+  const swipeIndex = articles && effectiveArticle
+    ? articles.findIndex(a => String(a.id) === String(effectiveArticle.id))
+    : -1;
 
   useSwipe({
     onSwipeLeft,
     onSwipeRight: () => { onSwipeRight && onSwipeRight(); },
-    enabled: !!effectiveArticle
+    targetRef: pageRef,
+    canSwipeLeft: swipeIndex >= 0 && swipeIndex < articles.length - 1,
+    canSwipeRight: swipeIndex > 0,
+    enabled: !!effectiveArticle && !isDesktop
   });
 
   useEffect(() => {
@@ -292,13 +410,10 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           </span>
         )}
         {error && (
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ color: 'red' }}>{error}</div>
+          <div className="reader-empty-error">
+            <div>{error}</div>
             {onRetry && (
-              <button
-                onClick={onRetry}
-                style={{ marginTop: 8, padding: '6px 14px', cursor: 'pointer', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-              >
+              <button onClick={onRetry} className="action-btn reader-retry-btn">
                 Try again
               </button>
             )}
@@ -309,9 +424,7 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
   }
 
   const showTranslateError = (msg) => {
-    setTranslateError(msg);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setTranslateError(null), 4000);
+    notify(msg, { type: 'error', timeout: 4000 });
   };
 
   const handleTranslate = async () => {
@@ -320,7 +433,6 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
     activeArticleIdRef.current = targetId;
     setIsTranslating(true);
     setTranslatedBlockCount(0);
-    setTranslateError(null);
     blocksRef.current = {};
 
     try {
@@ -340,7 +452,7 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
           const nextBlocks = { ...blocksRef.current, [event.index]: preparedHtml };
           blocksRef.current = nextBlocks;
           setTranslatedBlockCount(Object.keys(nextBlocks).length);
-          const newBody = applyBlockSubstitutions(baseContentRef.current, nextBlocks);
+          const newBody = applyBlockSubstitutions(baseContentRef.current, nextBlocks, Number(event.index));
           setRenderedContent(newBody);
         } else if (event.type === 'error') {
           setIsTranslating(false);
@@ -392,12 +504,15 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
       }
     } else {
       navigator.clipboard.writeText(effectiveArticle.url);
-      alert('Link copied to clipboard');
+      notify('Link copied');
     }
   };
 
+  const langPill = translationLabel(effectiveArticle);
+  const readingMinutes = estimateReadingMinutes(effectiveArticle.content);
   const pubDate = new Date(effectiveArticle.pub_date || effectiveArticle.created_at).toLocaleDateString(undefined, {
-    year: 'numeric', month: 'long', day: 'numeric'
+    // The short month keeps the meta line to one row on a phone.
+    year: 'numeric', month: isDesktop ? 'long' : 'short', day: 'numeric'
   });
 
   const score = typeof effectiveArticle.score === 'number' ? effectiveArticle.score.toFixed(2) : null;
@@ -415,23 +530,30 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
 
   return (
     <div className={`reader-container${isLeaving ? ' reader-leaving' : ''}`}>
-      {(toastMsg || translateError) && (
-        <div
-          className="swipe-toast"
-          onClick={() => {
-            if (onToastDismiss) onToastDismiss();
-            setTranslateError(null);
-          }}
-        >
-          {translateError || toastMsg}
-        </div>
-      )}
-      <div className="reader-actions-wrapper">
+      <div className="reader-scroll-area" ref={containerRef}>
+      {/* Inside the scroller and sticky, so the article passes beneath the bar's
+          translucent material and the scrollbar stays clear of it. */}
+      <div className="reader-actions-wrapper" ref={barRef}>
+        <div className="reader-progress" aria-hidden="true"><i ref={progressRef} /></div>
         <div className="reader-actions">
           {!isDesktop && (
             <button onClick={handleBack} className="action-btn back-btn" style={{ border: 'none', background: 'transparent', padding: '8px 4px' }}>
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
+          )}
+          {isDesktop && (
+            <>
+              <button onClick={onBack} className="action-btn icon-only" title="Back to index" aria-label="Back to index">
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+              <button onClick={onSwipeRight} className="action-btn icon-only" title="Previous article" aria-label="Previous article">
+                <span className="material-symbols-outlined">keyboard_arrow_up</span>
+              </button>
+              <button onClick={onSwipeLeft} className="action-btn icon-only" title="Next article" aria-label="Next article">
+                <span className="material-symbols-outlined">keyboard_arrow_down</span>
+              </button>
+              <span className="action-sep" aria-hidden="true" />
+            </>
           )}
 
           <button
@@ -480,40 +602,35 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
               <button
                 onClick={handleTranslate}
                 disabled={isTranslating}
-                className="action-btn"
+                className={`action-btn${isTranslating ? '' : ' icon-only'}`}
                 title={isTranslating ? `Translating (${translatedBlockCount})...` : 'Translate'}
                 aria-label="Translate"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>translate</span>
-                {isTranslating ? (
-                  <span style={{ fontSize: '11px', fontWeight: 600, marginLeft: 4 }}>
+                {isTranslating && (
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, marginLeft: 4 }}>
                     {translatedBlockCount > 0 ? translatedBlockCount : '...'}
                   </span>
-                ) : (
-                  <span className="btn-label">Translate</span>
                 )}
               </button>
             )}
 
-            <a href={effectiveArticle.url} target="_blank" rel="noopener noreferrer" className="action-btn" title="Open Original" aria-label="Open Original">
+            <TextSizeControl index={textScaleIndex} onChange={changeTextScale} />
+
+            <a href={effectiveArticle.url} target="_blank" rel="noopener noreferrer" className="action-btn icon-only" title="Open Original" aria-label="Open Original">
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
-              <span className="btn-label">Open Original</span>
             </a>
 
-            <button onClick={handleShare} className="action-btn" title="Share" aria-label="Share">
+            <button onClick={handleShare} className="action-btn icon-only" title="Share" aria-label="Share">
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>share</span>
-              <span className="btn-label">Share</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="reader-scroll-area" ref={containerRef}>
+      <div className="reader-page" ref={pageRef}>
         <div className="reader-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <h1 className="reader-title" style={{ marginBottom: 0, flex: 1 }}>{translatedTitle || effectiveArticle.title}</h1>
-          </div>
-          <div className="reader-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="reader-meta">
             <div className="favicon-wrapper" style={{ marginRight: 0 }}>
               <img
                 src={faviconSrc || `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(effectiveArticle.url)}`}
@@ -529,9 +646,16 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
                 rss_feed
               </span>
             </div>
-            <span style={{ fontWeight: 600 }}>{effectiveArticle.source_name}</span>
-            <span>·</span>
+            <span className="reader-source">{effectiveArticle.source_name}</span>
+            <span className="reader-meta-dot" aria-hidden="true">·</span>
             <span>{pubDate}</span>
+            {readingMinutes > 0 && (
+              <>
+                <span className="reader-meta-dot" aria-hidden="true">·</span>
+                <span>{readingMinutes} min read</span>
+              </>
+            )}
+            {langPill && <span className="lang-pill" title="Translated">{langPill}</span>}
             {effectiveArticle.is_cached && (
               <>
                 <span className="reader-meta-dot">·</span>
@@ -550,6 +674,16 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
               </button>
             )}
           </div>
+          {hasPairs && translationView === 'original' && effectiveArticle.original_title && !translatedTitle ? (
+            <h1 className="reader-title" lang={sourceLang || undefined}>{effectiveArticle.original_title}</h1>
+          ) : (
+            <h1 className="reader-title">{translatedTitle || effectiveArticle.title}</h1>
+          )}
+          {effectiveArticle.original_title && !translatedTitle && (!hasPairs || translationView === 'both') && (
+            <p className="reader-original-title" lang={sourceLang || undefined}>
+              {effectiveArticle.original_title}
+            </p>
+          )}
           {hasRanking && showInfo && (
             <div className="ranking-info-popover reader-info-panel">
               {/* Same component the card popovers use - see ScoreBreakdown.jsx. This
@@ -563,13 +697,26 @@ export default function ArticleReader({ article, loading, error, onBack, onSwipe
               />
             </div>
           )}
+          {hasPairs ? (
+            <TranslationBar
+              sourceLang={sourceLang}
+              provider={provider}
+              view={translationView}
+              onViewChange={changeTranslationView}
+            />
+          ) : (
+            <div className="reader-header-rule" />
+          )}
         </div>
 
         <div
           ref={contentRef}
           className="article-content"
-          dangerouslySetInnerHTML={{ __html: renderedContent }}
+          data-view={hasPairs ? translationView : undefined}
+          style={{ '--reader-scale': TEXT_SCALES[textScaleIndex] }}
+          dangerouslySetInnerHTML={{ __html: view.html }}
         />
+      </div>
       </div>
     </div>
   );

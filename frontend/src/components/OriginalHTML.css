@@ -1,21 +1,21 @@
 .original-html-container {
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .original-html-container h2 {
-  padding: 7px 12px;
-  font-size: 10px;
+  padding: 8px 12px;
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  background: rgba(212,196,176,0.2);
+  border-bottom: 1px solid var(--hair);
+  background: var(--hair);
   margin: 0;
 }
 
@@ -29,14 +29,14 @@
 
 .original-html-container p {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
   word-break: break-all;
-  padding: 5px 8px;
+  padding: 6px 8px;
   background: var(--bg-page);
-  border-radius: 2px;
-  border: 1px solid var(--border);
+  border-radius: 7px;
+  border: 1px solid var(--hair-strong);
 }
 
 .original-html-container p strong {
@@ -68,22 +68,24 @@
   flex-shrink: 0;
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
   cursor: pointer;
   text-decoration: none;
-  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  transition: color 0.12s, border-color 0.12s, background 0.12s, transform 160ms var(--ease-out);
 }
 
-.url-open-btn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: rgba(201,125,46,0.1);
+@media (hover: hover) and (pointer: fine) {
+  .url-open-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
 }
 
 .iframe-wrapper {
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
   overflow: hidden;
   background: white;
   flex: 1;
@@ -118,11 +120,11 @@
   right: 8px;
   background: var(--accent);
   color: white;
-  font-size: 9px;
+  font-size: 0.625rem;
   font-weight: 700;
   font-family: var(--font-mono);
-  padding: 3px 8px;
-  border-radius: 2px;
+  padding: 4px 8px;
+  border-radius: 7px;
   letter-spacing: 0.12em;
   z-index: 10;
   pointer-events: none;

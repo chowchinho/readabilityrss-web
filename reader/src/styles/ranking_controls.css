@@ -21,7 +21,7 @@
 }
 
 .card-vote-mark .material-symbols-outlined {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
@@ -50,7 +50,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px 3px;
+  padding: 2px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -58,9 +58,11 @@
   transition: color 0.15s, background-color 0.15s;
 }
 
-.ranking-controls .ranking-btn:hover {
-  color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.05);
+@media (hover: hover) and (pointer: fine) {
+  .ranking-controls .ranking-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--hair);
+  }
 }
 
 .ranking-controls .ranking-btn.active {
@@ -68,11 +70,11 @@
 }
 
 .ranking-controls .ranking-btn .material-symbols-outlined {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .ranking-controls .is-compact .ranking-btn .material-symbols-outlined {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* The panel used to be absolutely positioned inside .ranking-controls, opening upward
@@ -84,32 +86,45 @@
    own rules. z-index clears pane 2's scrollbar and the sticky headers; the heavier
    shadow and the ring give it the sense of sitting above the interface rather than
    inside a card. */
-.ranking-info-popover.is-floating {
-  position: fixed;
+/* Base UI Popover. It grows out of the info button: --transform-origin is set by the
+   positioner to the button's side, so the panel scales from its trigger and follows
+   it when it flips above. Transitions (not keyframes) so a quick hover-out reverses
+   smoothly from wherever the entrance had got to. */
+.ranking-info-positioner {
   z-index: 1200;
+}
+
+.ranking-info-popover.is-floating {
+  transform-origin: var(--transform-origin);
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
   width: max-content;
   max-width: min(540px, 92vw);
   max-height: min(70vh, 560px);
   overflow-y: auto;
-  padding: 8px 10px;
-  background-color: var(--bg-page);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  font-size: 11px;
+  padding: 10px 12px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.75rem;
   color: var(--text-primary);
   line-height: 1.35;
   text-align: left;
   text-transform: none;
   letter-spacing: normal;
   white-space: normal;
-  animation: bd-pop-in 90ms ease-out;
+  outline: 0;
 }
 
-@keyframes bd-pop-in {
-  from { opacity: 0; transform: translateY(2px); }
-  to { opacity: 1; transform: none; }
+.ranking-info-popover.is-floating[data-starting-style],
+.ranking-info-popover.is-floating[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
 }
+
+.ranking-info-popover.is-floating[data-ending-style] {
+  transition-duration: 120ms;
+}
+
 
 @media (max-width: 768px) {
   .ranking-info-popover.is-floating {
@@ -128,7 +143,7 @@
 
 .info-tags {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 0.625rem;
   margin-bottom: 4px;
 }
 
@@ -155,7 +170,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -175,9 +190,16 @@
 .info-breakdown .bd-total td {
   border-top: 1px solid currentColor;
   font-weight: 600;
-  padding-top: 3px;
+  padding-top: 4px;
 }
 
 @media (max-width: 768px) {
   .ranking-info-popover .info-breakdown { display: block; overflow-x: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ranking-info-popover.is-floating[data-starting-style],
+  .ranking-info-popover.is-floating[data-ending-style] {
+    transform: none;
+  }
 }

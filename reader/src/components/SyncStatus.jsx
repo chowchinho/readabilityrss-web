@@ -82,11 +82,9 @@ export default function SyncStatus({
   if (!isCachingEnabled) {
     return (
       <div className={`sync-status-container ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="sync-info" style={{ opacity: 0.8 }}>
-          <span className="material-symbols-outlined sync-icon" style={{ color: 'var(--accent)' }}>
-            sensors
-          </span>
-          {!isCollapsed && <span className="status-text" style={{ color: 'var(--accent)', fontWeight: 600 }}>Live Mode</span>}
+        <div className="sync-info" title="Live mode: articles load straight from the server">
+          <span className="live-dot" aria-hidden="true" />
+          {!isCollapsed && <span className="status-text">Live</span>}
         </div>
       </div>
     );

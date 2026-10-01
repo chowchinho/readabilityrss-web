@@ -4,15 +4,16 @@ import { API_URL, getArticle, getSortMode } from '../api';
 import { mergeShuffledOrder } from '../utils/shuffle';
 import { CATEGORY_ORDER_KEY, parseCategoryOrder, sortByCategoryOrder } from '../utils/categoryOrder';
 import CardMeta from './CardMeta';
+import RankingControls from './RankingControls';
+import VoteMark from './VoteMark';
 import FeedbackButtons from './FeedbackButtons';
 import { useImpressions, recordEvent, flushEvents } from '../hooks/useImpressions';
 import SmartCropImage from './SmartCropImage';
 import ArticleCardSlideshow from './ArticleCardSlideshow';
-import { formatRelativeDate, cleanTranslationTag, stripHtml } from '../utils/articleText';
+import { formatRelativeDate, cleanTranslationTag, stripHtml, displayCategoryName } from '../utils/articleText';
 
 // Survives this component unmounting while the reader is inside an article.
 let indexOrderCache = { key: null, ids: [] };
-const heroBannerCache = new Map();
 
 function truncateSnippet(text, maxLen) {
   const trimmed = (text || '').replace(/\s*(\.{2,}|…)\s*$/, '').trim();
@@ -192,7 +193,9 @@ export default function SourcesIndex({
           next.delete(art.id);
           return next;
         });
-      }, 280);
+        // Matches the 180ms exit in sources_index.css: any longer and the card sits
+        // invisible after its animation has finished.
+      }, 180);
       quickMarkTimersRef.current.set(art.id, timerId);
     } else {
       if (!art.is_read) reportDismissal();
@@ -389,20 +392,6 @@ export default function SourcesIndex({
       : art.main_image;
   };
 
-  // Pick a random feature image from the feed's articles for the hero banner bg.
-  // The pick is cached per feed so a growing article pool (infinite scroll, late
-  // first load) does not re-deal the banner underneath the reader.
-  const heroBannerImage = useMemo(() => {
-    if (!effectiveFeedId) return null;
-    if (heroBannerCache.has(effectiveFeedId)) return heroBannerCache.get(effectiveFeedId);
-    const withImages = activeFeedArticles.map(getArticleImage).filter(Boolean);
-    if (!withImages.length) return null;
-    const pick = withImages[Math.floor(Math.random() * withImages.length)];
-    heroBannerCache.set(effectiveFeedId, pick);
-    return pick;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveFeedId, activeFeedArticles]);
-
   const feedsMap = useMemo(() => new Map(allFeeds.map(f => [String(f.id), f])), [allFeeds]);
 
   // Helper to extract favicon URL for articles
@@ -451,6 +440,10 @@ export default function SourcesIndex({
     return getCachedCleanSnippet(art, maxLen, featuredFullTextMap[art?.id]);
   }, [featuredFullTextMap]);
 
+  const sortMode = getSortMode();
+  const featuredEyebrow = sortMode === 'smart' ? 'Top story · For you' : sortMode === 'random' ? 'Top story · Shuffled' : 'Top story · Newest';
+  const sortDescription = sortMode === 'smart' ? 'Sorted by relevance' : sortMode === 'random' ? 'Shuffled' : 'Newest first';
+
   const renderScrollSentinelOrEnd = (totalCount) => {
     // An empty count used to bail out here, which stranded any view whose matches all
     // sit past the loaded window: no sentinel meant no onLoadMore, so it never filled.
@@ -460,7 +453,7 @@ export default function SourcesIndex({
         <div ref={sentinelRef} className="monocle-infinite-sentinel">
           <div className="monocle-loading-spinner">
             <span className="material-symbols-outlined spinning-icon" style={{ fontSize: 20 }}>sync</span>
-            <span>Loading more stories...</span>
+            <span>Loading more</span>
           </div>
         </div>
       );
@@ -468,7 +461,7 @@ export default function SourcesIndex({
     return (
       <div className="monocle-end-of-page">
         <span className="monocle-end-line" />
-        <span className="monocle-end-badge">END OF COLLECTION • {totalCount} ARTICLES</span>
+        <span className="monocle-end-badge">That's everything · {totalCount} articles</span>
         <span className="monocle-end-line" />
       </div>
     );
@@ -488,14 +481,6 @@ export default function SourcesIndex({
         {/* Sticky Header */}
         <div className="sources-index-header">
           <div className="feed-hero-banner">
-            {heroBannerImage && (
-              <img
-                className="feed-hero-banner-bg"
-                src={heroBannerImage}
-                alt=""
-                aria-hidden="true"
-              />
-            )}
             <div className="feed-banner-info">
               <div className="feed-banner-icon">
                 <img
@@ -520,20 +505,20 @@ export default function SourcesIndex({
                   >
                     {activeFeedObj.categoryName}
                   </span>
-                  <span>•</span>
-                  <span>{activeFeedArticles.length} Articles</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{activeFeedArticles.length} articles</span>
                 </div>
               </div>
             </div>
             {(activeFeedObj.unread_count || 0) > 0 && (
               isOffline ? (
-                <span className="category-pill-btn active feed-banner-readall">
+                <span className="sources-toggle-btn feed-banner-readall">
                   {activeFeedObj.unread_count} Unread
                 </span>
               ) : (
                 <button
                   type="button"
-                  className={`category-pill-btn active feed-banner-readall ${readAllConfirming ? 'is-confirming' : ''}`}
+                  className={`sources-toggle-btn feed-banner-readall ${readAllConfirming ? 'is-confirming' : ''}`}
                   onMouseEnter={() => setReadAllHovered(true)}
                   onMouseLeave={() => { setReadAllHovered(false); setReadAllConfirming(false); }}
                   onClick={() => {
@@ -571,6 +556,8 @@ export default function SourcesIndex({
                     mainImage={getArticleImage(featuredArticle)}
                     focalX={featuredArticle.focal_x}
                     focalY={featuredArticle.focal_y}
+                    showDots
+                    maxSlides={6}
                     fallbackIconSize={64}
                   />
                   {hasRanking && (
@@ -593,12 +580,14 @@ export default function SourcesIndex({
                   </button>
                 </div>
                 <div className="monocle-featured-body">
+                  <div className="monocle-eyebrow">{featuredEyebrow}</div>
                   <h2 className="monocle-featured-title">{getCleanTitle(featuredArticle)}</h2>
                   {featuredSnippet && (
                     <p className="monocle-featured-excerpt">{featuredSnippet}</p>
                   )}
                   <CardMeta
                     article={featuredArticle}
+                    langOnHover
                     timeLabel={formatRelativeDate(featuredArticle.pub_date || featuredArticle.created_at)}
                     isRevealed={revealedMetaId === featuredArticle.id}
                     onRevealToggle={handleRevealToggle}
@@ -614,6 +603,11 @@ export default function SourcesIndex({
 
           {/* Grid Articles (Appended in batches of 8) */}
           {gridArticles.length > 0 && (
+            <>
+            <div className="monocle-row-title">
+              <h3>Latest</h3>
+              <span>{sortDescription}</span>
+            </div>
             <div className="monocle-four-col-grid">
               {gridArticles.map(article => {
                 const img = getArticleImage(article);
@@ -634,8 +628,14 @@ export default function SourcesIndex({
                           focalY={article.focal_y}
                           fallbackIconSize={36}
                         />
+                        <div className="monocle-photo-caption" aria-hidden="true">
+                          <VoteMark vote={article.vote} />
+                          <span className="monocle-card-time">{formatRelativeDate(article.pub_date || article.created_at)}</span>
+                          {!article.is_read && <span className="unread-dot" />}
+                        </div>
                         {hasRanking && (
                           <div className="monocle-media-feedback">
+                            <RankingControls article={article} compact showFeedback={false} />
                             <FeedbackButtons
                               article={article}
                               buttonClassName="monocle-media-feedback-btn"
@@ -653,24 +653,22 @@ export default function SourcesIndex({
                           </span>
                         </button>
                       </div>
+                      {/* One feed: the banner already names the source, so the headline
+                          sits straight under the photo and the time rides on the photo. */}
                       <div className="monocle-card-content">
                         <h3 className="monocle-grid-card-title">{getCleanTitle(article)}</h3>
-                        {snippet && <p className="monocle-grid-card-snippet">{snippet}</p>}
-                        <div className="monocle-card-footer">
-                          <CardMeta
-                            article={article}
-                            timeLabel={formatRelativeDate(article.pub_date || article.created_at)}
-                            compact
-                            isRevealed={revealedMetaId === article.id}
-                            onRevealToggle={handleRevealToggle}
-                          />
-                        </div>
+                        {snippet && (
+                          <div className="monocle-card-preview" aria-hidden="true">
+                            <p>{snippet}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+            </>
           )}
 
           {/* Infinite Scroll Sentinel or End of Collection Marker */}
@@ -694,29 +692,49 @@ export default function SourcesIndex({
       <div className="sources-index-header">
         <div className="sources-header-top">
           <div className="sources-header-title-group">
-            <span className="material-symbols-outlined">newspaper</span>
             <div>
-              <h1 className="sources-header-title">All Articles</h1>
+              <h1 className="sources-header-title">All articles</h1>
               <div className="sources-header-subtitle">
-                {allArticlesFiltered.length} Articles • {feedsData.total_unread || 0} Total Unread
+                <b>{(feedsData.total_unread || 0).toLocaleString()}</b> unread across {allFeeds.length} sources
               </div>
             </div>
           </div>
 
           <div className="sources-header-actions">
+            <div className="segmented" role="group" aria-label="Show">
+              <button
+                className={showOnlyUnread ? 'is-on' : ''}
+                aria-pressed={showOnlyUnread}
+                onClick={() => setShowOnlyUnread(true)}
+              >
+                Unread
+              </button>
+              <button
+                className={!showOnlyUnread ? 'is-on' : ''}
+                aria-pressed={!showOnlyUnread}
+                onClick={() => setShowOnlyUnread(false)}
+              >
+                All
+              </button>
+            </div>
             <button
-              className={`sources-toggle-btn ${showOnlyUnread ? 'active' : ''}`}
-              onClick={() => setShowOnlyUnread(prev => !prev)}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>filter_alt</span>
-              Unread Only
-            </button>
-            <button
-              className="sources-toggle-btn"
-              onClick={() => onBulkMarkRead && onBulkMarkRead(null)}
+              className={`sources-toggle-btn feed-banner-readall ${readAllConfirming ? 'is-confirming' : ''}`}
+              onMouseLeave={() => setReadAllConfirming(false)}
+              onBlur={() => setReadAllConfirming(false)}
+              onClick={() => {
+                // Two steps, like the sidebar badge and the feed page: this clears
+                // every unread article and there is no undo.
+                if (readAllConfirming) {
+                  setReadAllConfirming(false);
+                  onBulkMarkRead && onBulkMarkRead(null);
+                } else {
+                  setReadAllConfirming(true);
+                }
+              }}
+              title={readAllConfirming ? 'Click again to mark every article read' : 'Mark all as read'}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>done_all</span>
-              Mark All Read
+              {readAllConfirming ? 'Confirm' : 'Mark all read'}
             </button>
           </div>
         </div>
@@ -736,7 +754,7 @@ export default function SourcesIndex({
               className={`category-pill-btn ${selectedCategory === 'all' ? 'active' : ''}`}
               onClick={() => changeCategory('all')}
             >
-              All Sources
+              All articles
               <span className="category-pill-badge">{allFeeds.length}</span>
             </button>
             {categoriesList.map(cat => (
@@ -745,7 +763,7 @@ export default function SourcesIndex({
                 className={`category-pill-btn ${selectedCategory === cat.id ? 'active' : ''}`}
                 onClick={() => changeCategory(cat.id)}
               >
-                {cat.name}
+                {displayCategoryName(cat.name)}
                 <span className="category-pill-badge">{cat.unread > 0 ? cat.unread : cat.count}</span>
               </button>
             ))}
@@ -769,6 +787,8 @@ export default function SourcesIndex({
                   mainImage={getArticleImage(featuredArticle)}
                   focalX={featuredArticle.focal_x}
                   focalY={featuredArticle.focal_y}
+                  showDots
+                  maxSlides={6}
                   fallbackIconSize={64}
                 />
                 {hasRanking && (
@@ -792,12 +812,14 @@ export default function SourcesIndex({
               </div>
 
               <div className="monocle-featured-body">
+                <div className="monocle-eyebrow">{featuredEyebrow}</div>
                 <h2 className="monocle-featured-title">{getCleanTitle(featuredArticle)}</h2>
                 {featuredSnippet && (
                   <p className="monocle-featured-excerpt">{featuredSnippet}</p>
                 )}
                 <CardMeta
                   article={featuredArticle}
+                  langOnHover
                   timeLabel={formatRelativeDate(featuredArticle.pub_date || featuredArticle.created_at)}
                   faviconUrl={getFaviconUrl(featuredArticle)}
                   showIdentity
@@ -815,6 +837,11 @@ export default function SourcesIndex({
 
         {/* Grid Articles (Appended in batches of 8) */}
         {gridArticles.length > 0 && (
+          <>
+          <div className="monocle-row-title">
+            <h3>Latest</h3>
+            <span>{sortDescription}</span>
+          </div>
           <div className="monocle-four-col-grid">
             {gridArticles.map(article => {
               const img = getArticleImage(article);
@@ -857,25 +884,28 @@ export default function SourcesIndex({
                     </div>
 
                     <div className="monocle-card-content">
+                      <CardMeta
+                        article={article}
+                        timeLabel={formatRelativeDate(article.pub_date || article.created_at)}
+                        faviconUrl={favicon}
+                        showIdentity
+                        compact
+                        isRevealed={revealedMetaId === article.id}
+                        onRevealToggle={handleRevealToggle}
+                      />
                       <h3 className="monocle-grid-card-title">{getCleanTitle(article)}</h3>
-                      {snippet && <p className="monocle-grid-card-snippet">{snippet}</p>}
-                      <div className="monocle-card-footer">
-                        <CardMeta
-                          article={article}
-                          timeLabel={formatRelativeDate(article.pub_date || article.created_at)}
-                          faviconUrl={favicon}
-                          showIdentity
-                          compact
-                          isRevealed={revealedMetaId === article.id}
-                          onRevealToggle={handleRevealToggle}
-                        />
-                      </div>
+                      {snippet && (
+                        <div className="monocle-card-preview" aria-hidden="true">
+                          <p>{snippet}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
+          </>
         )}
 
         {/* Infinite Scroll Sentinel or End of Collection Marker */}

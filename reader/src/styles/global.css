@@ -2,6 +2,87 @@
   box-sizing: border-box;
 }
 
+/* The phone layer (mobile-native): no grey tap flash, no font inflation in
+   landscape, and no page-level rubber band behind the app's own scrollers. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* Controls fire on tap without the double-tap wait, and a long press on one never
+   selects its label. Content text stays selectable. */
+button,
+a,
+[role="button"],
+.feed-item,
+.category-pill-btn,
+.segmented button {
+  touch-action: manipulation;
+}
+
+button,
+[role="button"],
+.feed-item,
+.category-pill-btn,
+.unread-badge {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Response (apple-design): feedback lands on press, not on release. Buttons give a
+   little; full-width rows highlight instead, the way native lists do, because
+   scaling a whole row reads as the layout shifting. Rules with their own :active
+   (cards, overlay buttons) are more specific and keep their values. */
+button:not(:disabled):active,
+a.action-btn:active,
+.unread-badge:active {
+  transform: scale(0.97);
+}
+
+button:not(:disabled),
+a.action-btn,
+.unread-badge {
+  transition-property: transform, background-color, color, box-shadow, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+
+.feed-item:active,
+.sidebar-header:active,
+.settings-manage-link:active,
+.category-header-title:active {
+  background-color: var(--hair-strong) !important;
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  a.action-btn:active,
+  .unread-badge:active {
+    transform: none;
+  }
+}
+
+/* iOS zooms into any field under 16px and never zooms back out. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 1rem;
+  }
+}
+
+/* Each scroller keeps its own bounce but never drags the page behind it. */
+.sidebar-content,
+.feed-container,
+.sources-index-container,
+.reader-scroll-area,
+.settings-container {
+  overscroll-behavior: contain;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -29,6 +110,7 @@ button {
 .app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
 }
@@ -63,7 +145,7 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Specific Badge overrides for Top Bar */
@@ -73,7 +155,7 @@ button {
   color: var(--accent);
   padding: 2px 6px;
   margin-left: 10px;
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 24px;
   border-radius: 4px;
 }
@@ -88,9 +170,11 @@ button {
   margin-left: 4px;
 }
 
-.mobile-top-bar .mobile-title-group .view-mode-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+@media (hover: hover) and (pointer: fine) {
+  .mobile-top-bar .mobile-title-group .view-mode-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
 }
 
 .mobile-cache-progress-bar {
@@ -171,7 +255,7 @@ button {
 .dev-badge {
   background-color: #4a7c44;
   color: #fff;
-  font-size: 9px;
+  font-size: 0.625rem;
   font-weight: 700;
   padding: 1px 4px;
   border-radius: 2px;
@@ -180,20 +264,32 @@ button {
   vertical-align: middle;
   display: inline-block;
   line-height: 1;
+  letter-spacing: 0.05em;
 }
 
-/* Exit Confirmation Panel (A2 Style) */
+/* Exit confirmation (Base UI AlertDialog). It enters from the left edge and leaves
+   back through it, faster on the way out. */
 .exit-confirm-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  z-index: 10000;
   background-color: rgba(0, 0, 0, 0.45);
+  transition: opacity 200ms ease;
+}
+
+.exit-confirm-backdrop[data-starting-style],
+.exit-confirm-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.exit-confirm-viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  z-index: 10000;
+  pointer-events: none;
 }
 
 .exit-confirm-card {
@@ -204,22 +300,51 @@ button {
   border-radius: 0 10px 10px 0;
   padding: 24px;
   box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
-  animation: slide-from-left 250ms cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   gap: 20px;
+  pointer-events: auto;
+  outline: 0;
+  transition: transform 280ms var(--ease-drawer);
+}
+
+.exit-confirm-card[data-starting-style],
+.exit-confirm-card[data-ending-style] {
+  transform: translateX(-110%);
+}
+
+.exit-confirm-card[data-ending-style] {
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exit-confirm-card {
+    transition: opacity 180ms ease;
+  }
+
+  .exit-confirm-card[data-starting-style],
+  .exit-confirm-card[data-ending-style] {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+.exit-confirm-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .exit-confirm-content h3 {
   margin: 0 0 8px 0;
   color: #fff;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .exit-confirm-content p {
   margin: 0;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .exit-confirm-actions {
@@ -235,9 +360,13 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: 13px;
+  font-size: 0.8125rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.exit-confirm-btn:active {
+  transform: scale(0.97);
 }
 
 .exit-confirm-btn.stay {
@@ -252,7 +381,104 @@ button {
   border: 1px solid var(--accent);
 }
 
-@keyframes slide-from-left {
-  from { transform: translateX(-110%); }
-  to { transform: translateX(0); }
+/* Card images fade in once decoded (SmartCropImage sets data-loaded) rather than
+   popping in; cached images are marked on mount and never fade. */
+.rr-smart-img {
+  transition: opacity 200ms ease;
+}
+
+.rr-smart-img:not([data-loaded]) {
+  opacity: 0;
+}
+
+/* Translucent bars (apple-design): solid when the user asks for less transparency,
+   and edged when they ask for more contrast. */
+@media (prefers-reduced-transparency: reduce) {
+  .sources-index-header,
+  .feed-header,
+  .reader-actions-wrapper,
+  .settings-header,
+  .settings-footer {
+    background: var(--bg-page) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .reader-actions-wrapper { background: var(--bg-card) !important; }
+  .feed-header { background: var(--bg-sunken) !important; }
+
+  .monocle-media-feedback-btn,
+  .quick-mark-read-btn,
+  .lang-pill {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --hair: rgba(60, 40, 20, 0.28);
+    --hair-strong: rgba(60, 40, 20, 0.45);
+    --text-muted: #6b5d4f;
+  }
+
+  [data-theme="dark"] {
+    --hair: rgba(255, 235, 210, 0.25);
+    --hair-strong: rgba(255, 235, 210, 0.4);
+    --text-muted: #b4a590;
+  }
+}
+
+/* Scroll edge effects (apple-design): a sticky bar has no divider while the content
+   under it is at rest; the hairline fades in over the first 24px of scroll, only
+   once something actually passes beneath it. Browsers without scroll-driven
+   animations keep the static line from each bar's own rule. */
+@supports (animation-timeline: scroll()) {
+  /* Not .sources-index-header: its line doubles as the category tabs' track. */
+  .feed-header {
+    animation: rr-scroll-edge linear both;
+    animation-timeline: scroll(nearest);
+    animation-range: 0 24px;
+  }
+
+  .reader-container {
+    timeline-scope: --rr-reader-scroll;
+  }
+
+  .reader-scroll-area {
+    scroll-timeline: --rr-reader-scroll y;
+  }
+
+  .reader-actions-wrapper {
+    animation: rr-scroll-edge linear both;
+    animation-timeline: --rr-reader-scroll;
+    animation-range: 0 24px;
+  }
+
+  @keyframes rr-scroll-edge {
+    from { border-bottom-color: transparent; }
+    to { border-bottom-color: var(--hair); }
+  }
+}
+
+/* Light/dark swap: colours cross-fade for the one frame range of the switch. */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease,
+    box-shadow 300ms ease, fill 300ms ease !important;
+}
+
+/* Slideshows loop every few seconds, a slow oscillation that reduced-motion users
+   asked not to see. They hold on the first image, and the dots go with them. */
+@media (prefers-reduced-motion: reduce) {
+  .monocle-slide-item {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .slideshow-dots {
+    display: none;
+  }
 }

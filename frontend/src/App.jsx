@@ -31,13 +31,35 @@ function hashFromView(view) {
 }
 
 function App() {
-  const SYSTEM_VERSION = "2026-09-26 15:01 UTC";
+  const SYSTEM_VERSION = "2026-10-01 00:24 UTC";
   // Auth state
   const [authState, setAuthState] = useState('loading'); // 'loading' | 'setup' | 'login' | 'authenticated'
 
   const [activeView, setActiveView] = useState(() => viewFromHash(window.location.hash));
   const [dashboardKey, setDashboardKey] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+
+  // Leaves along the edge it entered from, then unmounts (200ms, see App.css).
+  const closeDrawer = () => {
+    if (drawerClosing) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDrawerOpen(false);
+      return;
+    }
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setDrawerOpen(false);
+      setDrawerClosing(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closeDrawer(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -180,40 +202,41 @@ function App() {
               onClick={() => navTo('dashboard')}
               className={`nav-button ${activeView === 'dashboard' ? 'active' : ''}`}
             >
-              dashboard
+              Sources
             </button>
             <button
               onClick={() => navTo('parser')}
               className={`nav-button ${activeView === 'parser' ? 'active' : ''}`}
             >
-              parser
+              Parser
             </button>
             <button
               onClick={() => navTo('categories')}
               className={`nav-button ${activeView === 'categories' ? 'active' : ''}`}
             >
-              categories
+              Categories
             </button>
             <button
               onClick={() => navTo('options')}
               className={`nav-button ${activeView === 'options' ? 'active' : ''}`}
             >
-              options
+              Options
             </button>
             <a
               href="/"
               className="nav-button nav-button-reader"
             >
-              ← back to reader
+              Open reader
+              <span aria-hidden="true">↗</span>
             </a>
           </nav>
           <span className="nav-spacer" />
           <span className="nav-version">{SYSTEM_VERSION}</span>
           <button
             className={`nav-log-btn ${drawerOpen ? 'active' : ''}`}
-            onClick={() => setDrawerOpen(o => !o)}
+            onClick={() => (drawerOpen ? closeDrawer() : setDrawerOpen(true))}
           >
-            [log]
+            Activity log
           </button>
         </div>
       </header>
@@ -257,11 +280,11 @@ function App() {
       </div>
 
       {drawerOpen && (
-        <div className="drawer-overlay" onClick={() => setDrawerOpen(false)}>
+        <div className={`drawer-overlay${drawerClosing ? ' is-closing' : ''}`} onClick={closeDrawer}>
           <div className="drawer" onClick={e => e.stopPropagation()}>
             <div className="drawer-header">
-              <span className="drawer-title">ACTIVITY LOG</span>
-              <button className="drawer-close" onClick={() => setDrawerOpen(false)}>✕</button>
+              <span className="drawer-title">Activity log</span>
+              <button className="drawer-close" onClick={closeDrawer} aria-label="Close activity log">✕</button>
             </div>
             <div className="drawer-body">
               <ActivityLog />

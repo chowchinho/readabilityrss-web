@@ -160,9 +160,11 @@ function CollapsibleCategory({ category, sources, onCheck, onDelete, onEdit, onF
   return (
     <div className={`category-group ${collapsed ? 'collapsed' : ''}`}>
       <div className="category-header" onClick={handleToggle}>
-        <span className="category-chevron">{collapsed ? '▶' : '▼'}</span>
+        <span className="category-chevron" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
         <span className="category-name">{category}</span>
-        <span className="category-count">({sources.length})</span>
+        <span className="category-count">{sources.length}</span>
       </div>
       <div
         className={`sources-list ${animating ? 'animating' : ''}`}
@@ -266,7 +268,14 @@ function SourceRow({ source, onCheck, onDelete, onEdit, onFlush, onGenerate, onP
         style={{ cursor: 'pointer' }}
       />
       <div className="source-url-cell">
-        <a href={source.url} target="_blank" rel="noopener noreferrer">
+        <img
+          className="source-favicon"
+          src={`/api/reader/favicon/${source.id}`}
+          alt=""
+          loading="lazy"
+          onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+        />
+        <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.url}>
           {source.name}
         </a>
         {source.translate_to && (() => {
@@ -332,7 +341,7 @@ function SourceRow({ source, onCheck, onDelete, onEdit, onFlush, onGenerate, onP
             ? <span className="source-refreshing">
                 Waiting<span className="dot-pulse"><span>.</span><span>.</span><span>.</span></span>
               </span>
-            : <>Last Fetch: {elapsed(ts)}</>}
+            : (ts ? <>Fetched {elapsed(ts)} ago</> : "Never fetched")}
       </div>
       <div className="source-actions">
         {feedback && <span key={feedbackKey} className="action-feedback">{feedback}</span>}
@@ -361,6 +370,7 @@ function Dashboard() {
   const [queuedSourceIds, setQueuedSourceIds] = useState([]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewClosing, setPreviewClosing] = useState(false);
   const [previewSource, setPreviewSource] = useState(null); // new previewSource for drawer
   const previewSourceRef = React.useRef(null);
   const previewArticleUrlRef = React.useRef('');
@@ -428,7 +438,21 @@ function Dashboard() {
     }
   };
 
+  // Slides back out to the left edge it came from before the pane unmounts.
   const closePreview = () => {
+    if (previewClosing) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finishClosePreview();
+      return;
+    }
+    setPreviewClosing(true);
+    setTimeout(() => {
+      setPreviewClosing(false);
+      finishClosePreview();
+    }, 200);
+  };
+
+  const finishClosePreview = () => {
     previewSourceRef.current = null;
     previewArticleUrlRef.current = '';
     setPreviewOpen(false);
@@ -437,6 +461,13 @@ function Dashboard() {
     setPreviewArticles([]);
     setPreviewContent(null);
   };
+
+  useEffect(() => {
+    if (!previewOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closePreview(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const fetchSources = async (silent = false, fetchUsage = true) => {
     try {
@@ -627,12 +658,17 @@ function Dashboard() {
   return (
     <>
       <div className="dashboard-header">
-        <span className="dashboard-title">Feed Sources</span>
+        <div>
+          <h1 className="dashboard-title">Feed sources</h1>
+          <div className="dashboard-subtitle">
+            <b>{sources.length}</b> sources in {Object.keys(groupedSources).length} categories
+          </div>
+        </div>
         <div className="dashboard-header-actions">
           <button onClick={handleRefreshAll} className={`btn ${refreshing ? 'btn-refreshing' : ''}`} disabled={refreshing}>
-            {refreshing ? <><span>Refreshing</span><span className="dot-pulse"><span>.</span><span>.</span><span>.</span></span></> : 'Refresh All'}
+            {refreshing ? <><span>Refreshing</span><span className="dot-pulse"><span>.</span><span>.</span><span>.</span></span></> : 'Refresh all'}
           </button>
-<button onClick={() => setShowAdd(true)} className="btn btn-accent">+ Add Website</button>
+          <button onClick={() => setShowAdd(true)} className="btn btn-accent">Add website</button>
         </div>
       </div>
 
@@ -644,7 +680,7 @@ function Dashboard() {
       )}
 
       {sources.length === 0 ? (
-        <div className="empty-state">No feed sources yet. Click + Add Website to get started.</div>
+        <div className="empty-state">No feed sources yet. Choose Add website to start.</div>
       ) : (
         Object.entries(groupedSources).map(([category, catSources]) => (
           <CollapsibleCategory
@@ -667,7 +703,7 @@ function Dashboard() {
       )}
 
       {previewOpen && (
-        <div className="preview-pane-overlay" onClick={closePreview}>
+        <div className={`preview-pane-overlay${previewClosing ? ' is-closing' : ''}`} onClick={closePreview}>
           <div className="preview-pane" onClick={e => e.stopPropagation()}>
             <div className="preview-pane-header">
               <div className="preview-pane-title">

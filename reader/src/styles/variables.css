@@ -1,42 +1,72 @@
 :root {
-  --bg-page: #f5efe6;
-  --bg-card: #ffffff;
+  --bg-page: #f6f1e9;
+  --bg-card: #fffdf9;
+  /* Only the mobile top bar still paints with this; the desktop rail sits on --bg-page. */
   --bg-sidebar: #1c1510;
-  --text-primary: #2c2016;
-  --text-secondary: #6b5d4f;
-  --text-muted: #9b8b7a;
-  --accent: #c97d2e;
-  --accent-hover: #b06a1f;
-  /* Same hue as --accent, dark enough to pass AA as text on --bg-page
-     (4.9:1 vs 2.9:1). Use wherever the accent carries meaning, not decoration. */
+  --bg-sunken: #efe8dd;
+  --text-primary: #231910;
+  --text-secondary: #5e5143;
+  --text-muted: #8f806f;
+  --accent: #b5661c;
+  --accent-hover: #9c5614;
+  /* Same hue as --accent, dark enough to pass AA as text on --bg-page. Use wherever
+     the accent carries meaning, not decoration. */
   --accent-strong: #985812;
-  --border: #e0d5c5;
-  --unread-badge: #c97d2e;
-  --read-bg: #f0e8dc;
+  --accent-soft: rgba(181, 102, 28, 0.10);
+  --border: #e4d9c9;
+  --hair: rgba(60, 40, 20, 0.09);
+  --hair-strong: rgba(60, 40, 20, 0.15);
+  --unread-badge: #b5661c;
+  --read-bg: #efe8dd;
   --status-error: #b85c38;
-  
-  --font-heading: 'Lora', serif;
+  --status-ok: #5f8f4e;
+
+  --shadow-sm: 0 1px 2px rgba(40, 25, 10, 0.05), 0 0 0 1px rgba(40, 25, 10, 0.06);
+  --shadow-md: 0 1px 1px rgba(40, 25, 10, 0.04), 0 6px 16px -4px rgba(40, 25, 10, 0.10), 0 0 0 1px rgba(40, 25, 10, 0.05);
+  --shadow-lg: 0 2px 4px rgba(40, 25, 10, 0.04), 0 16px 40px -8px rgba(40, 25, 10, 0.18), 0 0 0 1px rgba(40, 25, 10, 0.05);
+
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* The built-in CSS curves are too weak to feel intentional. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Noto Serif TC also carries kana, so Japanese headlines stay in the same serif. */
+  --font-heading: 'Lora', 'Noto Serif TC', 'Songti TC', serif;
+  --font-reading: 'Lora', 'Noto Serif TC', 'Songti TC', Georgia, serif;
   --font-body: 'Source Sans 3', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
-  
+
   --sidebar-width: 256px;
   --feed-width: 500px;
   --font-meta: 'IBM Plex Mono', monospace;
 }
 
 [data-theme="dark"] {
-  --bg-page: #1a1612;
-  --bg-card: #252019;
+  --bg-page: #15120e;
+  --bg-card: #211b15;
   --bg-sidebar: #0f0d0a;
-  --text-primary: #e8ddd0;
-  --text-secondary: #a89882;
-  --text-muted: #7a6e60;
-  --accent: #d4943e;
-  --accent-hover: #e5a54f;
-  /* On the dark page the plain accent already clears AA (6.9:1). */
-  --accent-strong: #d4943e;
-  --border: #3a3228;
-  --unread-badge: #d4943e;
-  --read-bg: #1f1b15;
+  --bg-sunken: #1b1712;
+  --text-primary: #eee4d7;
+  --text-secondary: #b4a590;
+  --text-muted: #85786a;
+  --accent: #e2a35c;
+  --accent-hover: #efb570;
+  /* On the dark page the plain accent already clears AA. */
+  --accent-strong: #e2a35c;
+  --accent-soft: rgba(226, 163, 92, 0.13);
+  --border: #342c23;
+  --hair: rgba(255, 235, 210, 0.07);
+  --hair-strong: rgba(255, 235, 210, 0.12);
+  --unread-badge: #e2a35c;
+  --read-bg: #1f1a14;
   --status-error: #d45f3e;
+  --status-ok: #7fb069;
+
+  --shadow-sm: 0 0 0 1px rgba(255, 235, 210, 0.07);
+  --shadow-md: 0 0 0 1px rgba(255, 235, 210, 0.08), 0 10px 28px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 0 0 1px rgba(255, 235, 210, 0.09), 0 20px 48px -10px rgba(0, 0, 0, 0.7);
 }

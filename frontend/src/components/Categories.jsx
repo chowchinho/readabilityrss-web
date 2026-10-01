@@ -89,7 +89,7 @@ function Categories() {
           className="category-input"
         />
         <button type="submit" className="add-btn" disabled={busy}>
-          {busy ? 'Adding…' : 'Add Category'}
+          {busy ? 'Adding…' : 'Add category'}
         </button>
       </form>
 

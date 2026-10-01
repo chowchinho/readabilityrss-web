@@ -1,51 +1,45 @@
+/* Pane 2: the article list beside the reader. */
+
 .feed-container {
   width: var(--feed-width);
-  background-color: var(--bg-page);
-  border-right: 1px solid var(--border);
+  background-color: var(--bg-sunken);
+  border-right: 1px solid var(--hair);
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   flex-shrink: 0;
   overflow-y: auto;
   overflow-anchor: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair-strong) transparent;
 }
 
-/* Utilitarian Scrollbar for Pane 2 */
-.feed-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.feed-container::-webkit-scrollbar-track {
-  background: var(--bg-page);
-  border-left: 1px solid var(--border);
-}
-
-.feed-container::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 0;
-}
-
-.feed-container::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+.feed-container::-webkit-scrollbar { width: 8px; }
+.feed-container::-webkit-scrollbar-track { background: transparent; }
+.feed-container::-webkit-scrollbar-thumb { background: var(--hair-strong); border-radius: 4px; }
 
 @media (max-width: 767px) {
   .feed-container {
     width: 100%;
     height: calc(100vh - 56px);
-    /* subtract mobile top bar */
+    height: calc(100dvh - 56px);
     touch-action: pan-y;
   }
 }
 
 .feed-header {
-  height: 56px;
-  padding: 0 16px;
-  border-bottom: 2px solid var(--text-primary);
+  height: 60px;
+  /* 24 / 22: lines the title up with card text (8px card margin + 16px padding) and
+     the count with the thumbnails' right edge. */
+  padding: 0 22px 0 24px;
+  border-bottom: 1px solid var(--hair);
   display: flex;
   align-items: center;
-  gap: 12px;
-  background-color: var(--bg-card);
+  gap: 10px;
+  background: color-mix(in srgb, var(--bg-sunken) 86%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -53,83 +47,128 @@
 }
 
 .feed-header h2 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
   color: var(--text-primary);
-  font-family: var(--font-meta);
   flex-grow: 1;
-  /* PUSH BADGE TO RIGHT */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-unread-badge {
-  background-color: var(--bg-page);
-  color: var(--accent);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   padding: 4px 8px;
-  font-family: var(--font-meta);
-  font-size: 11px;
-  height: 28px;
-  line-height: 18px;
-  font-weight: 700;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--hair);
 }
 
 .feed-header-favicon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
 }
 
+/* ---------- Standard card: identity, headline, content | thumbnail ---------- */
+
+/* flex-shrink 0: the list is a flex column, and a full-image card sized only by its
+   aspect ratio would otherwise be squeezed to a sliver.
+
+   Grid: the square thumbnail fills the card's content height. Identity row (20px)
+   + 8px + two headline lines (2 x 22px) + 4px + two snippet lines (2 x 20px) is
+   116px, so a full card's text and thumbnail share both top and bottom edges.
+   Phones keep the smaller thumbnail below the identity row: at 116px the text
+   column would drop to about 12 characters a line.
+
+   A single-feed list (.inline-meta) has no identity row: two headline lines + 4px
+   + three snippet lines is 108px, and the time sits at the end of the third. */
 .article-card {
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
+  --thumb: 116px;
+  position: relative;
+  flex-shrink: 0;
+  margin: 2px 8px;
+  padding: 16px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   display: grid;
-  grid-template-columns: max(96px, 30%) 1fr;
-  align-items: stretch;
-  gap: 12px;
-  background-color: var(--bg-card);
-  transition: background-color 0.1s;
-  min-height: 143px;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  grid-template-areas:
+    "meta image"
+    "content image";
+  align-items: start;
+  gap: 8px 16px;
   box-sizing: border-box;
   overflow-anchor: none;
+  transition: background-color 120ms ease, box-shadow 150ms ease, transform 160ms var(--ease-out);
 }
+
+.article-card:first-of-type { margin-top: 8px; }
 
 .article-card.no-image {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "meta"
+    "content";
 }
 
-.article-card:hover {
-  background-color: var(--read-bg);
-}
+.article-card.inline-meta { grid-template-areas: "content image"; }
+.article-card.inline-meta.no-image { grid-template-areas: "content"; }
+
+.article-card .card-footer { grid-area: meta; }
+.article-card .card-content { grid-area: content; }
+.article-card:not(.full-image) .card-content { gap: 4px; }
+.article-card .card-image-container { grid-area: image; }
 
 .article-card.active {
-  background-color: var(--bg-page);
-  border-left: 4px solid var(--accent);
-  padding-left: 8px;
-  /* Offset for border */
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-md);
 }
 
-.article-card.is-read {
-  opacity: 0.5;
-  transition: opacity 0.2s ease;
+.article-card:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .article-card:not(.active):not(.full-image):hover {
+    background-color: var(--hair);
+  }
 }
 
 .article-card.is-read .card-title,
 .article-card.is-read .card-snippet {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
+}
+
+.article-card.is-read .card-image-container {
+  opacity: 0.5;
 }
 
 .card-image-container {
-  width: 100%;
-  height: 114px;
-  border-radius: 2px;
-  border: 2px solid #ccc;
+  position: relative;
+  width: 116px;
+  height: 116px;
+  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
   overflow-anchor: none;
+  background: var(--bg-page);
+  transition: opacity 200ms ease;
+}
+
+.card-image-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .card-image-square {
@@ -137,10 +176,8 @@
   height: 100%;
   object-fit: cover;
   /* Fallback only — SmartCropImage sets object-position inline from the
-     server-computed focal point. Not transitioned: see the note on
-     .monocle-featured-media img in sources_index.css. */
+     server-computed focal point. */
   object-position: center;
-  border: 1px solid var(--border);
   display: block;
 }
 
@@ -149,15 +186,15 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
-  overflow: hidden;
 }
 
 .card-title {
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1.25;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.375;
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -165,35 +202,74 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   color: var(--text-primary);
+  text-wrap: pretty;
 }
 
 .card-snippet {
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
   color: var(--text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  /* EXACTLY 3 LINES */
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin: 0;
 }
 
+.article-card.inline-meta .card-snippet {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* A zero-width float two lines tall pushes .card-when down to the third line, where
+   the text wraps short of it and the clamp's ellipsis lands just before it. With a
+   short or empty snippet the floats still hold the block at three lines, so the
+   time stays on the same line of every card. */
+.article-card.inline-meta .card-snippet::before {
+  content: '';
+  float: right;
+  width: 0;
+  height: 2.5rem;
+}
+
+/* One headline line + 4px + four snippet lines is 106px against the 116px thumbnail,
+   so the time lands within 2px of where a two-line headline puts it. Phones are left
+   at three: their 88px thumbnail does not hold the card open, so a fourth line
+   would grow the card instead of filling it. */
+@media (min-width: 768px) {
+  .article-card.inline-meta.title-one-line .card-snippet {
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+  }
+
+  .article-card.inline-meta.title-one-line .card-snippet::before {
+    height: 3.75rem;
+  }
+}
+
+.card-when {
+  float: right;
+  clear: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 1.25rem;
+  margin-left: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  transition: opacity 150ms ease;
+}
+
+/* The identity row. It sits above the headline, so it is named footer only for history. */
 .card-footer {
   position: relative;
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-muted);
   gap: 8px;
-  font-family: var(--font-meta);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: auto;
-  /* PIN TO BOTTOM */
-  border-top: 1px dotted var(--border);
-  padding-top: 4px;
+  min-height: 20px;
 }
 
 .card-meta-identity {
@@ -202,49 +278,42 @@
   gap: 8px;
   min-width: 0;
   flex-shrink: 1;
-  transition: opacity 0.18s ease;
-}
-
-.favicon-wrapper {
-  width: 14px;
-  height: 14px;
+  transition: opacity 150ms ease;
 }
 
 .card-favicon {
   width: 100%;
   height: 100%;
+  border-radius: 3px;
 }
 
-@media (max-width: 767px) {
-  .feed-container {
-    width: 100%;
-    height: calc(100vh - 56px);
-    /* subtract mobile top bar */
-  }
-
-  .feed-header {
-    display: none;
-  }
-
-  .favicon-wrapper {
-    width: 18px;
-    height: 18px;
-  }
+.card-source-name {
+  flex-shrink: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .card-timestamp {
   margin-left: auto;
-  /* PUSH TO RIGHT */
   flex-shrink: 0;
   white-space: nowrap;
-  transition: opacity 0.18s ease;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 150ms ease;
 }
 
-/* Appearance lives in ranking_controls.css so the index cards get the same mark.
-   Only the placement is local: the mark takes over the timestamp's auto margin so
-   the pair travels to the right edge together — left on .card-timestamp it would
-   strand the glyph next to the source name. The negative margin claws back most of
-   the footer's 8px gap, which is tuned for separate items, not a glyph and label. */
+.card-footer .unread-dot,
+.card-when .unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
 .card-footer .card-vote-mark {
   margin-left: auto;
   margin-right: -4px;
@@ -254,13 +323,149 @@
   margin-left: 0;
 }
 
-.card-source-name {
-  flex-shrink: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@media (max-width: 767px) {
+  .feed-header {
+    display: none;
+  }
+
+  .article-card .favicon-wrapper {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Square row. The thumbnail is 30% of the screen and, with the 12px right margin,
+     its column is a third. The 28px left gutter holds the unread dot. */
+  .article-card {
+    --thumb: clamp(96px, 30vw, 140px);
+    margin: 0;
+    padding: 14px 12px 14px 28px;
+    border-radius: 0;
+    grid-template-columns: minmax(0, 1fr) var(--thumb);
+    gap: 6px 12px;
+  }
+
+  .article-card:first-of-type { margin-top: 0; }
+
+  .article-card:not(.full-image)::after {
+    content: '';
+    position: absolute;
+    left: 28px;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--hair);
+  }
+
+  .article-card .card-image-container {
+    width: var(--thumb);
+    height: var(--thumb);
+    border-radius: 12px;
+  }
+
+  .article-card:not(.full-image) .card-title {
+    font-size: 1.0625rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    /* CJK headlines need the third line. */
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .article-card:not(.full-image) .card-snippet {
+    font-size: 0.875rem;
+  }
+
+  /* Leading edge, level with the source line, so it scans with the headline. */
+  .article-card:not(.full-image) .card-footer .unread-dot,
+  .article-card:not(.full-image) .card-when .unread-dot {
+    position: absolute;
+    left: -17px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .article-card:not(.full-image) .card-footer .unread-dot {
+    top: 50%;
+    margin-top: -4px;
+  }
+
+  /* No identity row: level with the headline's first line instead. */
+  .article-card:not(.full-image) .card-when .unread-dot { top: 7px; }
+
+  /* Feature card, for top picks: full-width 16:9 image, then identity, headline and
+     snippet. The page gutter is 16px on both sides, so the dot goes inline. */
+  .article-card.featured {
+    padding: 14px 16px 16px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "image"
+      "meta"
+      "content";
+    row-gap: 8px;
+  }
+
+  .article-card.featured.inline-meta {
+    grid-template-areas:
+      "image"
+      "content";
+  }
+
+  .article-card.featured::after { left: 16px; }
+
+  .article-card.featured .card-image-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    margin-bottom: 2px;
+  }
+
+  .article-card.featured .card-title {
+    font-size: 1.1875rem;
+    line-height: 1.27;
+    letter-spacing: -0.014em;
+  }
+
+  .article-card.featured .card-footer .unread-dot,
+  .article-card.featured .card-when .unread-dot {
+    position: static;
+    margin-top: 0;
+  }
+
+  .article-card.featured .card-footer .unread-dot { order: -1; }
+
+  /* The spacer that drops the time to a square row's third line has no thumbnail to
+     line up with here, so the time takes the summary's first line instead. */
+  .article-card.featured.inline-meta .card-snippet {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .article-card.featured.inline-meta .card-snippet::before { display: none; }
+
+  .article-card.featured .slideshow-dots {
+    left: 12px;
+    bottom: 10px;
+  }
 }
+
+.card-top-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+
+.card-top-pick .material-symbols-outlined {
+  font-size: 0.9375rem;
+  font-variation-settings: 'FILL' 1;
+}
+
+.card-content > .card-top-pick { align-self: flex-start; }
 
 .feed-loader {
   height: 80px;
@@ -271,32 +476,31 @@
 }
 
 .loader-text {
-  font-size: 12px;
+  font-size: 0.8125rem;
   color: var(--text-muted);
-  font-family: var(--font-meta);
-  text-transform: uppercase;
 }
 
 .view-mode-btn {
-  background-color: var(--bg-page);
-  border: 1px solid var(--border);
   color: var(--text-muted);
-  padding: 4px;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  height: 28px;
-  width: 28px;
-  border-radius: 4px;
+  height: 30px;
+  width: 30px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out);
 }
 
+.view-mode-btn:active {
+  transform: scale(0.94);
+}
 
-.view-mode-btn:hover {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
-  background-color: var(--bg-page);
+@media (hover: hover) and (pointer: fine) {
+  .view-mode-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--hair);
+  }
 }
 
 .view-mode-btn svg {
@@ -304,60 +508,55 @@
   height: 16px;
 }
 
-/* Full Image View Mode */
+/* ---------- Full image card ----------
+   The photo is the card. Identity and headline sit on a scrim at the foot, so the
+   same four things lead as in the standard card, in the same order. */
+
 .article-card.full-image {
   display: block;
-  /* Bypass grid logic for hero cards */
   position: relative;
-  height: 172px;
+  aspect-ratio: 16 / 10;
+  height: auto;
+  min-height: 0;
+  margin: 8px 10px;
   padding: 0;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-page);
+  box-shadow: var(--shadow-sm);
   box-sizing: border-box;
+  isolation: isolate;
 }
 
 .article-card.full-image .card-image-container {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: 0px;
-  border: none;
-  opacity: 0.7;
-  transition: opacity 500ms ease;
+  border-radius: 0;
 }
 
-.article-card.full-image:hover .card-image-container {
-  opacity: 0.9;
-}
-
-.article-card.full-image .card-image-square {
-  border: none;
+.article-card.full-image .card-image-container::after {
+  display: none;
 }
 
 .article-card.full-image .card-content {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: auto;
-  padding: 12px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
-  color: white;
-  display: flex;
-  flex-direction: column;
+  inset: auto 0 0 0;
+  padding: 64px 16px 16px;
+  background: linear-gradient(to top, rgba(12, 8, 4, 0.86) 0%, rgba(12, 8, 4, 0.55) 45%, rgba(12, 8, 4, 0) 100%);
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
+  z-index: 3;
 }
 
 .article-card.full-image .card-title {
-  color: white;
-  font-size: 14px;
-  /* Slightly smaller for 172px height */
-  line-height: 1.25;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
+  color: #fff;
+  font-size: 1.125rem;
+  line-height: 1.38;
   -webkit-line-clamp: 2;
-  /* 2 lines max in 172px hero */
   line-clamp: 2;
-  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .article-card.full-image .card-snippet {
@@ -365,165 +564,244 @@
 }
 
 .article-card.full-image .card-footer {
-  border-top: none;
-  padding-top: 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
 }
 
-.article-card.full-image .card-source-name,
+.article-card.full-image .card-source-name {
+  color: #fff;
+}
+
 .article-card.full-image .card-timestamp {
-  color: rgba(255, 255, 255, 0.7);
-  margin-left: 0;
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.78);
 }
 
-/* This footer runs left-aligned over the artwork, so the mark drops the auto margin
-   with the timestamp. The shadow is what the rank buttons use to stay legible on an
-   unpredictable photo. */
+.article-card.full-image .card-favicon {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  background: #fff !important;
+}
+
+.article-card.full-image .card-footer .unread-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
 .article-card.full-image .card-vote-mark {
+  margin-left: auto;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.article-card.full-image .card-vote-mark + .card-timestamp {
   margin-left: 0;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
 }
 
+/* Selected: a ring set off from the card by a gap of the pane colour, so it reads
+   on any photo. */
 .article-card.full-image.active {
-  border-left: 6px solid var(--accent);
-  padding-left: 0;
+  box-shadow: 0 0 0 2px var(--bg-sunken), 0 0 0 4px var(--accent), var(--shadow-md);
 }
 
-.article-card.full-image.is-read {
-  opacity: 0.65;
+.article-card.full-image.is-read .card-image-container {
+  opacity: 0.5;
 }
 
-@keyframes monocleOverlayFade {
-  0% { opacity: 0; }
-  12.5% { opacity: 1; }
-  33.3% { opacity: 1; }
-  45.8% { opacity: 0; }
-  100% { opacity: 0; }
+.article-card.full-image.is-read .card-title {
+  color: rgba(255, 255, 255, 0.72);
 }
 
-/* ========================================================= */
-/* HOVER-REVEALED RANKING SLOTS                              */
-/* ========================================================= */
+.article-card.full-image:active {
+  transform: scale(0.99);
+}
 
-/* Stretched with the footer's own padding inherited rather than centred on 50%:
-   absolute insets resolve against the padding box, but the source name and the
-   timestamp centre in the content box, which the 4px padding-top offsets. */
+/* ---------- Ranking slots, revealed from the identity row only ---------- */
+
 .card-info-slot,
 .card-feedback-slot {
   position: absolute;
   top: 0;
   bottom: 0;
-  padding: inherit;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s ease;
+  transition: opacity 150ms ease;
   z-index: 3;
 }
 
-.card-info-slot { left: 0; }
-.card-feedback-slot { right: 0; }
+/* A revealed control takes the exact place of what it covers: 16px glyphs in 24px
+   targets, pulled out 4px so the info glyph sits on the favicon and the last thumb
+   ends where the timestamp (or unread dot) ended. */
+.card-info-slot { left: -4px; }
+.card-feedback-slot { right: -4px; gap: 0; }
 
-.article-card:hover .card-meta-identity,
-.article-card:hover .card-vote-mark,
-.article-card:hover .card-timestamp {
-  opacity: 0;
-}
+@media (hover: hover) and (pointer: fine) {
+  .article-card:not(.full-image) .card-footer:hover .card-meta-identity,
+  .article-card:not(.full-image) .card-footer:hover .card-vote-mark,
+  .article-card:not(.full-image) .card-footer:hover .card-timestamp,
+  .article-card:not(.full-image) .card-footer:hover .unread-dot {
+    opacity: 0;
+  }
 
-.article-card:hover .card-info-slot,
-.article-card:hover .card-feedback-slot {
-  opacity: 1;
-  pointer-events: auto;
+  .card-footer:hover .card-info-slot,
+  .card-footer:hover .card-feedback-slot,
+  .article-card.full-image:hover .card-info-slot,
+  .article-card.full-image:hover .card-feedback-slot {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .card-rank-btn {
-  background: transparent;
-  border: none;
   color: var(--text-muted);
   cursor: pointer;
   padding: 2px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
-  transition: color 0.15s, background-color 0.15s, transform 0.15s;
+  border-radius: 5px;
+  transition: color 150ms ease, background-color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.card-rank-btn:active { transform: scale(0.9); }
+
+.article-card:not(.full-image) .card-rank-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.article-card:not(.full-image) .card-rank-btn .material-symbols-outlined {
+  font-size: 1rem;
 }
 
 .card-rank-btn .material-symbols-outlined {
-  font-size: 14px;
+  font-size: 0.9375rem;
 }
 
-.card-rank-btn:hover {
-  color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.05);
+.card-rank-btn.info-btn.active { color: var(--accent); }
+.card-rank-btn.thumb-up.active { color: var(--status-ok); }
+.card-rank-btn.thumb-down.active { color: var(--status-error); }
+
+@media (hover: hover) and (pointer: fine) {
+  .card-rank-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--hair);
+  }
+
+  .card-rank-btn.thumb-up:hover { color: var(--status-ok); }
+  .card-rank-btn.thumb-down:hover { color: var(--status-error); }
 }
 
-.card-rank-btn.info-btn.active {
-  color: var(--accent);
-}
-
-/* Dashboard traffic-light palette. */
-.card-rank-btn.thumb-up:hover,
-.card-rank-btn.thumb-up.active {
-  color: #6aaa6a;
-}
-
-.card-rank-btn.thumb-down:hover,
-.card-rank-btn.thumb-down.active {
-  color: #c07060;
-}
-
-/* Full image view: the slots leave the footer for the artwork's top corners.
-   .card-title sits 12px in from the card edge (.card-content's padding), so the
-   glyph boxes are placed at that same inset, less the button's own padding. */
+/* Artwork overlays share one spec with the index cards: 32px discs, 12px from the
+   corner, 8px apart, 18px glyphs. */
 .article-card.full-image .card-info-slot,
 .article-card.full-image .card-feedback-slot {
-  top: 10px;
+  top: 12px;
   bottom: auto;
-  padding: 0;
+  gap: 8px;
   z-index: 4;
 }
 
-.article-card.full-image .card-info-slot { left: 8px; }
-.article-card.full-image .card-feedback-slot { right: 8px; }
+.article-card.full-image .card-info-slot { left: 12px; }
+.article-card.full-image .card-feedback-slot { right: 12px; }
 
-/* Nothing takes over the footer here — the slots are on the artwork — so the
-   source and timestamp have no reason to step aside. */
-.article-card.full-image:hover .card-meta-identity,
-.article-card.full-image:hover .card-vote-mark,
-.article-card.full-image:hover .card-timestamp {
-  opacity: 1;
+.article-card.full-image .card-rank-btn .material-symbols-outlined {
+  font-size: 1.125rem;
 }
 
 .article-card.full-image .card-rank-btn {
-  color: rgba(255, 255, 255, 0.9);
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
-  margin: 0;
+  color: #fff;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(20, 14, 8, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.article-card.full-image .card-rank-btn:hover {
-  background-color: transparent;
-  transform: scale(1.15);
+.article-card.full-image .card-rank-btn.thumb-up.active { background: #4f7f45; color: #fff; }
+.article-card.full-image .card-rank-btn.thumb-down.active { background: #9a4a3a; color: #fff; }
+
+/* Single-feed cards have no identity row to reveal the controls from, so they sit
+   on the thumbnail's top corners and appear when the card is hovered. */
+.article-card.inline-meta .card-info-slot,
+.article-card.inline-meta .card-feedback-slot {
+  top: 22px;
+  bottom: auto;
+  gap: 4px;
+  z-index: 4;
 }
 
-/* Restated at this specificity because the white-on-artwork rule above matches
-   just as tightly as the palette rules and comes later in the file. */
-.article-card.full-image .card-rank-btn.thumb-up:hover,
-.article-card.full-image .card-rank-btn.thumb-up.active {
-  color: #6aaa6a;
+.article-card.inline-meta .card-info-slot {
+  left: auto;
+  right: calc(16px + var(--thumb) - 6px - 28px);
 }
 
-.article-card.full-image .card-rank-btn.thumb-down:hover,
-.article-card.full-image .card-rank-btn.thumb-down.active {
-  color: #c07060;
+.article-card.inline-meta .card-feedback-slot { right: 22px; }
+
+.article-card.inline-meta .card-rank-btn {
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(20, 14, 8, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.article-card.full-image .card-rank-btn.info-btn.active {
-  color: var(--accent);
+.article-card.inline-meta .card-rank-btn.thumb-up.active { background: #4f7f45; color: #fff; }
+.article-card.inline-meta .card-rank-btn.thumb-down.active { background: #9a4a3a; color: #fff; }
+
+/* No thumbnail to sit on: the controls take the time's place at the foot instead,
+   as light chips so they read over the snippet's last line. */
+.article-card.inline-meta.no-image .card-info-slot,
+.article-card.inline-meta.no-image .card-feedback-slot {
+  top: auto;
+  bottom: 14px;
+}
+
+.article-card.inline-meta.no-image .card-info-slot { right: calc(16px + 60px + 4px); }
+.article-card.inline-meta.no-image .card-feedback-slot { right: 16px; }
+
+.article-card.inline-meta.no-image .card-rank-btn {
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (max-width: 767px) {
+  .article-card.inline-meta .card-rank-btn {
+    width: 24px;
+    height: 24px;
+  }
+
+  .article-card.inline-meta:not(.no-image) .card-info-slot {
+    right: calc(16px + var(--thumb) - 4px - 24px);
+  }
+
+  .article-card.inline-meta:not(.no-image) .card-feedback-slot { right: 20px; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .article-card.inline-meta:hover .card-info-slot,
+  .article-card.inline-meta:hover .card-feedback-slot,
+  .article-card.inline-meta .card-info-slot:has(.info-btn.active) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .article-card.inline-meta.no-image:hover .card-when {
+    opacity: 0;
+  }
+
+  .article-card.inline-meta:not(.no-image) .card-rank-btn:hover {
+    color: #fff;
+    background: rgba(20, 14, 8, 0.62);
+  }
 }
 
 /* Card Ranking Actions & Info Popover */
@@ -543,13 +821,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
-  transition: color 0.15s, background-color 0.15s;
+  position: relative;
+  border-radius: 5px;
+  transition: color 150ms ease, background-color 150ms ease, transform 160ms var(--ease-out);
 }
 
-.ranking-btn:hover {
-  color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.05);
+/* The glyph sits in a 19px meta line; the target reaches a comfortable size anyway. */
+.ranking-btn::before {
+  content: '';
+  position: absolute;
+  inset: -5px -3px;
+}
+
+.ranking-btn:active {
+  transform: scale(0.9);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ranking-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--hair);
+  }
 }
 
 .ranking-btn.active {
@@ -557,16 +849,16 @@
 }
 
 .ranking-btn .material-symbols-outlined {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .ranking-info-popover {
   margin-top: 6px;
   padding: 8px 10px;
-  background-color: var(--bg-page);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 11px;
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
   color: var(--text-primary);
   line-height: 1.35;
   text-transform: none;
@@ -580,7 +872,7 @@
 
 .ranking-info-popover .info-tags {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 0.625rem;
   margin-bottom: 4px;
 }
 
@@ -621,4 +913,4 @@
 }
 
 .ranking-info-popover .card-info-slot { left: 6px; }
-.ranking-info-popover .card-feedback-slot { right: 6px; }
+.ranking-info-popover .card-feedback-slot { right: 6px; }

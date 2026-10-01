@@ -9,11 +9,13 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: var(--transition);
+  transition: var(--transition), transform 160ms var(--ease-out);
 }
 
-.element-picker-btn:hover:not(:disabled) {
-  filter: brightness(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .element-picker-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
 }
 
 .element-picker-btn.active {
@@ -43,7 +45,7 @@
 
 .element-picker-badge {
   font-family: var(--font-mono) !important;
-  font-size: 10px !important;
+  font-size: 0.625rem !important;
   font-weight: 700 !important;
   background: var(--accent-primary) !important;
   color: var(--bg-primary) !important;

@@ -1,21 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-
-const PANEL_MARGIN = 8;
+import React from 'react';
+import { Popover } from '@base-ui/react/popover';
 
 /**
  * The floating panel every card surface hangs its score breakdown from.
  *
- * Portalled to document.body and fixed-positioned on purpose: pane 2's
- * .feed-container is an overflow-y:auto scroller, so a panel positioned inside a card
- * is clipped at the pane edge and scrolls away with the content. Fixed coordinates
- * derived from the anchor's own rect let it float above the interface - including over
- * the pane's scrollbar - and a portal stays immune if some ancestor later gains a
- * transform and becomes the containing block.
+ * Built on Base UI's Popover, anchored to the caller's info button. The positioner
+ * uses fixed positioning in a portal on purpose: pane 2's .feed-container is an
+ * overflow-y:auto scroller, so a panel positioned inside a card would be clipped at
+ * the pane edge. Base UI keeps it attached while the pane scrolls, flips it above the
+ * button when there is no room below, and exposes --transform-origin so it scales
+ * out of the button rather than its own centre.
  *
- * The panel is not a DOM descendant of the anchor, so a wrapper's mouseleave fires the
- * moment the pointer heads towards it. Closing is therefore the caller's job via
- * onPointerEnter / onPointerLeave, which pair with a grace timer on the anchor side.
+ * Opening stays the caller's job (a hover dwell in useHoverDwellPanel). The panel is
+ * not a DOM descendant of the anchor, so a wrapper's mouseleave fires the moment the
+ * pointer heads towards it; onPointerEnter / onPointerLeave pair with a grace timer on
+ * the anchor side. Escape and outside presses close it through onPointerLeave too.
  */
 export default function FloatingInfoPanel({
   anchorRef,
@@ -25,57 +24,39 @@ export default function FloatingInfoPanel({
   onPointerLeave,
   children,
 }) {
-  const panelRef = useRef(null);
-  const [anchor, setAnchor] = useState(null);
+  const handleOpenChange = (nextOpen, details) => {
+    if (nextOpen) return;
+    // A press on the info button is "outside" the panel, but that button already
+    // toggles it; closing here as well would reopen it on the same click.
+    const target = details?.event?.target;
+    if (target && anchorRef?.current?.contains(target)) return;
+    if (onPointerLeave) onPointerLeave();
+  };
 
-  const place = useCallback(() => {
-    const el = anchorRef?.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setAnchor({ left: r.left, top: r.top, bottom: r.bottom });
-  }, [anchorRef]);
-
-  useEffect(() => {
-    if (!open) return;
-    place();
-    const onMove = () => place();
-    // Capture phase: it is pane 2 that scrolls, not the window.
-    window.addEventListener('scroll', onMove, true);
-    window.addEventListener('resize', onMove);
-    return () => {
-      window.removeEventListener('scroll', onMove, true);
-      window.removeEventListener('resize', onMove);
-    };
-  }, [open, place]);
-
-  if (!open) return null;
-
-  const style = (() => {
-    if (!anchor) return { visibility: 'hidden' };
-    const h = panelRef.current?.offsetHeight || 240;
-    const w = panelRef.current?.offsetWidth || 460;
-    const roomBelow = window.innerHeight - anchor.bottom;
-    const above = roomBelow < h + PANEL_MARGIN && anchor.top > roomBelow;
-    const left = Math.min(
-      Math.max(PANEL_MARGIN, anchor.left),
-      Math.max(PANEL_MARGIN, window.innerWidth - w - PANEL_MARGIN)
-    );
-    return above
-      ? { left, bottom: window.innerHeight - anchor.top + PANEL_MARGIN }
-      : { left, top: anchor.bottom + PANEL_MARGIN };
-  })();
-
-  return createPortal(
-    <div
-      ref={panelRef}
-      className={`ranking-info-popover is-floating ${className}`.trim()}
-      style={style}
-      onClick={(e) => e.stopPropagation()}
-      onMouseEnter={onPointerEnter}
-      onMouseLeave={onPointerLeave}
-    >
-      {children}
-    </div>,
-    document.body
+  return (
+    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+      <Popover.Portal>
+        <Popover.Positioner
+          anchor={anchorRef}
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          collisionPadding={8}
+          positionMethod="fixed"
+          className="ranking-info-positioner"
+        >
+          <Popover.Popup
+            className={`ranking-info-popover is-floating ${className}`.trim()}
+            initialFocus={false}
+            finalFocus={false}
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={onPointerEnter}
+            onMouseLeave={onPointerLeave}
+          >
+            {children}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

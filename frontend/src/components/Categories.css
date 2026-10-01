@@ -1,15 +1,15 @@
 .categories-container {
-  max-width: 600px;
+  max-width: 720px;
 }
 
 .categories-container h2 {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  margin-bottom: 16px;
+  font-family: var(--font-serif);
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 22px;
 }
 
 .add-category-form {
@@ -20,118 +20,147 @@
 
 .category-input {
   flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  height: 38px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 9px;
   background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.12s;
+  transition: box-shadow 150ms ease;
 }
 
-.category-input:focus { border-color: var(--accent); }
+.category-input:focus {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft);
+}
 
-.add-btn {
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  padding: 6px 14px;
-  border-radius: 2px;
+.categories-container .add-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 9px;
+  background: var(--text-primary);
+  color: var(--bg-page);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background-color 150ms ease, transform 160ms var(--ease-out);
 }
-
-.add-btn:hover { background: rgba(201,125,46,0.1); }
 
 .categories-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .categories-table th {
   text-align: left;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-  padding: 6px 10px;
-  border-bottom: 2px solid var(--border);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hair);
 }
 
 .categories-table td {
-  padding: 7px 10px;
-  border-bottom: 1px solid rgba(212,196,176,0.5);
+  padding: 8px 16px;
+  height: 48px;
   vertical-align: middle;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
   color: var(--text-primary);
+  transition: background-color 120ms ease;
 }
 
-.categories-table tr:hover td { background: var(--bg-hover); }
-
-.categories-table tr:nth-child(even) td {
-  background: rgba(212,196,176,0.1);
+.categories-table tbody tr + tr td {
+  box-shadow: inset 0 1px 0 var(--hair);
 }
 
-.categories-table tr:nth-child(even):hover td { background: var(--bg-hover); }
+.categories-table td:first-child {
+  font-weight: 600;
+}
+
+.categories-table td:nth-child(2) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 
 .actions-cell {
   white-space: nowrap;
   display: flex;
-  gap: 5px;
+  gap: 2px;
   justify-content: flex-end;
+  align-items: center;
 }
 
-.edit-btn, .save-btn {
+.categories-container .edit-btn,
+.categories-container .save-btn,
+.categories-container .cancel-btn,
+.categories-container .delete-btn {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
   background: transparent;
-  border: 1px solid var(--border);
   color: var(--text-secondary);
-  padding: 3px 9px;
-  border-radius: 2px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 160ms var(--ease-out);
 }
 
-.edit-btn:hover { background: var(--bg-hover); border-color: var(--border-hover); }
-
-.save-btn {
-  border-color: var(--accent);
-  color: var(--accent);
+.categories-container .save-btn {
+  background: var(--text-primary);
+  color: var(--bg-page);
 }
 
-.save-btn:hover { background: rgba(201,125,46,0.1); }
-
-.cancel-btn, .delete-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 3px 9px;
-  border-radius: 2px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.12s;
-  margin-left: 0;
+.categories-container button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
-.cancel-btn:hover { background: var(--bg-hover); border-color: var(--border-hover); }
-
-.delete-btn:hover {
-  border-color: var(--status-error);
-  color: var(--status-error);
-  background: rgba(184,92,56,0.06);
+.categories-container button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.empty-state {
+@media (hover: hover) and (pointer: fine) {
+  .categories-table tbody tr:hover td {
+    background: var(--bg-hover);
+  }
+
+  .categories-container .add-btn:hover:not(:disabled),
+  .categories-container .save-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-primary) 88%, var(--accent));
+  }
+
+  .categories-container .edit-btn:hover,
+  .categories-container .cancel-btn:hover {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+  }
+
+  .categories-container .delete-btn:hover {
+    background: color-mix(in srgb, var(--status-error) 9%, transparent);
+    color: var(--status-error);
+  }
+}
+
+.categories-container .empty-state {
   text-align: center;
   color: var(--text-muted);
   padding: 30px !important;
@@ -140,6 +169,6 @@
 
 .categories-loading {
   text-align: center;
-  padding: 30px;
+  padding: 48px;
   color: var(--text-muted);
 }

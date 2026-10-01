@@ -2,6 +2,7 @@ import React from 'react';
 import RankingControls from './RankingControls';
 import VoteMark from './VoteMark';
 import { getSortMode } from '../api';
+import { translationLabel } from '../utils/articleText';
 
 /**
  * The meta strip at the foot of every index card. All four SourcesIndex layouts
@@ -17,10 +18,12 @@ export default function CardMeta({
   faviconUrl = null,
   showIdentity = false,
   compact = false,
+  langOnHover = false,
   isRevealed = false,
   onRevealToggle = null
 }) {
   const hasRanking = getSortMode() === 'smart';
+  const langPill = langOnHover ? translationLabel(article) : null;
 
   const handleClick = (e) => {
     // Desktop reveals on hover, and swallowing the click there would cost the
@@ -64,7 +67,14 @@ export default function CardMeta({
           on purpose: that box is revealed on hover and would hide the mark the
           rest of the time. */}
       <VoteMark vote={article.vote} />
-      <span className="monocle-card-time">{timeLabel}</span>
+      {langPill ? (
+        <span className="monocle-time-swap">
+          <span className="monocle-card-time">{timeLabel}</span>
+          <span className="lang-pill" title="Translated">{langPill}</span>
+        </span>
+      ) : (
+        <span className="monocle-card-time">{timeLabel}</span>
+      )}
       {!article.is_read && <span className="unread-dot" />}
     </div>
   );

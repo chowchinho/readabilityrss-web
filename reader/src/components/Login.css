@@ -19,7 +19,7 @@
 
 .login-brand {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--accent);
   letter-spacing: 0.04em;
@@ -30,22 +30,22 @@
 }
 
 .login-logo {
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 
 .login-title {
   font-family: var(--font-sans, var(--font-body));
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
   margin-bottom: 12px;
 }
 
 .login-hint {
   font-family: var(--font-sans, var(--font-body));
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--text-muted);
   background: rgba(201,125,46,0.08);
@@ -62,7 +62,7 @@
   border: 1px solid rgba(184,92,56,0.3);
   border-radius: 2px;
   margin: 12px 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-family: var(--font-sans, var(--font-body));
 }
 
@@ -74,7 +74,7 @@
 
 .login-label {
   font-family: var(--font-sans, var(--font-body));
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -94,7 +94,7 @@
   background: var(--bg-card);
   color: var(--text-primary);
   font-family: var(--font-sans, var(--font-body));
-  font-size: 14px;
+  font-size: 0.875rem;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -111,7 +111,7 @@
   background: transparent;
   color: var(--accent);
   font-family: var(--font-sans, var(--font-body));
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
@@ -119,8 +119,10 @@
   letter-spacing: 0.05em;
 }
 
-.login-btn:hover {
-  background: rgba(201,125,46,0.08);
+@media (hover: hover) and (pointer: fine) {
+  .login-btn:hover {
+    background: rgba(201,125,46,0.08);
+  }
 }
 
 .login-btn:disabled {
