@@ -3,6 +3,17 @@
 Notable changes to ReadabilityRSS, newest first. Releases are named by date. The
 dashboard shows the build time in its top bar.
 
+## 2026-10-02 — Typography
+
+### Changed
+- **Article list title.** The large title above the article list is set in Lora
+  SemiBold, with Japanese and Chinese characters in Shippori Mincho, so mixed titles
+  read as one serif face. It is slightly smaller and less tightly spaced than before.
+- **Source line.** The feed name on each article card is now bold, 11px, in the accent
+  colour. Latin names are set in spaced capitals; names in Japanese or Chinese are left
+  as written.
+- Lora Bold is now loaded from Google Fonts instead of being synthesised by the browser.
+
 ## 2026-10-01 — Article list previews
 
 ### Changed

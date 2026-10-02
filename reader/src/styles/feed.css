@@ -316,8 +316,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-secondary);
-  font-weight: 600;
+  font: 700 0.6875rem/1rem var(--font-body);
+  color: var(--accent-strong);
+}
+
+.article-card:not(.full-image) .card-source-name.latin {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 .card-timestamp {
@@ -609,6 +614,8 @@
 }
 
 .article-card.full-image .card-source-name {
+  font-weight: 600;
+  font-size: 0.75rem;
   color: #fff;
 }
 
@@ -969,11 +976,12 @@
 
   .feed-large-title h1 {
     margin: 0;
-    font-family: var(--font-heading);
-    font-size: 2.125rem;
-    font-weight: 700;
-    line-height: 1.08;
-    letter-spacing: -0.022em;
+    /* Lora has no CJK, so kana and kanji fall through to Shippori Mincho, as in the app. */
+    font-family: 'Lora', 'Shippori Mincho', 'Noto Serif TC', 'Songti TC', serif;
+    font-size: 1.8125rem;
+    font-weight: 600;
+    line-height: 1.2414;
+    letter-spacing: -0.015em;
     color: var(--text-primary);
     text-wrap: balance;
   }

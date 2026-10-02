@@ -10,6 +10,9 @@ import ScoreBreakdown, { useScoreBreakdown } from './ScoreBreakdown';
 import VoteMark from './VoteMark';
 import { MIN_FEATURE_IMAGE_WIDTH, isSmallFeatureImage, markSmallFeatureImage } from '../utils/topPicks';
 
+// Kana and CJK ideographs have no case, and tracking spreads them apart.
+const HAS_CJK = /[぀-ヿ㐀-鿿]/;
+
 function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'standard', featured = false, isOffline = false, onVoted }) {
   const baseImageSrc = article.main_image_proxy
     ? (article.main_image_proxy.startsWith('http') ? article.main_image_proxy : `${API_URL}${article.main_image_proxy}`)
@@ -270,7 +273,7 @@ function ArticleCard({ article, isActive, onClick, hideSource, viewMode = 'stand
               rss_feed
             </span>
           </div>
-          <span className="card-source-name">{article.source_name}</span>
+          <span className={`card-source-name${HAS_CJK.test(article.source_name || '') ? '' : ' latin'}`}>{article.source_name}</span>
         </div>
       )}
       {timeAndState}
